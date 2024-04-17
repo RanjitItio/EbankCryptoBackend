@@ -18,7 +18,7 @@ class DogecoinBalanceController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/Litcoin/GetBalance'
+        return '/api/v1/Litcoin/GetBalance'
     
     @classmethod
     def class_name(cls):
@@ -40,7 +40,7 @@ class DogecoinTransectionController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/Litcoin/GetTransection'
+        return '/api/v1/Litcoin/GetTransection'
     
     @classmethod
     def class_name(cls):

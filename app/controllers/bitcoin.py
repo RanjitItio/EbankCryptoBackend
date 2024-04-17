@@ -18,7 +18,7 @@ class BitcoinBalanceController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/Bitcoin/GetBalance'
+        return '/api/v1/Bitcoin/GetBalance'
     
     @classmethod
     def class_name(cls):
@@ -40,7 +40,7 @@ class BitcoinTransectionController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/Bitcoin/GetTransection'
+        return '/api/v1/Bitcoin/GetTransection'
     
     @classmethod
     def class_name(cls):

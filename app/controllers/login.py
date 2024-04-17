@@ -16,7 +16,7 @@ class UserLoginController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/user/login'
+        return '/api/v1/user/login'
     
     @classmethod
     def class_name(cls):
@@ -43,7 +43,7 @@ class UserRefreshController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/user/refreshtoken'
+        return '/api/v1/user/refreshtoken'
     
     @classmethod
     def class_name(cls):

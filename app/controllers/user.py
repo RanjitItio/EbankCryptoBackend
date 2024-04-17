@@ -14,7 +14,7 @@ class UserController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/user/register'
+        return '/api/v1/user/register'
     
     @classmethod
     def class_name(cls):

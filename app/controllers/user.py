@@ -41,7 +41,7 @@ class UserController(APIController):
                 if existing_user:
                     if existing_user.email:
                         return json({'msg':f"{existing_user.email} already exists"}, 400)
-                    
+
                 else:
                     dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                     bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)

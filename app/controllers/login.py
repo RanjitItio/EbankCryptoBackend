@@ -36,7 +36,7 @@ class UserLoginController(APIController):
                     return json({'msg': 'Invalid credentials'}, 400)
         except SQLAlchemyError as e:
             return json({"Error": str(e)})
- 
+
 
 
 class UserRefreshController(APIController):

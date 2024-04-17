@@ -53,7 +53,7 @@ class UserController(APIController):
                     return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
         except SQLAlchemyError as e:
             return json({"Error": str(e)})
- 
+
 
     @put()
     async def update_user():

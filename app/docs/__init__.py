@@ -12,6 +12,7 @@ from app.settings import Settings
 
 
 
+
 def configure_docs(app: Application, settings: Settings):
     docs = OpenAPIHandler(
         info=Info(title=settings.info.title, version=settings.info.version),
@@ -24,3 +25,4 @@ def configure_docs(app: Application, settings: Settings):
     set_binders_docs(docs)
 
     docs.bind_app(app)
+

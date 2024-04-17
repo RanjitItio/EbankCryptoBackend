@@ -1,13 +1,15 @@
+from http.client import HTTPException
 from blacksheep.server.controllers import get, post, put, delete, APIController
 from Models.schemas import UserCreateSchema
 from sqlmodel import Session, select
-from database.db import engine
+from database.db import async_engine, AsyncSession
 from Models.models import Users
 from blacksheep import Request
 from blacksheep import  json
 from sqlalchemy.exc import SQLAlchemyError
 from Models.cryptoapi import Dogecoin
 from ..settings import CRYPTO_CONFIG ,SECURITIES_CODE
+
 
 
 class UserController(APIController):
@@ -20,9 +22,10 @@ class UserController(APIController):
     def class_name(cls):
         return "Users Data"
     
+
     @get()
     async def get_user(email: str):
-        with Session(engine) as session:
+        with Session(async_engine) as session:
             users = []
             get_email = email
             statement = select(Users).where(Users.email == get_email)
@@ -34,34 +37,25 @@ class UserController(APIController):
 
 
     @post()
-    async def add_user(self, user: UserCreateSchema, request: Request):
+    async def add_user(self, request: Request, user: UserCreateSchema):
         try:
-            with Session(engine) as session:
-                existing_user = session.exec(select(Users).where(Users.email == user.email)).first()
+            async with AsyncSession(async_engine, expire_on_commit=False) as session:
+                existing_user_result = await session.execute(select(Users).where(Users.email == user.email))
+                existing_user = existing_user_result.scalar()
                 if existing_user:
                     if existing_user.email:
                         return json({'msg':f"{existing_user.email} already exists"}, 400)
-
+                if user.password1 != user.password2:
+                    return json({'msg': 'Password did not match'})
+                if len(user.phoneno) < 10:
+                    return json({'msg': 'Phone number must be 10 digit'})
                 else:
-                    dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                    bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                    litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                    user_instance = Users(first_name=user.firstname,lastname=user.lastname, email=user.email,phoneno=user.phoneno, password=user.password ,dogecoin_address=dogeaddress,bitcoin_address=bitaddress,litcoin_address=litaddress)
+                    user_instance = Users(first_name=user.firstname,lastname=user.lastname, email=user.email, phoneno=user.phoneno, password=user.password1 )
                     session.add(user_instance)
-                    session.commit()
-                    session.refresh(user_instance)
+                    await session.commit()
                     return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
+
         except SQLAlchemyError as e:
-            return json({"Error": str(e)})
-
-
-    @put()
-    async def update_user():
-        return {'msg': 'update user'}
+            return json({"Error": str(e)}, status=405)
     
 
-
-    @delete()
-    async def delete_user():
-        return {'msg': 'Delete user'}
-    

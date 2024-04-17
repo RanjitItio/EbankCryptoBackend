@@ -1,10 +1,11 @@
 from blacksheep import Application
 from app.settings import Settings
-
 import jwt
 import datetime
 
+
 SECRET_KEY = "your_secret_key"  # You should keep this secret and never expose it
+
 
 def generate_access_token(user_id):
     payload = {
@@ -25,6 +26,7 @@ def generate_refresh_token(user_id):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token.decode("utf-8")
+
 
 def decode_token(token):
     try:

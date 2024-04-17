@@ -20,6 +20,7 @@ class UserController(APIController):
     def class_name(cls):
         return "Users Data"
     
+
     @get()
     async def get_user(email: str):
         with Session(engine) as session:
@@ -31,6 +32,7 @@ class UserController(APIController):
                 users.append(op)
 
             return json({'users': users})
+
 
     @post()
     async def add_user(self, user: UserCreateSchema, request: Request):
@@ -58,6 +60,7 @@ class UserController(APIController):
     async def update_user():
         return {'msg': 'update user'}
     
+
 
     @delete()
     async def delete_user():

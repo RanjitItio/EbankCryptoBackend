@@ -14,6 +14,7 @@ from ..settings import CRYPTO_CONFIG ,SECURITIES_CODE
 
 
 dogecoin=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE)
+
 class DogecoinBalanceController(APIController):
 
     @classmethod

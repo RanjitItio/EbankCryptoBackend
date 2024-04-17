@@ -3,8 +3,8 @@ This module configures the BlackSheep application before it starts.
 """
 from blacksheep import Application
 from rodi import Container
-from app.auth import configure_authentication
 from app.docs import configure_docs
+from app.auth import configure_authentication
 from app.errors import configure_error_handlers
 from app.services import configure_services
 from app.settings import load_settings, Settings

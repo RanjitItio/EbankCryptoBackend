@@ -1,11 +1,10 @@
 import os
 from sqlmodel import create_engine, SQLModel, Session
-# from FinanceAPI.Models import models
+from app.settings import DATABASE_URL
 
 
-password = 'postgres123'
-DATABASE_URL = f"postgresql+psycopg2://postgres:{password}@localhost/Finance Application"
-# DATABASE_URL = os.environ.get('DATABASE_URL')
+
+DATABASE_URL = DATABASE_URL
 
 
 engine = create_engine(DATABASE_URL, echo=True)

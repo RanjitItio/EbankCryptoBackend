@@ -14,13 +14,12 @@ class UserController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/user/'
+        return '/api/v1/user/register'
     
     @classmethod
     def class_name(cls):
         return "Users Data"
     
-
     @get()
     async def get_user(email: str):
         with Session(engine) as session:

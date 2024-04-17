@@ -13,17 +13,16 @@ from ..settings import CRYPTO_CONFIG ,SECURITIES_CODE
 
 
 
-dogecoin=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE)
-
+dogecoin=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE)
 class DogecoinBalanceController(APIController):
 
     @classmethod
     def route(cls):
-        return '/api/v1/Dogecoin/GetBalance'
+        return '/api/v1/Litcoin/GetBalance'
     
     @classmethod
     def class_name(cls):
-        return "Users login"
+        return "Litcoin Balance Controller"
     
     
     @get()
@@ -41,11 +40,11 @@ class DogecoinTransectionController(APIController):
 
     @classmethod
     def route(cls):
-        return '/api/v1/Dogecoin/GetTransection'
+        return '/api/v1/Litcoin/GetTransection'
     
     @classmethod
     def class_name(cls):
-        return "Users login"
+        return "Litcoin Transection Controller"
     
     
     @get()

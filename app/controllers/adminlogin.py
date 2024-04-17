@@ -16,7 +16,7 @@ class AdminLoginController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/admin/login'
+        return '/api/v1/admin/login'
     
     @classmethod
     def class_name(cls):

@@ -15,7 +15,7 @@ class AdminController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/admin/'
+        return '/api/v1/admin/'
     
     @classmethod
     def class_name(cls):

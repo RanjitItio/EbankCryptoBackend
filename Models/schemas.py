@@ -9,7 +9,7 @@ class UserCreateSchema(BaseModel):
     phoneno: str 
     password: str
     email: str
-    password: str
+    
     is_merchent: bool 
 
 class AdminCreateSchema(BaseModel):

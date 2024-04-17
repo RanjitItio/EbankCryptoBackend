@@ -89,6 +89,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+migrations.__pycache__/
+.pyc
 
 # Spyder project settings
 .spyderproject
@@ -99,3 +101,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+.alembic.ini/

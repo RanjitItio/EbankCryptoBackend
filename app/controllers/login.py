@@ -51,7 +51,7 @@ class UserRefreshController(APIController):
     
     
     @post()
-    async def login_user(self, user: UserLoginSchema, request: Request):
+    async def refreshtoken(self, user: UserLoginSchema, request: Request):
         token = request.cookies.get("refresh_token")
         payload= decode_token(token)
         if payload['exp'] < time.time():

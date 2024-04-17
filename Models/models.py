@@ -11,15 +11,15 @@ class Users(SQLModel, table=True):
     phoneno: str 
     password: str
     default_wallets: Optional[int] = None
-    address1: str = None
-    address2: str = None
-    city: str = None
-    state: str = None
-    country: str = None
-    picture: str = None
-    dogecoin_address: str = None
-    bitcoin_address: str = None
-    litcoin_address: str = None
+    address1: str = Field(default='Update it later')
+    address2: str = Field(default='Update it later')
+    city: str = Field(default='Update it later')
+    state: str = Field(default='Update it later')
+    country: str = Field(default='Update it later')
+    picture: str = Field(default='Update it later')
+    dogecoin_address: str = Field(default='Update it later')
+    bitcoin_address: str = Field(default='Update it later')
+    litcoin_address: str = Field(default='Update it later')
     is_merchent: bool = False
     is_active: bool = False
     

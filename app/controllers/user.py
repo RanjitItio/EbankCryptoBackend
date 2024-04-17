@@ -14,23 +14,13 @@ class UserController(APIController):
 
     @classmethod
     def route(cls):
-        return 'api/v1/user/'
+        return 'api/v1/user/register'
     
     @classmethod
     def class_name(cls):
         return "Users Data"
     
-    @get()
-    async def get_user(email: str):
-        with Session(engine) as session:
-            users = []
-            get_email = email
-            statement = select(Users).where(Users.email == get_email)
-            results = session.exec(statement)
-            for op in results:
-                users.append(op)
-
-            return json({'users': users})
+  
 
     @post()
     async def add_user(self, user: UserCreateSchema, request: Request):

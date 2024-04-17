@@ -26,13 +26,13 @@ def configure_application(
     configure_authentication(app, settings)
     configure_docs(app, settings)
 
-    # app.use_cors(
-    #     allow_methods="*",
-    #     allow_origins="http://localhost:5173/",
-    #     allow_headers="* Authorization",
-    #     max_age=900,
-    #     allow_credentials= True, 
-    #     )
+    app.use_cors(
+    allow_methods="GET POST PUT DELETE",
+    allow_origins="*",
+    allow_headers="Authorization",
+    allow_credentials=True,
+    )
+        
     
     return app
 

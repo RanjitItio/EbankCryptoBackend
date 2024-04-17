@@ -9,6 +9,7 @@ from jwt.exceptions import InvalidTokenError
 from blacksheep.server.authorization import AuthorizationStrategy
 from blacksheep.server.responses import json
 from blacksheep.server.routing import RoutesRegistry
+from blacksheep.server.security import HTTPAuthorizationCredentials
 
 
 

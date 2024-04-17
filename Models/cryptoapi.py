@@ -45,6 +45,7 @@ class Dogecoin:
             return new_address
         else:
             return None
+        
     def get_transection(self,address,type=None):
         response=self.client.get_transactions(address,type=type)
         if response['status'] == 'success':
@@ -52,6 +53,7 @@ class Dogecoin:
             return balance
         else:
             return None
+        
     def get_balance(self, address):
         response = self.client.get_address_balance(address)
         if response['status'] == 'success':

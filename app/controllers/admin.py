@@ -1,7 +1,7 @@
 # from blacksheep.server.controllers import get, post, put, delete, APIController
 # from Models.schemas import AdminCreateSchema
 # from sqlmodel import Session, select
-# from database.db import engine
+# from database.db import async_engine
 # from Models.models import Users,Admin
 # from blacksheep import Request
 # from blacksheep import  json
@@ -23,7 +23,7 @@
     
 #     @get()
 #     async def get_user(email: str):
-#         with Session(engine) as session:
+#         with Session(async_engine) as session:
 #             users = []
 #             get_email = email
 #             statement = select(Admin).where(Admin.email == get_email)

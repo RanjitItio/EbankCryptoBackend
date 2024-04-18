@@ -8,12 +8,16 @@ https://docs.pydantic.dev/latest/usage/settings/
 """
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from decouple import config
+
 
 CRYPTO_CONFIG = {
     "dogecoin_api_key":'09d7-7b5c-a11d-a233',
     "bitcoin_api_key":'0d25-0de7-1052-e04a',
     "litcoin_api_key":'ee6a-5cb6-4f85-3247',
 }
+
+
 SECURITIES_CODE ='AEB8E42FA8E59592'
 
 class APIInfo(BaseModel):
@@ -40,6 +44,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix='APP_')
 
+
+DATABASE_URL = config('DATABASE_URL')
 
 def load_settings() -> Settings:
     return Settings()

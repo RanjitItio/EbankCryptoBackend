@@ -7,7 +7,8 @@ Refer to https://www.uvicorn.org/deployment/ for production deployments.
 import os
 
 import uvicorn
-from rich.console import Console
+# from rich.console import Console
+
 
 try:
     import uvloop
@@ -16,13 +17,14 @@ except ModuleNotFoundError:
 else:
     uvloop.install()
 
+
 if __name__ == "__main__":
     os.environ["APP_ENV"] = "dev"
     port = int(os.environ.get("APP_PORT", 44777))
 
-    console = Console()
-    console.rule("[bold yellow]Running for local development", align="left")
-    console.print(f"[bold yellow]Visit http://localhost:{port}/docs")
+    # console = Console()
+    # console.rule("[bold yellow]Running for local development", align="left")
+    # console.print(f"[bold yellow]Visit http://localhost:{port}/docs")
 
     uvicorn.run(
         "app.main:app",

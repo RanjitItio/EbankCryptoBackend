@@ -27,10 +27,9 @@ class Admin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     first_name: str = Field()
     lastname: str = Field()
-    email: str = Field(index=True, unique=True)
-    
+    email: str = Field(index=True, unique=True)    
     password: str
-    picture: str = None
+    picture: str = Field(default='Update it later')
     is_admin: bool = False
 
 

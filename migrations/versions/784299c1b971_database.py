@@ -1,19 +1,19 @@
-"""Initial Migration
+"""database
 
-Revision ID: 828fff51d5d3
+Revision ID: 784299c1b971
 Revises: 
-Create Date: 2024-04-17 11:15:17.114246
+Create Date: 2024-04-18 17:47:26.245407
 
 """
 from typing import Sequence, Union
+import sqlmodel
 
 from alembic import op
 import sqlalchemy as sa
-import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '828fff51d5d3'
+revision: str = '784299c1b971'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -50,7 +50,6 @@ def upgrade() -> None:
     sa.Column('bitcoin_address', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('litcoin_address', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('is_merchent', sa.Boolean(), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)

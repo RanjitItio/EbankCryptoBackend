@@ -1,8 +1,8 @@
 import os
 from sqlmodel import create_engine, SQLModel, Session
-# from FinanceAPI.Models import models
-
+# from FinanceAPI.Models import model
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from decouple import config
 
 
 
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 # DATABASE_URL = f"sqlite:///{sqlite_file_name}"
 password='root'
 # DATABASE_URL = "postgresql+psycopg2://postgres:root@localhost:5433/fin_api"
-DATABASE_URL = os.environ.get('DATABASE_URL')
+DATABASE_URL = config('DATABASE_URL')
 
 
 engine = create_engine(DATABASE_URL, echo=True)

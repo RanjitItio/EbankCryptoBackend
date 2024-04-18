@@ -59,6 +59,31 @@
 #             return json({'msg': 'Error getting dogecoin balance'}, 400)
     
     
+class DogecoinSendController(APIController):
+    @classmethod
+    def route(cls):
+        return '/api/v1/Dogecoin/Send'
+
+    @classmethod
+    def class_name(cls):
+        return "Dogecoin Send Controller"
+    
+    @post()
+    def send_dogecoin(self, request: Request):
+        data = request.query_params
+        sender_address =  data.get("sender_address")
+        receiver_address = data.get("receiver_address")
+        priority = data.get("priority")
+        amount = data.get("amount")
+        try:
+            tx_hash = dogecoin.prepare_transaction(amounts=amount,from_addresses=sender_address,to_addresses=receiver_address ,priority=priority)
+            if tx_hash:
+                return json({"tx_hash": tx_hash})
+            else:
+                return json({"msg": "Error sending Dogecoin"}, 400)
+        except Exception as e:
+            return json({"msg": str(e)}, 400)
+    
     
         
     

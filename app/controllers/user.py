@@ -32,10 +32,10 @@ class UserController(APIController):
                 if first_user:
                     return json({'msg': f"{first_user.email} already exists"}, 400)
                 
-                dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # dogeaddress = bitaddress = litaddress = "nahi hai"
+                # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                dogeaddress = bitaddress = litaddress = "nahi hai"
                 
                 user_instance = Users(
                     first_name=user.firstname,

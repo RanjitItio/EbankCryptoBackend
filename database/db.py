@@ -16,7 +16,8 @@ DATABASE_URL = config('DATABASE_URL')
 
 
 engine = create_engine(DATABASE_URL, echo=True)
-async_engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+# async_engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+async_engine = create_async_engine(DATABASE_URL, future=True)
 
 
 

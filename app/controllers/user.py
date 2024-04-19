@@ -54,10 +54,7 @@ class UserController(APIController):
                 session.add(user_instance)
                 await session.commit()
                 await session.refresh(user_instance)
-<<<<<<< HEAD
-=======
                 
->>>>>>> ashish
                 return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
         
         except SQLAlchemyError as e:

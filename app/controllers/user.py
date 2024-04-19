@@ -28,7 +28,7 @@ class UserController(APIController):
             async with AsyncSession(async_engine) as session:
                 existing_user = await session.execute(select(Users).where(Users.email == user.email))
                 first_user = existing_user.scalars().first()
-                
+
                 if first_user:
                     return json({'msg': f"{first_user.email} already exists"}, 400)
                 
@@ -42,7 +42,7 @@ class UserController(APIController):
                     lastname=user.lastname,
                     email=user.email,
                     phoneno=user.phoneno,
-                    password=encrypt_password(user.password),
+                    password=encrypt_password(user.password1),
                     dogecoin_address=dogeaddress,
                     bitcoin_address=bitaddress,
                     litcoin_address=litaddress
@@ -50,7 +50,7 @@ class UserController(APIController):
                 
                 session.add(user_instance)
                 await session.commit()
-                
+                await session.refresh(user_instance)
                 return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
         
         except SQLAlchemyError as e:

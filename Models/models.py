@@ -21,7 +21,7 @@ class Users(SQLModel, table=True):
     bitcoin_address: str = Field(default='Update it later')
     litcoin_address: str = Field(default='Update it later')
     is_merchent: bool = False
-    # is_active: bool = False
+    is_active: bool = Field(default=False)
     
 
 

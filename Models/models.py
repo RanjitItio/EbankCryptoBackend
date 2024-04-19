@@ -20,8 +20,8 @@ class Users(SQLModel, table=True):
     dogecoin_address: str = Field(default='Update it later')
     bitcoin_address: str = Field(default='Update it later')
     litcoin_address: str = Field(default='Update it later')
-    is_merchent: bool = False
-    is_active: bool = False
+    is_merchent: bool = Field(default=False)
+    is_active: bool = Field(default=False)
     
 class Admin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

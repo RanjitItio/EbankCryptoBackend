@@ -29,13 +29,15 @@ class UserLoginController(APIController):
                 
                 print(f"User {first_user.email} logged in successfully!")
                 if first_user and check_password(user.password,first_user.password):
-                    if first_user.is_active == False:
-                        return json({'msg': 'Your account is not active. Please contact the administrator.'}, 400)
-                    return json({
-                        'user': first_user,
-                        'access_token': generate_access_token(first_user.id),
-                        'refresh_token': generate_refresh_token(first_user.id)
-                    })
+                    if first_user.is_active:
+                        
+                        return json({
+                            'user': first_user,
+                            'access_token': generate_access_token(first_user.id),
+                            'refresh_token': generate_refresh_token(first_user.id)
+                        })
+                    else:
+                        return json({'msg': 'Your account is not active. Please contact the administrator.'}, 403)
                 else:
                     return json({'msg': 'Invalid credentials'}, 400)
 

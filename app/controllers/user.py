@@ -30,6 +30,9 @@ class UserController(APIController):
                 if first_user:
                     return json({'msg': f"{first_user.email} already exists"}, 400)
                 
+                if user.password != user.password1:
+                    return json({"msg":"Password is not same Please try again"} ,status=403)                    
+                
                 # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
@@ -48,6 +51,7 @@ class UserController(APIController):
                 
                 session.add(user_instance)
                 await session.commit()
+                await session.refresh(user_instance)
                 
                 return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
         

@@ -8,7 +8,7 @@ class UserCreateSchema(BaseModel):
     lastname: str
     phoneno: str 
     password: str
-    password: str
+    password1: str
     email: str
     
     is_merchent: bool 

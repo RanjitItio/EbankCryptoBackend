@@ -12,6 +12,7 @@ from app.settings import load_settings, Settings
 
 
 
+
 def configure_application(
     services: Container,
     settings: Settings,
@@ -21,19 +22,19 @@ def configure_application(
     )
 
 
-
     configure_error_handlers(app)
     configure_authentication(app, settings)
     configure_docs(app, settings)
 
     app.use_cors(
-    allow_methods="GET POST PUT DELETE",
+    allow_methods="*",
     allow_origins="*",
-    allow_headers="Authorization",
+    allow_headers="*",
     allow_credentials=True,
+    max_age=600,
     )
-        
-    
+  
+
     return app
 
 

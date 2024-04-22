@@ -1,3 +1,4 @@
+from http.client import HTTPException
 from blacksheep.server.controllers import get, post, put, delete, APIController
 from Models.schemas import UserCreateSchema
 from sqlmodel import Session, select
@@ -8,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from Models.cryptoapi import Dogecoin
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
 from app.auth import encrypt_password
+
 
 
 class UserController(APIController):
@@ -21,12 +23,12 @@ class UserController(APIController):
         return "Users Data"
     
     @post()
-    async def add_user(self, user: UserCreateSchema, request: Request):
+    async def add_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
                 existing_user = await session.execute(select(Users).where(Users.email == user.email))
                 first_user = existing_user.scalars().first()
-                
+
                 if first_user:
                     return json({'msg': f"{first_user.email} already exists"}, 400)
                 
@@ -43,7 +45,7 @@ class UserController(APIController):
                     lastname=user.lastname,
                     email=user.email,
                     phoneno=user.phoneno,
-                    password=encrypt_password(user.password),
+                    password=encrypt_password(user.password1),
                     dogecoin_address=dogeaddress,
                     bitcoin_address=bitaddress,
                     litcoin_address=litaddress

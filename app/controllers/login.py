@@ -9,6 +9,7 @@ from app.auth import generate_access_token, generate_refresh_token, decode_token
 import time
 
 
+
 class UserLoginController(APIController):
 
     @classmethod
@@ -18,7 +19,7 @@ class UserLoginController(APIController):
     @classmethod
     def class_name(cls):
         return "Users login"
-
+    
     @post()
     async def login_user(self, user: UserLoginSchema, request: Request):
         
@@ -27,7 +28,6 @@ class UserLoginController(APIController):
                 existing_user = await session.execute(select(Users).where(Users.email == user.email))
                 first_user = existing_user.scalars().first()
                 
-                print(f"User {first_user.email} logged in successfully!")
                 if first_user and check_password(user.password,first_user.password):
                     if first_user.is_active:
                         
@@ -45,6 +45,7 @@ class UserLoginController(APIController):
             return json({"Error": str(e)})
 
 
+
 class UserRefreshController(APIController):
 
     @classmethod
@@ -53,7 +54,7 @@ class UserRefreshController(APIController):
 
     @classmethod
     def class_name(cls):
-        return "Users login"
+        return "Users Refresh Token"
 
     @post()
     async def refreshtoken(self, request: Request):

@@ -23,6 +23,8 @@ class Users(SQLModel, table=True):
     is_merchent: bool = Field(default=False)
     is_active: bool = Field(default=False)
     
+
+
 class Admin(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     first_name: str = Field()
@@ -31,7 +33,6 @@ class Admin(SQLModel, table=True):
     password: str
     picture: str = Field(default='Update it later')
     is_admin: bool = False
-
 
 
 

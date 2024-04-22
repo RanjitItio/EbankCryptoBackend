@@ -10,8 +10,9 @@ class UserCreateSchema(BaseModel):
     password: str
     password1: str
     email: str
-    
     is_merchent: bool 
+
+
 
 class AdminCreateSchema(BaseModel):
     firstname: str
@@ -19,7 +20,8 @@ class AdminCreateSchema(BaseModel):
     email: str
     password: str
     is_admin:bool
-    
+
+ 
 
 class UserLoginSchema(BaseModel):
     email: str

@@ -47,4 +47,39 @@ class TokenCreate(BaseModel):
     created_date:datetime.datetime
 
 
+class ResetPassword(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str   
 
+class TransferMoneySchema(BaseModel):
+    user_id :str
+    currency: str
+    amount: float
+    txdtpye: str 
+    reciver:str
+    note: str
+
+class WithdrawlAndDeposieSchema(BaseModel):
+    user_id :str
+    currency: str
+    amount: float
+    txdtpye: str
+    note: str
+
+
+class ExternalTransectionSchema(BaseModel):
+    user_id: int
+    txdtype: str  # deposit, withdraw, transfer
+    amount: float
+    txdfee: float
+    totalamount:float
+    txdcurrency: int 
+    recipientfullname : str 
+    recipientemail: str 
+    recipientmobile: str
+    recipientbanktransfer: str 
+    recipientbankname: str 
+    recipientbankaccountno: str 
+    recipientbankifsc: str
+    recipientaddress: str 

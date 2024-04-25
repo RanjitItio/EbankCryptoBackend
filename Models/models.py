@@ -1,5 +1,6 @@
 from sqlmodel import SQLModel, Field, Column, String, Integer
 from typing import Optional
+import datetime
 
 
 
@@ -33,6 +34,61 @@ class Admin(SQLModel, table=True):
     password: str
     picture: str = Field(default='Update it later')
     is_admin: bool = False
+    
+class Currency(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    symbol: str
+    fee : float = Field(default=0.0)
+    decimal_places: int = Field
+
+class Wallet(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    currency_id: int = Field(foreign_key="currency.id")
+    balance: float = Field(default=0.0)
+    is_active: bool = Field(default=True)
+    
+    
+    
+    
+class Transection(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    txdid: str = Field(index=True, unique=True)
+    txddate: datetime.datetime = Field(default=datetime.datetime.now())
+    user_id: int = Field(foreign_key="users.id")
+    txdtype: str  # deposit, withdraw, transfer
+    amount: float
+    txdfee: float
+    totalamount:float = Field(default=0.0)
+    txdcurrency: int = Field(foreign_key="currency.id")
+    txdrecever: int = Field(foreign_key="users.id")
+    txdmassage: str = Field(default='')
+    txdstatus: bool = Field(default=False)
+    
+class ExternalTransection(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    txdid: str = Field(index=True, unique=True)
+    txddate: datetime.datetime = Field(default=datetime.datetime.now())
+    user_id: int = Field(foreign_key="users.id")
+    txdtype: str  # deposit, withdraw, transfer
+    amount: float
+    txdfee: float
+    totalamount:float = Field(default=0.0)
+    txdcurrency: int = Field(foreign_key="currency.id")
+    recipientcurrency: int = Field(foreign_key="currency.id")
+    recipientfullname : str = Field(default='')
+    recipientemail: str = Field(default='')
+    recipientmobile: str = Field(default='')
+    recipientbanktransfer: str = Field(default='')
+    recipientbankname: str = Field(default='')
+    recipientbankaccountno: str = Field(default='')
+    recipientbankifsc: str = Field(default='')
+    recipientaddress: str = Field(default='')
+    
+    
+    
+    
 
 
 

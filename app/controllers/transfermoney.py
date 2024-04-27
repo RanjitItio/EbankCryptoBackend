@@ -21,12 +21,12 @@ class TransferMoneyController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user making the transfer
-                user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
-                user_obj = user.scalars().first()
+                # user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
+                # user_obj = user.scalars().first()
                 # Get the recipient user
                 recipient = await session.execute(select(Users).where(Users.email == transfer_data.reciver))
                 recipient_obj = recipient.scalars().first()
-                user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_obj.id and Wallet.currency_id == transfer_data.from_wallet))
+                user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
                 user_wallet_obj = user_wallet.scalars().first()
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
@@ -39,7 +39,7 @@ class TransferMoneyController(APIController):
                     # recipient_wallet_obj = recipient_wallet.scalars().first()
                     # recipient_wallet_obj.balance += transfer_data.amount
                     addtransection = Transection(
-                        user_id=user_obj.id,
+                        user_id=transfer_data.user_id,
                         txdtype=transfer_data.txdtpye,
                         txdrecever=recipient_obj.id,
                         amount=  transfer_data.amount,

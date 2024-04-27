@@ -49,7 +49,7 @@ class TransferMoneyController(APIController):
                         totalamount=transfer_data.amount - (fee.fee/ transfer_data.amount)*100,
                         txdcurrency=transfer_data.currency,
                         txdmassage= transfer_data.note,
-                        txdtype='transfer'                        
+                        # txdtype='transfer'                        
                     )
                     session.add(user_wallet_obj)
                     session.add(addtransection)

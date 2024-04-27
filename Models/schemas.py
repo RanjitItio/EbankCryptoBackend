@@ -53,11 +53,11 @@ class ResetPassword(BaseModel):
     confirm_password: str   
 
 class TransferMoneySchema(BaseModel):
-    user_id :str
-    currency: str
+    user_id :int
+    currency: int
     amount: float
     txdtpye: str 
-    reciver:str
+    reciver:int
     note: str
 
 class WithdrawlAndDeposieSchema(BaseModel):
@@ -83,3 +83,4 @@ class ExternalTransectionSchema(BaseModel):
     recipientbankaccountno: str 
     recipientbankifsc: str
     recipientaddress: str 
+    recipientcurrency: int 

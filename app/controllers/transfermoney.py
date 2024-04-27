@@ -86,7 +86,24 @@ class ExternalMoneyTransferController(APIController):
                     user_wallet_obj.balance -=  transfer_data.amount
                     # Add the amount to the recipient's balance
                     e_txn = ExternalTransection(
-                        transfer_data)
+                        user_id=user_obj.id,
+                        txdtype=transfer_data.txdtype,
+                        txdrecever=transfer_data.recipientfullname,
+                        amount=transfer_data.amount,
+                        txdfee=transfer_data.txdfee,
+                        totalamount=transfer_data.amount - transfer_data.txdfee,
+                        txdcurrency=transfer_data.txdcurrency,
+                        recipientfullname=transfer_data.recipientfullname,
+                        recipientemail=transfer_data.recipientemail,
+                        recipientmobile=transfer_data.recipientmobile,
+                        recipientbanktransfer=transfer_data.recipientbanktransfer,
+                        recipientbankname=transfer_data.recipientbankname,
+                        recipientbankaccountno=transfer_data.recipientbankaccountno,
+                        recipientbankswiftcode=transfer_data.recipientbankifsc,
+                        recipientaddress=transfer_data.recipientaddress,
+                        recipientcurrency =transfer_data.recipientcurrency,
+                        
+                        )
                     session.add(user_wallet_obj)
                     session.add(e_txn)
                     # session.add(recipient_wallet_obj)

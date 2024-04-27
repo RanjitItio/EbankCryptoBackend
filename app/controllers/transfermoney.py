@@ -40,14 +40,14 @@ class TransferMoneyController(APIController):
                     # recipient_wallet_obj.balance += transfer_data.amount
                     addtransection = Transection(
                         user_id=user_obj.id,
-                        # txdtype=transfer_data.txdtpye,
+                        txdtype=transfer_data.txdtpye,
                         txdrecever=recipient_obj.id,
                         amount=  transfer_data.amount,
                         txdfee=fee.fee,
                         totalamount=transfer_data.amount - (fee.fee/ transfer_data.amount)*100,
                         txdcurrency=transfer_data.currency,
                         txdmassage= transfer_data.note,
-                        txdtype='transfer'                        
+                        # txdtype='transfer'                        
                     )
                     session.add(user_wallet_obj)
                     session.add(addtransection)

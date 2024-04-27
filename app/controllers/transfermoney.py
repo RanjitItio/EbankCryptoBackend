@@ -77,12 +77,12 @@ class ExternalMoneyTransferController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user making the transfer
-                user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
-                user_obj = user.scalars().first()
+                # user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
+                # user_obj = user.scalars().first()
                 # Get the recipient user
                 # recipient = await session.execute(select(Users).where(Users.email == transfer_data.reciver))
                 # recipient_obj = recipient.scalars().first()
-                user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_obj.id and Wallet.currency_id == transfer_data.txdcurrency))
+                user_wallet = await session.execute(select(Wallet).where(Wallet.user_id ==transfer_data.user_id and Wallet.currency_id == transfer_data.txdcurrency))
                 user_wallet_obj = user_wallet.scalars().first()
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
@@ -90,7 +90,7 @@ class ExternalMoneyTransferController(APIController):
                     user_wallet_obj.balance -=  transfer_data.amount
                     # Add the amount to the recipient's balance
                     e_txn = ExternalTransection(
-                        user_id=user_obj.id,
+                        user_id=transfer_data.user_id,
                         txdtype=transfer_data.txdtype,
                         txdrecever=transfer_data.recipientfullname,
                         amount=transfer_data.amount,

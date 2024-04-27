@@ -35,7 +35,7 @@ class UserLoginController(APIController):
                             'user': first_user,
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
-                        })
+                        },200)
                     else:
                         return json({'msg': 'Your account is not active. Please contact the administrator.'}, 403)
                 else:

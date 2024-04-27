@@ -71,6 +71,7 @@ class ExternalMoneyTransferController(APIController):
     @classmethod
     def class_name(cls):
         return "Transfer Money"
+    
     @post()
     async def transfer_money(self, transfer_data: ExternalTransectionSchema, request: Request):
         try:

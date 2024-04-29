@@ -92,7 +92,6 @@ class ExternalMoneyTransferController(APIController):
                     # Add the amount to the recipient's balance
                     e_txn = ExternalTransection(
                         user_id=transfer_data.user_id,
-                        txdid=str(int(time.time())),
                         txdtype=transfer_data.txdtype,
                         txdrecever=transfer_data.recipientfullname,
                         amount=transfer_data.amount,

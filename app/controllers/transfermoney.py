@@ -21,16 +21,18 @@ class TransferMoneyController(APIController):
     
     @post()
     async def transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
+        print("hello")
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user making the transfer
                 # user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
                 # user_obj = user.scalars().first()
                 # Get the recipient user
-                recipient = await session.execute(select(Users).where(Users.email == transfer_data.reciver))
+                recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
                 recipient_obj = recipient.scalars().first()
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
                 user_wallet_obj = user_wallet.scalars().first()
+                print(user_wallet_obj,user_wallet_obj.balance)
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
                     # Deduct the amount from the user's balance
@@ -43,7 +45,8 @@ class TransferMoneyController(APIController):
                     # recipient_wallet_obj.balance += transfer_data.amount
                     addtransection = Transection(
                         user_id=transfer_data.user_id,
-                        txdtype=transfer_data.txdtpye,
+                        txdid=str(int(time.time())),
+                        txdtype=transfer_data.txdtype,
                         txdrecever=recipient_obj.id,
                         amount=  transfer_data.amount,
                         txdfee=fee.fee,
@@ -52,6 +55,7 @@ class TransferMoneyController(APIController):
                         txdmassage= transfer_data.note,
                         # txdtype='transfer'                        
                     )
+                    print("opopo")
                     session.add(user_wallet_obj)
                     session.add(addtransection)
                     
@@ -88,9 +92,11 @@ class ExternalMoneyTransferController(APIController):
                 if user_wallet_obj.balance >= transfer_data.amount:
                     # Deduct the amount from the user's balance
                     user_wallet_obj.balance -=  transfer_data.amount
+                    print(user_wallet_obj.balance)
                     # Add the amount to the recipient's balance
                     e_txn = ExternalTransection(
                         user_id=transfer_data.user_id,
+                        txdid=str(int(time.time())),
                         txdtype=transfer_data.txdtype,
                         txdrecever=transfer_data.recipientfullname,
                         amount=transfer_data.amount,

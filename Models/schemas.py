@@ -61,10 +61,10 @@ class TransferMoneySchema(BaseModel):
     note: str
 
 class WithdrawlAndDeposieSchema(BaseModel):
-    user_id :str
-    currency: str
+    user_id :int
+    currency: int
     amount: float
-    txdtpye: str
+    txdtype: str
     note: str
 
 
@@ -83,4 +83,12 @@ class ExternalTransectionSchema(BaseModel):
     recipientbankaccountno: str 
     recipientbankifsc: str
     recipientaddress: str 
-    recipientcurrency: int 
+    recipientcurrency: int
+    
+class currencyExchange(BaseModel):
+    user_id: int
+    from_currency: int
+    to_currency: int
+    amount: float
+    exchange_rate: float
+    total_amount: float

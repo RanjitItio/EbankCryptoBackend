@@ -7,6 +7,7 @@ from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
 import time
+import uuid
 
 class UserWithdrawlController(APIController):
     @classmethod
@@ -20,9 +21,9 @@ class UserWithdrawlController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user from the request
-                user = await decode_token(request.headers.get("Authorization"))
+                # user = await decode_token(request.headers.get("Authorization"))
                 # Get the user's wallet
-                wallet = await session.execute(select(Wallet).where(Wallet.user_id == user.id))
+                wallet = await session.execute(select(Wallet).where(Wallet.user_id == withdrawl_data.user_id))
                 wallet_obj = wallet.scalars().first()
                 # Get the currency object
                 currency = await session.execute(select(Currency).where(Currency.id == withdrawl_data.currency))
@@ -35,9 +36,10 @@ class UserWithdrawlController(APIController):
                 session.add(wallet_obj)
                 # Create a new transaction record
                 new_transaction = Transection(
-                    user_id=user.id,
+                    user_id= withdrawl_data.user_id,
+                    txdid= str(uuid.uuid4()),
                     txdtype='withdrawl',
-                    txdrecever=user.id,
+                    txdrecever= withdrawl_data.user_id,
                     amount=withdrawl_data.amount,
                     txdfee=currency_obj.fee,
                     totalamount=withdrawl_data.amount - (currency_obj.fee / withdrawl_data.amount) * 100,
@@ -45,7 +47,7 @@ class UserWithdrawlController(APIController):
                     txdmassage=withdrawl_data.note
                 )
                 session.add(new_transaction)
-                await session.commit()
+                session.commit()
                 return json({"message": "Withdrawal successful", "data": {"balance": wallet_obj.balance}}, 200)
         except SQLAlchemyError as e:
             await session.rollback()

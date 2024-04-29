@@ -56,8 +56,8 @@ class TransferMoneySchema(BaseModel):
     user_id :int
     currency: int
     amount: float
-    txdtpye: str 
-    reciver:int
+    txdtype: str 
+    recivermail:str
     note: str
 
 class WithdrawlAndDeposieSchema(BaseModel):

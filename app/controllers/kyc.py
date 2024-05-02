@@ -23,8 +23,9 @@ class UserKYCController(APIController):
             async with AsyncSession(async_engine) as session:
                 # user_id = await decode_token(request.headers.get("Authorization"))
                 # user = await session.get(Users, user_id)
+                is_kyc_submitted = await session.get(Kycdetails, kyc_data.user_id)
 
-                if True:
+                if is_kyc_submitted is None:
                     # user.kyc_data = kyc_data
                     kyca =  Kycdetails(
                         user_id=kyc_data.user_id,
@@ -55,6 +56,6 @@ class UserKYCController(APIController):
                     
                     return json({"msg": "KYC data submitted successfully"}, 200)
                 else:
-                    return json({"msg": "User not found"}, 404)
+                    return json({"msg": "KYC data already submitted"}, 404)
         except SQLAlchemyError as e:
             return json({"Error": str(e)}, 500)

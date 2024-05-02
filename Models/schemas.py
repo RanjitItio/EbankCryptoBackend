@@ -94,7 +94,7 @@ class currencyExchange(BaseModel):
     total_amount: float
 
 class ResetPasswdSchema(BaseModel):
-    password: str
+    email: str
     
 class Kycschema(BaseModel):
     user_id: int

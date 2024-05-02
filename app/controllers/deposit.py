@@ -29,7 +29,10 @@ class DepositController(APIController):
                 # Get the currency object
                 currency = await session.execute(select(Currency).where(Currency.id == transfer_money.currency))
                 currency_obj = currency.scalars().first()
-
+                if not currency_obj:
+                    return json({"message": "Invalid currency"}, status=400)
+                if not user_wallet_obj:
+                    return json({"message": "Wallet not found"}, status=404)
                 # Update the user's wallet balance
                 user_wallet_obj.balance += transfer_money.amount
 

@@ -116,7 +116,6 @@ class ExternalMoneyTransferController(APIController):
                         recipientbankswiftcode=transfer_data.recipientbankifsc,
                         recipientaddress=transfer_data.recipientaddress,
                         recipientcurrency =transfer_data.recipientcurrency,
-                        
                         )
                     session.add(user_wallet_obj)
                     session.add(e_txn)

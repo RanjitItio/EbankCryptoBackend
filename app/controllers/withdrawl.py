@@ -33,7 +33,6 @@ class UserWithdrawlController(APIController):
                     return json({"message": "Insufficient balance"}, status=400)
                 # Update the user's wallet balance
                 wallet_obj.balance -= withdrawl_data.amount
-                session.add(wallet_obj)
                 # Create a new transaction record
                 new_transaction = Transection(
                     user_id= withdrawl_data.user_id,
@@ -46,8 +45,12 @@ class UserWithdrawlController(APIController):
                     txdcurrency=withdrawl_data.currency,
                     txdmassage=withdrawl_data.note
                 )
+                session.add(wallet_obj)
+                
                 session.add(new_transaction)
-                session.commit()
+                await session.commit()
+                await session.refresh(wallet_obj)
+                await session.refresh(new_transaction)
                 return json({"message": "Withdrawal successful", "data": {"balance": wallet_obj.balance}}, 200)
         except SQLAlchemyError as e:
             await session.rollback()

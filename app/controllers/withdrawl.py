@@ -29,6 +29,10 @@ class UserWithdrawlController(APIController):
                 currency = await session.execute(select(Currency).where(Currency.id == withdrawl_data.currency))
                 currency_obj = currency.scalars().first()
                 # Check if the user has enough balance
+                if not currency_obj:
+                    return json({"message": "Invalid currency"}, status=400)
+                if not wallet_obj:
+                    return json({"message": "Wallet not found"}, status=404)
                 if wallet_obj.balance < withdrawl_data.amount:
                     return json({"message": "Insufficient balance"}, status=400)
                 # Update the user's wallet balance

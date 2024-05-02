@@ -31,7 +31,12 @@ class CurrencyExchangeController(APIController):
                 source_currency_obj = source_currency.scalars().first()
                 # Get the target currency object
                 target_currency = await session.execute(select(Currency).where(Currency.id == currency_exchange.to_currency))
-                
+                if not source_currency_obj:
+                    return json({"message": "Invalid currency"}, status=400)
+                if not target_currency:
+                    return json({"message": "Invalid currency"}, status=400)
+                if not user_wallet_obj:
+                    return json({"message": "Wallet not found"}, status=404)
                 target_currency_obj = target_currency.scalars().first()
                 # Check if the user has enough balance in the source currency
                 if user_wallet_obj.balance < currency_exchange.amount:

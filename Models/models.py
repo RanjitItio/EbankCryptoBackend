@@ -91,24 +91,24 @@ class ExternalTransection(SQLModel, table=True):
 class Kycdetails(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
-    firstname: str = Field(default='Update it later')
-    lastname: str = Field(default='Update it later')
+    firstname: str
+    lastname: str
     dateofbirth: datetime.date = Field(default=datetime.date.today())
-    gander: str = Field(default='Update it later')
-    marital_status: str = Field(default='Update it later')
+    gander: str
+    marital_status: str 
     email : str
     phoneno : str
-    address: str = Field(default='Update it later')
-    landmark : str = Field(default='Update it later')
-    city: str = Field(default='Update it later')
-    zipcode: str = Field(default='Update it later')
-    state: str = Field(default='Update it later')
-    country: str = Field(default='Update it later')
-    nationality: str = Field(default='Update it later')
-    id_type: str = Field(default='Update it later')
-    id_number: str = Field(default='Update it later')
+    address: str
+    landmark : str 
+    city: str
+    zipcode: str
+    state: str
+    country: str
+    nationality: str
+    id_type: str
+    id_number: str
     id_expiry_date: datetime.date = Field(default=datetime.date.today())
-    uploaddocument: str = Field(default='Update it later')
+    uploaddocument: str 
    
     
     

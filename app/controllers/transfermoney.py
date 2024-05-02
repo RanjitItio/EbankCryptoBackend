@@ -8,6 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
 import time
 
+
+
 class TransferMoneyController(APIController):
     @classmethod
     def route(cls):
@@ -16,6 +18,7 @@ class TransferMoneyController(APIController):
     @classmethod
     def class_name(cls):
         return "Transfer Money"
+    
     @post()
     async def transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
         print("hello")
@@ -29,7 +32,7 @@ class TransferMoneyController(APIController):
                 recipient_obj = recipient.scalars().first()
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
                 user_wallet_obj = user_wallet.scalars().first()
-                print(user_wallet_obj,user_wallet_obj.balance)
+                # print(user_wallet_obj,user_wallet_obj.balance)
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
                     # Deduct the amount from the user's balance
@@ -64,6 +67,7 @@ class TransferMoneyController(APIController):
                 return json({"Error": str(e)}, 500)
             
 
+
 class ExternalMoneyTransferController(APIController):
     @classmethod
     def route(cls):
@@ -72,6 +76,7 @@ class ExternalMoneyTransferController(APIController):
     @classmethod
     def class_name(cls):
         return "Transfer Money"
+    
     @post()
     async def transfer_money(self, transfer_data: ExternalTransectionSchema, request: Request):
         try:

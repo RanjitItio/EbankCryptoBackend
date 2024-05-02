@@ -42,6 +42,7 @@ class Currency(SQLModel, table=True):
     fee : float = Field(default=0.0)
     decimal_places: int = Field
 
+
 class Wallet(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")

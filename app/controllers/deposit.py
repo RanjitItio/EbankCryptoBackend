@@ -48,7 +48,9 @@ class DepositController(APIController):
 
                 session.add(user_wallet_obj)
                 session.add(new_transaction)
-                session.commit()
+                await session.commit()
+                await session.refresh(user_wallet_obj)
+                await session.refresh(new_transaction)
 
                 # Return success response with updated balance
                 return json({"message": "Deposit successful", "data": {"balance": user_wallet_obj.balance}}, status=200)

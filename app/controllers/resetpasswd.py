@@ -1,5 +1,5 @@
 from blacksheep.server.controllers import post, APIController
-from Models.schemas import UserCreateSchema, UserLoginSchema ,ResetPassword
+from Models.schemas import UserCreateSchema, UserLoginSchema ,ResetPassword ,ResetPasswdSchema
 from sqlmodel import select
 from database.db import async_engine, AsyncSession
 from Models.models import Users
@@ -21,7 +21,7 @@ class UserResetPasswdController(APIController):
         return "Users reset"
     
     @post()
-    async def resetpassword(self, user: UserLoginSchema, request: Request):
+    async def resetpassword(self, user: ResetPasswdSchema, request: Request):
         
         try:
             async with AsyncSession(async_engine) as session:
@@ -63,8 +63,9 @@ class UserChangePasswordController(APIController):
                     if data.new_password == data.confirm_password:
                         # Update the user's password
                         first_user.password = encrypt_password(data.new_password)
-                        first_user.password_reset_timestamp = None
+                        session.add(first_user)
                         await session.commit()
+                        await session.refresh(first_user)
                         return json({
                             'msg': 'Password has been reset successfully.'
                         }, 200)

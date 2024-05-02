@@ -92,3 +92,28 @@ class currencyExchange(BaseModel):
     amount: float
     exchange_rate: float
     total_amount: float
+
+class ResetPasswdSchema(BaseModel):
+    password: str
+    
+class Kycschema(BaseModel):
+    user_id: int
+    firstname: str 
+    lastname: str 
+    dateofbirth: datetime.date 
+    gander: str
+    marital_status: str
+    email : str
+    phoneno : str
+    address: str
+    landmark : str 
+    city: str 
+    zipcode: str
+    state: str 
+    country: str 
+    nationality: str
+    id_type: str
+    id_number: str 
+    id_expiry_date: datetime.date 
+    uploaddocument: str 
+   

@@ -47,9 +47,7 @@ class UserKYCController(APIController):
                         id_expiry_date=kyc_data.id_expiry_date,
                         uploaddocument=kyc_data.uploaddocument
                     )
-                    
-                        
-                    
+                
                     session.add(kyca)              
                     await session.commit()                    
                     

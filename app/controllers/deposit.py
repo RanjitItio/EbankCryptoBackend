@@ -23,11 +23,19 @@ class DepositController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user's wallet
+
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_money.user_id))
+                
+                if not user_wallet.scalars().first():
+                    return json({"msg": "Wallet not available please create a wallet first"})
+
                 user_wallet_obj = user_wallet.scalars().first()
 
                 # Get the currency object
                 currency = await session.execute(select(Currency).where(Currency.id == transfer_money.currency))
+                if not currency.scalars().first():
+                    return json({'msg': 'Currency not available please create one first'})
+                
                 currency_obj = currency.scalars().first()
 
                 # Update the user's wallet balance

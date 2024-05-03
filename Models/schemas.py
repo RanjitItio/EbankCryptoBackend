@@ -117,3 +117,7 @@ class Kycschema(BaseModel):
     id_expiry_date: datetime.date 
     uploaddocument: str 
    
+class ConfirmMail(BaseModel):
+       
+       token: str
+      

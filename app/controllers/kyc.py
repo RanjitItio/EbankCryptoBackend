@@ -30,8 +30,8 @@ class UserKYCController(APIController):
                     # user.kyc_data = kyc_data
                     kyca =  Kycdetails(
                         user_id=kyc_data.user_id,
-                        first_name=kyc_data.firstname,
-                        last_name=kyc_data.lastname,
+                        firstname=kyc_data.firstname,
+                        lastname=kyc_data.lastname,
                         dateofbirth=kyc_data.dateofbirth,
                         gander=kyc_data.gander,
                         marital_status=kyc_data.marital_status,
@@ -53,7 +53,8 @@ class UserKYCController(APIController):
                         
                     
                     session.add(kyca)              
-                    await session.commit()                    
+                    await session.commit()  
+                                     
                     
                     return json({"msg": "KYC data submitted successfully"}, 200)
                 else:

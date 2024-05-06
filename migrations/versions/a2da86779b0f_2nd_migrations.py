@@ -40,6 +40,7 @@ def upgrade() -> None:
     sa.Column('decimal_places', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    op.add_column('users', sa.Column('is_verified', sa.Boolean(), nullable=False, server_default='false'))
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('first_name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),

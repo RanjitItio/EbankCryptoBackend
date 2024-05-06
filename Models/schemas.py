@@ -120,4 +120,10 @@ class Kycschema(BaseModel):
 class ConfirmMail(BaseModel):
        
        token: str
-      
+
+class RequestMoneySchemas(BaseModel):
+    user_id: int
+    recipient_user_id: int
+    currency: int
+    amount: float
+    note: str

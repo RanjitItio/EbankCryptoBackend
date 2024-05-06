@@ -111,7 +111,17 @@ class Kycdetails(SQLModel, table=True):
     id_expiry_date: datetime.date = Field(default=datetime.date.today())
     uploaddocument: str 
    
-    
+
+class RequestMoney(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id")
+    recipient_id: int = Field(foreign_key="users.id")
+    amount: float
+    currency_id: int = Field(foreign_key="currency.id")
+    message: str = Field(default='')
+    active: bool = Field(default=True)
+    status: bool = Field(default=False)
+    created_at: datetime.datetime = Field(default=datetime.datetime.now())
     
     
     

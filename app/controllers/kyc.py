@@ -24,6 +24,7 @@ class UserKYCController(APIController):
                 # user_id = await decode_token(request.headers.get("Authorization"))
                 user = await session.get(Users,kyc_data.user_id)
                 is_kyc_submitted = await session.get(Kycdetails, kyc_data.user_id)
+                
                 if user is None:
                     return json({'msg': 'User not found'}, 404)
                 if is_kyc_submitted is None:

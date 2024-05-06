@@ -24,7 +24,7 @@ class RequestMoneyController(APIController):
             
             async with AsyncSession(async_engine) as session:
                 # Get the user making the request
-                user = await session.execute(select(Users).where(Users.id == request_data.user.id))
+                user = await session.execute(select(Users).where(Users.id == request_data.user_id))
                 user_obj = user.scalars().first()
                 
                 if user_obj:
@@ -37,9 +37,9 @@ class RequestMoneyController(APIController):
                             user_id=user_obj.id,
                             recipient_id=request_data.recipient_user_id,
                             amount=request_data.amount,
-                            currency=request_data.currency,
-                            note=request_data.note,
-                            active=True
+                            currency_id=request_data.currency,
+                            message=request_data.note,
+                            
                         )
                         session.add(resuest_money)
                         await session.commit()

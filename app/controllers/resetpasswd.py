@@ -31,7 +31,7 @@ class UserResetPasswdController(APIController):
                 if first_user :
                     password_reset_token = encrypt_password_reset_token(first_user.id)
                     reseturl = f"https://example.com/user/reset-password?token={password_reset_token}"
-                    send_password_reset_email(first_user.email, reseturl)
+                    send_password_reset_email(first_user.email,"reset password",reseturl)
                     return json({
                         'msg': 'Password reset instructions have been sent to your email address.'
                     }, 200)

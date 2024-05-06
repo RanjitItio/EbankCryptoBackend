@@ -1,6 +1,6 @@
 from http.client import HTTPException
 from blacksheep.server.controllers import get, post, put, delete, APIController
-from Models.schemas import UserCreateSchema
+from Models.schemas import UserCreateSchema ,ConfirmMail
 from sqlmodel import Session, select
 from Models.models import Users
 from blacksheep import Request, json
@@ -8,7 +8,7 @@ from database.db import async_engine, AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from Models.cryptoapi import Dogecoin
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
-from app.auth import encrypt_password
+from app.auth import encrypt_password , encrypt_password_reset_token,send_password_reset_email ,decrypt_password_reset_token
 
 
 
@@ -50,12 +50,39 @@ class UserController(APIController):
                     bitcoin_address=bitaddress,
                     litcoin_address=litaddress
                 )
-                
                 session.add(user_instance)
                 await session.commit()
                 await session.refresh(user_instance)
+                link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
+                send_password_reset_email(user.email,"confirm mail",link)
                 
                 return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname}'}, 201)
         
         except SQLAlchemyError as e:
             return json({"Error": str(e)})
+
+
+class ConfirmMail(APIController):
+    @classmethod
+    def route(cls):
+        return '/api/v1/user/confirm_mail'
+
+    @classmethod
+    def class_name(cls):
+        return "Confirm User Email"
+
+    @post()
+    async def confirm_email(self, data: ConfirmMail, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_id = decrypt_password_reset_token(data.token)['user_id']
+                user = await session.get(Users, user_id)
+                if user:
+                    user.is_verified = True
+                    await session.commit()
+                    
+                    return json({'msg': 'Email confirmed successfully'}, 200)
+                else:
+                    return json({'msg': 'Invalid token'}, 400)
+        except Exception as e:
+            return json({'Error': str(e)}, 500)

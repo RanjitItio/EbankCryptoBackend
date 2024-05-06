@@ -7,11 +7,18 @@ import datetime
 from database.db import async_engine, AsyncSession
 import bcrypt
 import smtplib
-from email.message import EmailMessage
-from decouple import config
 
+from decouple import config
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # from database.db import engine
+EMAIL_HOST=config('EMAIL_HOST')
+EMAIL_PORT =config('EMAIL_PORT')
+EMAIL_USERNAME=config('EMAIL_USERNAME')
+EMAIL_PASSWORD=config('EMAIL_PASSWORD')
+
 
 SECRET_KEY = "your_secret_key"  # You should keep this secret and never expose it
 
@@ -73,6 +80,7 @@ def encrypt_password_reset_token(user_id):
         "iat": datetime.datetime.utcnow()
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
     
 def decrypt_password_reset_token(token):
     try:
@@ -83,27 +91,23 @@ def decrypt_password_reset_token(token):
     except jwt.InvalidTokenError:
         return "Invalid token"
 
-def send_password_reset_email(receiver: str ,link:str):
-    msg = EmailMessage()
-    msg.set_content(f"this is you password reset link please click on it and reset your password: {link}")
-    msg['Subject'] = 'RESET Password'
-    msg['From'] = config('E-MAIL_USERNAME')
-    msg['To'] = receiver
+def send_password_reset_email( recipient_email, subject, body):
+    smtp_server = EMAIL_HOST
+    smtp_port = int(EMAIL_PORT)  # For TLS
 
-    smtp_host = config('E-MAIL_HOST')
-    smtp_port = config('E-MAIL_PORT')
-    username = config('E-MAIL_USERNAME')
-    password = config('E-MAIL_PASSWORD')
-    print(password)
+    # Create a message
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_USERNAME
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
 
-    try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(username, password)
-            server.send_message(msg)
-        print("Email sent successfully")
-    except Exception as e:
-        print(f"Failed to send email. Error: {e}")
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Connect to the SMTP server
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()  # Upgrade the connection to secure (TLS)
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 
 
 def configure_authentication(app: Application, settings: Settings):

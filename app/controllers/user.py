@@ -2,14 +2,14 @@ from http.client import HTTPException
 from blacksheep.server.controllers import get, post, put, delete, APIController
 from Models.schemas import UserCreateSchema ,ConfirmMail
 from sqlmodel import Session, select
-from Models.models import Users
+from Models.models import Users ,Currency ,Wallet
 from blacksheep import Request, json
 from database.db import async_engine, AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from Models.cryptoapi import Dogecoin
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
 from app.auth import encrypt_password , encrypt_password_reset_token,send_password_reset_email ,decrypt_password_reset_token
-
+from app.module import createcurrencywallet
 
 
 class UserController(APIController):
@@ -34,6 +34,9 @@ class UserController(APIController):
                 
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"} ,status=403)                    
+                all_currency = await session.execute(select(Currency))
+                currency_list = all_currency.scalars().all()
+                
                 
                 # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
@@ -53,6 +56,10 @@ class UserController(APIController):
                 session.add(user_instance)
                 await session.commit()
                 await session.refresh(user_instance)
+                wall= await createcurrencywallet(user_instance.id)
+                if wall:
+                    print("done done done done done done done")
+                
                 link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
                 send_password_reset_email(user.email,"confirm mail",link)
                 

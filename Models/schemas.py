@@ -127,3 +127,6 @@ class RequestMoneySchemas(BaseModel):
     currency: int
     amount: float
     note: str
+class getdata(BaseModel):
+    user_id: int
+  

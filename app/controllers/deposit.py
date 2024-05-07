@@ -6,11 +6,13 @@ from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransec
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
+import time
 import uuid
 
 
-class DepositController(APIController):
 
+
+class DepositController(APIController):
     @classmethod
     def route(cls):
         return '/api/v1/user/deposit'
@@ -24,24 +26,14 @@ class DepositController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user's wallet
-
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_money.user_id))
-                
-                if not user_wallet.scalars().first():
-                    return json({"msg": "Wallet not available please create a wallet first"})
-
                 user_wallet_obj = user_wallet.scalars().first()
 
                 # Get the currency object
                 currency = await session.execute(select(Currency).where(Currency.id == transfer_money.currency))
-                if not currency.scalars().first():
-                    return json({'msg': 'Currency not available please create one first'})
-                
                 currency_obj = currency.scalars().first()
-
                 if not currency_obj:
                     return json({"message": "Invalid currency"}, status=400)
-                
                 if not user_wallet_obj:
                     return json({"message": "Wallet not found"}, status=404)
                 # Update the user's wallet balance

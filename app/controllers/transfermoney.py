@@ -103,6 +103,9 @@ class ExternalMoneyTransferController(APIController):
                 # recipient_obj = recipient.scalars().first()
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id ==transfer_data.user_id and Wallet.currency_id == transfer_data.txdcurrency))
                 user_wallet_obj = user_wallet.scalars().first()
+                if not user_wallet_obj:
+                    return json({"message": "Wallet not found"}, status=404)
+                
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
                     # Deduct the amount from the user's balance

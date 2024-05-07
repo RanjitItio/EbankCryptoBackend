@@ -30,6 +30,12 @@ class TransferMoneyController(APIController):
                 # Get the recipient user
                 recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
                 recipient_obj = recipient.scalars().first()
+                if not recipient_obj:
+                    return json({"message": "Recipient not found"}, status=404)
+                # Get the recipient's wallet
+                recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == transfer_data.currency))
+                recipient_wallet_obj = recipient_wallet.scalars().first()
+                
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
                 user_wallet_obj = user_wallet.scalars().first()
                 
@@ -39,9 +45,13 @@ class TransferMoneyController(APIController):
                 # Check if the user has enough balance
                 if user_wallet_obj.balance >= transfer_data.amount:
                     # Deduct the amount from the user's balance
-                    user_wallet_obj.balance -=  transfer_data.amount
                     fees = await session.execute(select(Currency).where(Currency.id == transfer_data.currency))
                     fee =  fees.scalars().first()
+                    user_wallet_obj.balance -=  transfer_data.amount 
+                    
+                    fee_amount = transfer_data.amount * (fee.fee / 100)
+                    user_wallet_obj.balance -= fee_amount
+                    recipient_wallet_obj.balance += transfer_data.amount - fee_amount
                     # Add the amount to the recipient's balance
                     # recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == transfer_data.from_wallet))
                     # recipient_wallet_obj = recipient_wallet.scalars().first()
@@ -61,6 +71,7 @@ class TransferMoneyController(APIController):
                     print("opopo")
                     session.add(user_wallet_obj)
                     session.add(addtransection)
+                    session.add(recipient_wallet_obj)
                     
                     await session.commit()
                     return json({'msg': 'Transfer successful'},200)

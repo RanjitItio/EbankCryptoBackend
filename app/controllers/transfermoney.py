@@ -21,7 +21,7 @@ class TransferMoneyController(APIController):
     
     @post()
     async def transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
-        print("hello")
+        
         try:
             async with AsyncSession(async_engine) as session:
                 # Get the user making the transfer
@@ -30,9 +30,13 @@ class TransferMoneyController(APIController):
                 # Get the recipient user
                 recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
                 recipient_obj = recipient.scalars().first()
+
+                if not recipient_obj:
+                    return json({"message": "Receiver user not found"}, status=404)
+                
                 user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
                 user_wallet_obj = user_wallet.scalars().first()
-                
+
                 if not user_wallet_obj:
                     return json({"message": "Wallet not found"}, status=404)
                 # print(user_wallet_obj,user_wallet_obj.balance)
@@ -58,7 +62,6 @@ class TransferMoneyController(APIController):
                         txdmassage= transfer_data.note,
                         # txdtype='transfer'                        
                     )
-                    print("opopo")
                     session.add(user_wallet_obj)
                     session.add(addtransection)
                     
@@ -69,6 +72,7 @@ class TransferMoneyController(APIController):
         except SQLAlchemyError as e:
                 return json({"Error": str(e)}, 500)
             
+
 
 
 class ExternalMoneyTransferController(APIController):

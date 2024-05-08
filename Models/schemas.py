@@ -127,3 +127,10 @@ class RequestMoneySchemas(BaseModel):
     currency: int
     amount: float
     note: str
+
+
+class CurrencySchemas(BaseModel):
+    name: str
+    symbol: str
+    fee: float
+    decimal_places: int

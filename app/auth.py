@@ -12,15 +12,19 @@ from decouple import config
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from blacksheep import json
+
 
 # from database.db import engine
 EMAIL_HOST=config('EMAIL_HOST')
 EMAIL_PORT =config('EMAIL_PORT')
 EMAIL_USERNAME=config('EMAIL_USERNAME')
 EMAIL_PASSWORD=config('EMAIL_PASSWORD')
+reset_token_secret_key = config('RESET_TOKEN_SECRET_KEY')
 
 
-SECRET_KEY = "your_secret_key"  # You should keep this secret and never expose it
+SECRET_KEY = "your_secret_key"  
+
 
 def generate_access_token(user_id):
     payload = {
@@ -31,6 +35,8 @@ def generate_access_token(user_id):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
+
+
 def generate_refresh_token(user_id):
     payload = {
         "user_id": user_id,
@@ -40,6 +46,8 @@ def generate_refresh_token(user_id):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
+
+
 def decode_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -48,7 +56,20 @@ def decode_token(token):
         return "Token has expired"
     except jwt.InvalidTokenError:
         return "Invalid token"
+    
 
+def generate_access_token_from_refresh_token(refresh_token):
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=["HS256"])
+        user_id = payload["user_id"]
+
+        access_token = generate_access_token(user_id)
+        return json({'access_token': access_token})
+
+    except jwt.ExpiredSignatureError:
+        return "Refresh token has expired"
+    except jwt.InvalidTokenError:
+        return "Invalid refresh token"
 
 
 
@@ -68,11 +89,14 @@ def encrypt_password(password: str) -> str:
     hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed_password.decode('utf-8')
 
+
+
 def check_password(plain_password: str, hashed_password: str) -> bool:
     
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-reset_token_secret_key = config('RESET_TOKEN_SECRET_KEY')
+
+
 def encrypt_password_reset_token(user_id):
     payload = {
         "user_id": user_id,
@@ -81,7 +105,8 @@ def encrypt_password_reset_token(user_id):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
-    
+
+
 def decrypt_password_reset_token(token):
     try:
         payload = jwt.decode(token, reset_token_secret_key, algorithms=["HS256"])
@@ -91,11 +116,12 @@ def decrypt_password_reset_token(token):
     except jwt.InvalidTokenError:
         return "Invalid token"
 
+
 def send_password_reset_email( recipient_email, subject, body):
     smtp_server = EMAIL_HOST
     smtp_port = int(EMAIL_PORT)  # For TLS
 
-    # Create a message
+   
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USERNAME
     msg['To'] = recipient_email
@@ -103,9 +129,8 @@ def send_password_reset_email( recipient_email, subject, body):
 
     msg.attach(MIMEText(body, 'plain'))
 
-    # Connect to the SMTP server
     with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()  # Upgrade the connection to secure (TLS)
+        server.starttls()  
         server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 

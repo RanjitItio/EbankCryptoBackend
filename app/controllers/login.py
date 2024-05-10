@@ -25,14 +25,16 @@ class UserLoginController(APIController):
         
         try:
             async with AsyncSession(async_engine) as session:
-                existing_user = await session.execute(select(Users).where(Users.email == user.email))
-                first_user = existing_user.scalars().first()
-                
+                try:
+                    existing_user = await session.execute(select(Users).where(Users.email == user.email))
+                    first_user = existing_user.scalars().first()
+                except Exception as e:
+                    return json({'msg': f'{str(e)}'}, 400)
+
                 if first_user and check_password(user.password,first_user.password):
                     if first_user.is_active:
-                        
                         return json({
-                            'user': first_user,
+                            # 'user': first_user,
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
                         },200)
@@ -46,34 +48,4 @@ class UserLoginController(APIController):
 
 
 
-class UserRefreshController(APIController):
 
-    @classmethod
-    def route(cls):
-        return '/api/v1/user/refreshtoken'
-
-    @classmethod
-    def class_name(cls):
-        return "Users Refresh Token"
-
-    @post()
-    async def refreshtoken(self, request: Request):
-        token = request.cookies.get("refresh_token")
-
-        if not token:
-            return json({'msg': 'Refresh token not provided'}, 400)
-
-        try:
-            payload = decode_token(token)
-            
-            if payload['exp'] < time.time():
-                return json({'msg': 'Refresh token expired'}, 400)
-            else:
-                return json({
-                    'user': payload['user_id'],
-                    'access_token': generate_access_token(payload['user_id']),
-                    'refresh_token': generate_refresh_token(payload['user_id'])
-                })
-
-        except Exception as e:
-            return json({'msg': 'Invalid refresh token'}, 400)

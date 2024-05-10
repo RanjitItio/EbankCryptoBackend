@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 import datetime
+from typing import Optional
 
 
 
@@ -53,19 +54,20 @@ class ResetPassword(BaseModel):
     confirm_password: str   
 
 class TransferMoneySchema(BaseModel):
-    user_id :int
     currency: int
-    amount: float
-    txdtype: str 
+    transfer_amount: float
     recivermail:str
     note: str
+    fee: float
+    total_amount: float
+
 
 class WithdrawlAndDeposieSchema(BaseModel):
-    user_id :int
     currency: int
-    amount: float
-    txdtype: str
-    note: str
+    deposit_amount: float
+    fee: float
+    total_amount: float
+    payment_mode: str
 
 
 class ExternalTransectionSchema(BaseModel):
@@ -134,3 +136,23 @@ class CurrencySchemas(BaseModel):
     symbol: str
     fee: float
     decimal_places: int
+
+
+class CreateWalletSchemas(BaseModel):
+    email: str
+    currency: int
+    balance: float
+
+class GenerateToken(BaseModel):
+    user_id: int
+
+
+class UpdateCurrencySchema(BaseModel):
+    name: str
+    symbol: Optional[str]
+    fee: Optional[str]
+
+
+class UpdateKycSchema(BaseModel):
+    status: str
+    kyc_id: int

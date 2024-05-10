@@ -7,10 +7,14 @@ from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
 import time
+import uuid
+import jwt
+
 
 
 
 class TransferMoneyController(APIController):
+    
     @classmethod
     def route(cls):
         return '/api/v1/user/transfer_money'
@@ -20,52 +24,90 @@ class TransferMoneyController(APIController):
         return "Transfer Money"
     
     @post()
-    async def transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
+    async def create_transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
         
         try:
             async with AsyncSession(async_engine) as session:
-                # Get the user making the transfer
-                # user = await session.execute(select(Users).where(Users.id == transfer_data.user_id))
-                # user_obj = user.scalars().first()
-                # Get the recipient user
-                recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
-                recipient_obj = recipient.scalars().first()
+                try:
+                    header_value = request.get_first_header(b"Authorization")
+                    if not header_value:
+                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
+                    
+                    header_value_str = header_value.decode("utf-8")
+                    parts = header_value_str.split()
+
+                    if len(parts) == 2 and parts[0] == "Bearer":
+                        token = parts[1]
+                        user_data = decode_token(token)
+
+                        if user_data == 'Token has expired':
+                            return json({'msg': 'Token has expired'})
+                        elif user_data == 'Invalid token':
+                            return json({'msg': 'Invalid token'})
+                        else:
+                            user_data = user_data
+                            
+                        user_id = user_data["user_id"]
+
+                except Exception as e:
+                   return json({'msg': 'Authentication Failed'})
+                
+                try:
+                    recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
+                    recipient_obj = recipient.scalars().first()
+                    
+                except Exception as e:
+                    return json({'msg': 'Unable to identify Recipient'})
 
                 if not recipient_obj:
-                    return json({"message": "Receiver user not found"}, status=404)
+                    return json({"message": "Receipient not found"}, status=404)
                 
-                user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == transfer_data.user_id and Wallet.currency_id == transfer_data.currency))
-                user_wallet_obj = user_wallet.scalars().first()
+                #User Wallet
+                try:
+                    user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_id and Wallet.currency_id == transfer_data.currency))
+                    user_wallet_obj = user_wallet.scalars().first()
 
-                if not user_wallet_obj:
-                    return json({"message": "Wallet not found"}, status=404)
-                # print(user_wallet_obj,user_wallet_obj.balance)
-                # Check if the user has enough balance
-                if user_wallet_obj.balance >= transfer_data.amount:
-                    # Deduct the amount from the user's balance
-                    user_wallet_obj.balance -=  transfer_data.amount
-                    fees = await session.execute(select(Currency).where(Currency.id == transfer_data.currency))
-                    fee =  fees.scalars().first()
-                    # Add the amount to the recipient's balance
-                    # recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == transfer_data.from_wallet))
-                    # recipient_wallet_obj = recipient_wallet.scalars().first()
-                    # recipient_wallet_obj.balance += transfer_data.amount
+                    if not user_wallet_obj:
+                        return json({"message": "Sender Wallet not found"}, status=404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Unable to locate user Wallet'})
+                
+                #Recipient Wallet
+                try:
+                    recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == transfer_data.currency))
+                    recipient_wallet_obj = recipient_wallet.scalars().first()
+
+                    if not recipient_wallet_obj:
+                        return json({'msg': 'Recipient wallet not found'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Unable to locate user Wallet'}, 400)
+                
+
+                if user_wallet_obj.balance >= transfer_data.transfer_amount:
+                    user_wallet_obj.balance -=  transfer_data.transfer_amount
+                    recipient_wallet_obj.balance += transfer_data.transfer_amount
+
+                    unique_transaction_id = uuid.uuid4()
+                    timestamp = str(int(time.time()))
+
                     addtransection = Transection(
-                        user_id=transfer_data.user_id,
-                        txdid=str(int(time.time())),
-                        txdtype=transfer_data.txdtype,
-                        txdrecever=recipient_obj.id,
-                        amount=  transfer_data.amount,
-                        txdfee=fee.fee,
-                        totalamount=transfer_data.amount - (fee.fee/ transfer_data.amount)*100,
-                        txdcurrency=transfer_data.currency,
-                        txdmassage= transfer_data.note,
+                        user_id     = user_id,
+                        txdid       = f"{timestamp}-{unique_transaction_id}",
+                        # txdtype     = transfer_data.txdtype,
+                        txdrecever  = recipient_obj.id,
+                        amount      = transfer_data.transfer_amount,
+                        txdfee      = transfer_data.fee,
+                        totalamount = transfer_data.total_amount,
+                        txdcurrency = transfer_data.currency,
+                        txdmassage  = transfer_data.note,
                         # txdtype='transfer'                        
                     )
                     session.add(user_wallet_obj)
                     session.add(addtransection)
-                    
                     await session.commit()
+
                     return json({'msg': 'Transfer successful'},200)
                 else:
                     return json({'msg': 'Insufficient balance'},400)

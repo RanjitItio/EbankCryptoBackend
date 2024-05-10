@@ -5,8 +5,7 @@ from Models.models import Currency
 from Models import models
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
-from sqlalchemy.orm import selectinload
-from Models.schemas import CurrencySchemas
+from Models.schemas import CurrencySchemas, UpdateCurrencySchema
 
 
 
@@ -45,10 +44,10 @@ class CurrencyController(APIController):
             async with AsyncSession(async_engine) as session:
                 try:
                     CreateCurrency = Currency(
-                        name=currency.name,
-                        symbol=currency.symbol,
-                        fee=currency.fee,
-                        decimal_places=currency.decimal_places
+                        name           = currency.name,
+                        symbol         = currency.symbol,
+                        fee            = currency.fee,
+                        decimal_places = currency.decimal_places
                     )
                 except Exception as e:
                     return json({'msg': 'Not able to create currency'}, 400)
@@ -64,15 +63,73 @@ class CurrencyController(APIController):
     
 
     @put()
-    async def update_currency():
+    async def update_currency(self, request: Request):
+
         try:
             async with AsyncSession(async_engine) as session:
-                pass
+                try:
+                    req_body = await request.json()
+                    
+                    currency_name    = req_body['name']
+                    currency_symbol  = req_body['symbol']
+                    currency_fee     = req_body['fee']
+
+                    #Get currency
+                    try:
+                        get_currency = await session.execute(select(Currency).where(Currency.name == currency_name))
+                        get_currency_obj = get_currency.scalar()
+                    except Exception as e:
+                        return json({'msg': 'Unable to locate currency'})
+
+                    if currency_name:
+                        get_currency_obj.name = currency_name
+
+                    if currency_symbol:
+                        get_currency_obj.symbol = currency_symbol
+
+                    if currency_fee:
+                        get_currency_obj.fee = currency_fee
+                        
+                    session.add(get_currency_obj)
+                    await session.commit()
+                    await session.refresh(get_currency_obj)
+                    
+                    return json({'msg': 'Currency updated successfully'})
+
+                except Exception as e:
+                    return json({'error1': f'{str(e)}'})
+
         except Exception as e:
-            return ""
+            return json({'error': f'{str(e)}'})
     
     @delete()
-    def delete_currency():
-        return "Delete currency"
+    async def delete_currency(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                try:
+                    req_body = await request.json()
+
+                    currency_id = req_body['currency_id']
+
+                    #Get currency
+                    try:
+                        get_currency = await session.execute(select(Currency).where(Currency.id == currency_id))
+                        get_currency_obj = get_currency.scalar()
+
+                        if get_currency_obj:
+                            await session.delete(get_currency_obj)
+                            await session.commit()
+                        else:
+                            return json({'msg': 'Currency is not available in given ID'})
+
+                    except Exception as e:
+                        return json({'msg': f'Unable to locate currency{str(e)}'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': f'{str(e)}'})
+                
+        except Exception as e:
+            return json({'finalerror': f'{str(e)}'})
+        
     
 

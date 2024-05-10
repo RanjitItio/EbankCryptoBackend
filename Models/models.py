@@ -1,29 +1,30 @@
 from sqlmodel import SQLModel, Field, Column, String, Integer
 from typing import Optional
-import datetime
+from datetime import datetime, date
 
 
 
 class Users(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    first_name: str = Field(default='Default User First Name')
-    lastname: str = Field(default='Default User Last Name')
-    email: str = Field(index=True, unique=True)
+    id: int | None                 = Field(default=None, primary_key=True)
+    first_name: str                = Field(default='Default User First Name')
+    lastname: str                  = Field(default='Default User Last Name')
+    email: str                     = Field(index=True, unique=True)
     phoneno: str 
     password: str
     default_wallets: Optional[int] = None
-    address1: str = Field(default='Update it later')
-    address2: str = Field(default='Update it later')
-    city: str = Field(default='Update it later')
-    state: str = Field(default='Update it later')
-    country: str = Field(default='Update it later')
-    picture: str = Field(default='Update it later')
-    dogecoin_address: str = Field(default='Update it later')
-    bitcoin_address: str = Field(default='Update it later')
-    litcoin_address: str = Field(default='Update it later')
-    is_merchent: bool = Field(default=False)
-    is_verified: bool = Field(default=False,nullable=True)
-    is_active: bool = Field(default=False ,nullable=True)
+    address1: str                  = Field(default='Update it later')
+    address2: str                  = Field(default='Update it later')
+    city: str                      = Field(default='Update it later')
+    state: str                     = Field(default='Update it later')
+    country: str                   = Field(default='Update it later')
+    picture: str                   = Field(default='Update it later')
+    dogecoin_address: str          = Field(default='Update it later')
+    bitcoin_address: str           = Field(default='Update it later')
+    litcoin_address: str           = Field(default='Update it later')
+    is_merchent: bool              = Field(default=False)
+    is_verified: bool              = Field(default=False,nullable=True)
+    is_active: bool                = Field(default=False ,nullable=True)
+    is_admin: bool                 = Field(default=False, nullable=True)
     
 
 
@@ -53,25 +54,29 @@ class Wallet(SQLModel, table=True):
     
     
     
-    
+
 class Transection(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    txdid: str = Field(index=True, unique=True)
-    txddate: datetime.datetime = Field(default=datetime.datetime.now())
-    user_id: int = Field(foreign_key="users.id")
-    txdtype: str  # deposit, withdraw, transfer
-    amount: float
-    txdfee: float
-    totalamount:float = Field(default=0.0)
-    txdcurrency: int = Field(foreign_key="currency.id")
-    txdrecever: int = Field(foreign_key="users.id")
-    txdmassage: str = Field(default='')
-    txdstatus: bool = Field(default=False)
+    id: int | None              = Field(default=None, primary_key=True)
+    user_id: int                = Field(foreign_key="users.id")
+    txdid: str                  = Field(index=True, unique=True)
+    txddate: datetime           = Field(default=datetime.today(), nullable=True)
+    txdtime: datetime           = Field(default=datetime.now(), nullable=True)
+    amount: float               = Field(default_factory=0)
+    txdcurrency: int            = Field(foreign_key="currency.id")
+    txdfee: float               = Field(default=0.0)
+    totalamount:float           = Field(default=0.0)
+    txdrecever: int             = Field(foreign_key="users.id", default=None, nullable=True)
+    txdmassage: str             = Field(default='message')
+    txdstatus: bool             = Field(default=False)
+    payment_mode: str           = Field(default='None')
+    txdtype: str                = Field(default='None')
+
+
     
 class ExternalTransection(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     txdid: str = Field(index=True, unique=True)
-    txddate: datetime.datetime = Field(default=datetime.datetime.now())
+    txddate: datetime = Field(default=datetime.now())
     user_id: int = Field(foreign_key="users.id")
     txdtype: str  # deposit, withdraw, transfer
     amount: float
@@ -94,7 +99,7 @@ class Kycdetails(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id")
     firstname: str
     lastname: str
-    dateofbirth: datetime.date = Field(default=datetime.date.today())
+    dateofbirth: date = Field(default=date.today())
     gander: str
     marital_status: str 
     email : str
@@ -108,8 +113,9 @@ class Kycdetails(SQLModel, table=True):
     nationality: str
     id_type: str
     id_number: str
-    id_expiry_date: datetime.date = Field(default=datetime.date.today())
-    uploaddocument: str 
+    id_expiry_date: date = Field(default=date.today())
+    uploaddocument: str
+    status: str = Field(default='Pending', nullable=True)
    
 
 class RequestMoney(SQLModel, table=True):
@@ -121,7 +127,7 @@ class RequestMoney(SQLModel, table=True):
     message: str = Field(default='')
     active: bool = Field(default=True)
     status: bool = Field(default=False)
-    created_at: datetime.datetime = Field(default=datetime.datetime.now())
+    created_at: datetime = Field(default=datetime.now())
     
     
     

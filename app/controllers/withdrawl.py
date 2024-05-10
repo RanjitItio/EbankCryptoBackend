@@ -9,13 +9,18 @@ from app.auth import generate_access_token, generate_refresh_token, decode_token
 import time
 import uuid
 
+
+
 class UserWithdrawlController(APIController):
+
     @classmethod
     def route(cls):
         return '/api/v1/user/withdrawl'
+    
     @classmethod
     def class_name(cls):
         return "User Withdrawl Controller"
+    
     @post()
     async def withdrawl(self, withdrawl_data: WithdrawlAndDeposieSchema, request: Request):
         try:
@@ -56,6 +61,8 @@ class UserWithdrawlController(APIController):
                 await session.refresh(wallet_obj)
                 await session.refresh(new_transaction)
                 return json({"message": "Withdrawal successful", "data": {"balance": wallet_obj.balance}}, 200)
+            
         except SQLAlchemyError as e:
             await session.rollback()
             return json({"message": "Error occurred during withdrawal", "error": str(e)}, 500)
+        

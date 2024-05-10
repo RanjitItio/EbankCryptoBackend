@@ -19,7 +19,7 @@ class CurrencyController(APIController):
     @classmethod
     def class_name(cls):
         return "Currency"
-    
+
     @get()
     async def get_currency():
         try:

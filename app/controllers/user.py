@@ -47,6 +47,12 @@ class UserController(APIController):
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
+                try:                
+                    all_currency = await session.execute(select(Currency))
+                    currency_list = all_currency.scalars().all()
+                except Exception as e:
+                    return json({'error': f'Currency error {str(e)}'})
+                
                 try:
                     existing_user = await session.execute(select(Users).where(Users.email == user.email))
                     first_user = existing_user.scalars().first()
@@ -58,13 +64,6 @@ class UserController(APIController):
                 
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"} ,status=403)   
-
-                try:                
-                    all_currency = await session.execute(select(Currency))
-                    currency_list = all_currency.scalars().all()
-                except Exception as e:
-                    return json({'error': f'Currency error {str(e)}'})
-                
                 
                 # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
@@ -83,7 +82,6 @@ class UserController(APIController):
                         bitcoin_address=bitaddress,
                         litcoin_address=litaddress
                     )
-
                     session.add(user_instance)
                     await session.commit()
                     await session.refresh(user_instance)
@@ -91,13 +89,44 @@ class UserController(APIController):
                     return json({'msg': f'user create error {str(e)}'})
                 
                 try:
-                    createcurrencywallet(user_instance.id)
+                    wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_instance.id))
+                    wallet_instance = wallet.scalars().all()
                 except Exception as e:
-                    return json({'msg': f'Wallet create error {str(e)}'})
+                    return json({'msg': f'Wallet error {str(e)}'})
+                
+                # try:
+                #     for wallet_obj in wallet_instance:
+                #         for currency_obj in currency_list:
+                #             wallet = Wallet(
+                #                 user_id=wallet_obj.user_id,
+                #                 currency_id=currency_obj.id,
+                #                 balance=0.0
+                #             )
+                #             session.add(wallet)
+                #     await session.commit()
+                # except Exception as e:
+                #     return json({'msg': f'Wallet create error {str(e)}'})
+            
+                # try:
+                #     initial_balance=0.0
+
+                #     if currency_list:
+                #         for currency_obj in currency_list:
+                #             wallet = Wallet(
+                #                 user_id = user_instance.id,
+                #                 currency_id = currency_obj.id,
+                #                 balance=initial_balance
+                #             )
+                #             session.add(wallet)
+
+                #         await session.commit()
+                #         await session.refresh(wallet)
+                # except Exception as e:
+                #     return json({'msg': f'Wallet create error {str(e)}'}, 400)
 
                 # if wall:
                 #     print("done done done done done done done")
-                
+                    
                 link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
                 send_password_reset_email(user.email,"confirm mail",link)
                 

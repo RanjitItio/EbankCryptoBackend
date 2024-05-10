@@ -46,25 +46,24 @@ class DepositController(APIController):
                         else:
                             user_data = user_data
                             
-                        user_id = user_data["user_id"]
+                        userID = user_data["user_id"]
                         
                 except Exception as e:
                    return json({'msg': 'Authentication Failed'})
                 
-                
+                #Try to get the currency id
+                try:
+                    currency = await session.execute(select(Currency).where(Currency.name == transfer_money.currency))
+                    currency_obj = currency.scalar()
+                except Exception as e:
+                    return json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
+               
                 # Get the user's wallet
                 try:
-                    user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_id))
+                    user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == userID))
                     user_wallet_obj = user_wallet.scalars().first()
                 except Exception as e:
-                    return json({'msg': f'error {str(e)}'}, 400)
-                
-                try:
-                    # Get the currency object
-                    currency = await session.execute(select(Currency).where(Currency.id == transfer_money.currency))
-                    currency_obj = currency.scalars().first()
-                except Exception as e:
-                    return json({'msg': f'{str(e)}'}, 400)
+                    return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
 
                 if not currency_obj:
                     return json({"message": "Invalid currency"}, status=400)
@@ -77,14 +76,14 @@ class DepositController(APIController):
 
                 # Create a new transaction record
                 new_transaction = Transection(
-                    user_id      = user_data["user_id"],
+                    user_id      = userID,
                     txdid        = str(uuid.uuid4()), 
                     txdtype      = 'Deposit',
                     # txdrecever   = transfer_money.user_id,
                     amount       = transfer_money.deposit_amount,
                     txdfee       = currency_obj.fee,
                     totalamount  = transfer_money.total_amount,
-                    txdcurrency  = transfer_money.currency,
+                    txdcurrency  = currency_obj.id,
                     # txdmassage   = transfer_money.note,
                     payment_mode = transfer_money.payment_mode
                 )
@@ -97,6 +96,6 @@ class DepositController(APIController):
 
                 # Return success response with updated balance
                 return json({"message": "Deposit successful", "data": {"balance": user_wallet_obj.balance}}, status=200)
-        except SQLAlchemyError as e:
+        except Exception as e:
             # Return error response with error message
             return json({"message": "Error depositing funds", "error": str(e)}, status=400)

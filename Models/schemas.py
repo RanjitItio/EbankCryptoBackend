@@ -63,7 +63,7 @@ class TransferMoneySchema(BaseModel):
 
 
 class WithdrawlAndDeposieSchema(BaseModel):
-    currency: int
+    currency: str
     deposit_amount: float
     fee: float
     total_amount: float

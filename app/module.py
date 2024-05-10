@@ -3,6 +3,8 @@ from Models.models import Currency ,Wallet
 from blacksheep import Request, json
 from database.db import async_engine, AsyncSession
 
+
+
 async def createcurrencywallet(userid, initial_balance=0.0):
     async with AsyncSession(async_engine) as session:
         currency = await session.execute(select(Currency))
@@ -16,6 +18,7 @@ async def createcurrencywallet(userid, initial_balance=0.0):
             )
             session.add(wallet)
             await session.commit()
+            
         return True
     
     

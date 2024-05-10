@@ -1,6 +1,8 @@
 from sqlmodel import SQLModel, Field, Column, String, Integer
 from typing import Optional
 from datetime import datetime, date
+from sqlalchemy.orm import selectinload, Relationship
+from typing import List
 
 
 
@@ -25,6 +27,7 @@ class Users(SQLModel, table=True):
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)
     is_admin: bool                 = Field(default=False, nullable=True)
+
     
 
 
@@ -45,13 +48,16 @@ class Currency(SQLModel, table=True):
     decimal_places: int = Field
 
 
+
 class Wallet(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
     currency_id: int = Field(foreign_key="currency.id")
     balance: float = Field(default=0.0)
     is_active: bool = Field(default=True)
-    
+
+    # user: Optional[Users] = Relationship(back_populates="wallets")
+    # currency: Optional[Currency] = Relationship(back_populates="wallets")
     
     
 
@@ -67,7 +73,7 @@ class Transection(SQLModel, table=True):
     totalamount:float           = Field(default=0.0)
     txdrecever: int             = Field(foreign_key="users.id", default=None, nullable=True)
     txdmassage: str             = Field(default='message')
-    txdstatus: bool             = Field(default=False)
+    txdstatus: str              = Field(default='Pending', nullable=True)
     payment_mode: str           = Field(default='None')
     txdtype: str                = Field(default='None')
 

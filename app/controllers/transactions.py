@@ -79,6 +79,7 @@ class SpecificUserTransaction(APIController):
                 except Exception as e:
                     return json({'msg': 'Authentication Failed'})
                 
+                # print(user_id)
                 try:
                     transactions = await session.execute(select(Transection).where(Transection.user_id == user_id))
                     transactions_list = transactions.scalars().all()

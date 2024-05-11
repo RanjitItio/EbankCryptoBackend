@@ -1,6 +1,6 @@
 from blacksheep.server.controllers import post, APIController
 from Models.schemas import TransferMoneySchema , ExternalTransectionSchema
-from sqlmodel import select
+from sqlmodel import select, and_
 from database.db import async_engine, AsyncSession
 from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransection
 from blacksheep import Request, json
@@ -41,50 +41,60 @@ class TransferMoneyController(APIController):
                         user_data = decode_token(token)
 
                         if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'})
+                            return json({'msg': 'Token has expired'}, 400)
                         elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'})
+                            return json({'msg': 'Invalid token'}, 400)
                         else:
                             user_data = user_data
                             
                         user_id = user_data["user_id"]
 
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'})
+                   return json({'msg': 'Authentication Failed'}, 400)
                 
                 try:
                     recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
                     recipient_obj = recipient.scalars().first()
                     
                 except Exception as e:
-                    return json({'msg': 'Unable to identify Recipient'})
+                    return json({'msg': 'Unable to identify Recipient'}, 400)
 
                 if not recipient_obj:
-                    return json({"message": "Receipient not found"}, status=404)
+                    return json({"msg": "Receipient not found please provide a valid email address"}, status=404)
+                
+                #Try to get the currency id
+                try:
+                    currency = await session.execute(select(Currency).where(Currency.name == transfer_data.currency))
+                    currency_obj = currency.scalar()
+                except Exception as e:
+                    return json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                 
                 #User Wallet
                 try:
-                    user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_id and Wallet.currency_id == transfer_data.currency))
+                    user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_obj.id)))
                     user_wallet_obj = user_wallet.scalars().first()
 
                     if not user_wallet_obj:
-                        return json({"message": "Sender Wallet not found"}, status=404)
+                        return json({"msg": "Sender Wallet not found"}, status=404)
                     
                 except Exception as e:
-                    return json({'msg': 'Unable to locate user Wallet'})
+                    return json({'msg': 'Unable to locate user Wallet'}, 400)
+            
                 
                 #Recipient Wallet
                 try:
-                    recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == transfer_data.currency))
+                    recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == currency_obj.id))
                     recipient_wallet_obj = recipient_wallet.scalars().first()
 
                     if not recipient_wallet_obj:
                         return json({'msg': 'Recipient wallet not found'}, 404)
                     
                 except Exception as e:
-                    return json({'msg': 'Unable to locate user Wallet'}, 400)
+                    return json({'msg': 'Unable to locate recipient Wallet'}, 400)
                 
-
+                if user_id == recipient_obj.id:
+                    return json({'msg': 'Cannot transfer to self'}, 404)
+                
                 if user_wallet_obj.balance >= transfer_data.transfer_amount:
                     user_wallet_obj.balance -=  transfer_data.transfer_amount
                     recipient_wallet_obj.balance += transfer_data.transfer_amount
@@ -95,22 +105,23 @@ class TransferMoneyController(APIController):
                     addtransection = Transection(
                         user_id     = user_id,
                         txdid       = f"{timestamp}-{unique_transaction_id}",
-                        # txdtype     = transfer_data.txdtype,
                         txdrecever  = recipient_obj.id,
                         amount      = transfer_data.transfer_amount,
                         txdfee      = transfer_data.fee,
                         totalamount = transfer_data.total_amount,
-                        txdcurrency = transfer_data.currency,
+                        txdcurrency = currency_obj.id,
                         txdmassage  = transfer_data.note,
-                        # txdtype='transfer'                        
+                        txdstatus   = 'Success',
+                        txdtype     = 'Transfer'                        
                     )
                     session.add(user_wallet_obj)
                     session.add(addtransection)
                     await session.commit()
 
-                    return json({'msg': 'Transfer successful'},200)
+                    return json({'msg': 'Transfer successfull'},200)
                 else:
-                    return json({'msg': 'Insufficient balance'},400)
+                    return json({'msg': 'Insufficient Funds'},400)
+                
         except SQLAlchemyError as e:
                 return json({"Error": str(e)}, 500)
             

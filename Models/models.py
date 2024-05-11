@@ -53,6 +53,7 @@ class Wallet(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id")
     currency_id: int = Field(foreign_key="currency.id")
+    currency: str     = Field(default='None', nullable=True)
     balance: float = Field(default=0.0)
     is_active: bool = Field(default=True)
 

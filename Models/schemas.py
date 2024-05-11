@@ -54,7 +54,7 @@ class ResetPassword(BaseModel):
     confirm_password: str   
 
 class TransferMoneySchema(BaseModel):
-    currency: int
+    currency: str
     transfer_amount: float
     recivermail:str
     note: str
@@ -68,6 +68,7 @@ class WithdrawlAndDeposieSchema(BaseModel):
     fee: float
     total_amount: float
     payment_mode: str
+    note: str
 
 
 class ExternalTransectionSchema(BaseModel):

@@ -1,7 +1,7 @@
 from blacksheep.server.controllers import get, post, put, delete, APIController
 from sqlmodel import Session, select
 from blacksheep import Request, json
-from Models.models import Transection, ExternalTransection
+from Models.models import Transection, ExternalTransection, Currency
 from database.db import async_engine, AsyncSession
 from app.auth import decode_token
 
@@ -79,13 +79,26 @@ class SpecificUserTransaction(APIController):
                 except Exception as e:
                     return json({'msg': 'Authentication Failed'})
                 
-                # print(user_id)
                 try:
-                    transactions = await session.execute(select(Transection).where(Transection.user_id == user_id))
+                    try:
+                        currency = await session.execute(select(Currency))
+                        currency_obj = currency.scalars().all()
+                    except Exception as e:
+                        return json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
+                    
+                    transactions = await session.execute(select(Transection).join(Currency).where(Transection.user_id == user_id))
                     transactions_list = transactions.scalars().all()
+
+                    currency_dict = {currency.id: currency for currency in currency_obj}
+
+                    for transaction in transactions_list:
+                        currency_id   = transaction.txdcurrency
+                        currency_data = currency_dict.get(currency_id)
+                        transaction.txdcurrency = currency_data
+                    
                 except Exception as e:
-                    return json({'msg': 'Unable to get the Transactions'}, 400)
-                
+                    return json({'msg': f'Unable to get the Transactions {str(e)}'}, 400)
+
                 # try:
                 #     external_transactions = await session.execute(select(ExternalTransection).where(ExternalTransection.user_id == user_id))
                 #     external_transactions_list = external_transactions.scalars().all()

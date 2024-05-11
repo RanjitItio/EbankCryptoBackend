@@ -47,11 +47,6 @@ class UserController(APIController):
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
-                try:                
-                    all_currency = await session.execute(select(Currency))
-                    currency_list = all_currency.scalars().all()
-                except Exception as e:
-                    return json({'error': f'Currency error {str(e)}'})
                 
                 try:
                     existing_user = await session.execute(select(Users).where(Users.email == user.email))
@@ -65,72 +60,63 @@ class UserController(APIController):
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"} ,status=403)   
                 
-                # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                dogeaddress = bitaddress = litaddress = "nahi hai"
+                # # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                # # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                # # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
+                # dogeaddress = bitaddress = litaddress = "nahi hai"
 
                 try:
-                    # pass
                     user_instance = Users(
                         first_name=user.firstname,
                         lastname=user.lastname,
                         email=user.email,
                         phoneno=user.phoneno,
                         password=encrypt_password(user.password1),
-                        dogecoin_address=dogeaddress,
-                        bitcoin_address=bitaddress,
-                        litcoin_address=litaddress
+                        # dogecoin_address=dogeaddress,
+                        # bitcoin_address=bitaddress,
+                        # litcoin_address=litaddress
                     )
                     session.add(user_instance)
                     await session.commit()
                     await session.refresh(user_instance)
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'})
-                
-                try:
-                    wallet = await session.execute(select(Wallet).where(Wallet.user_id == user_instance.id))
-                    wallet_instance = wallet.scalars().all()
-                except Exception as e:
-                    return json({'msg': f'Wallet error {str(e)}'})
-                
-                # try:
-                #     for wallet_obj in wallet_instance:
-                #         for currency_obj in currency_list:
-                #             wallet = Wallet(
-                #                 user_id=wallet_obj.user_id,
-                #                 currency_id=currency_obj.id,
-                #                 balance=0.0
-                #             )
-                #             session.add(wallet)
-                #     await session.commit()
-                # except Exception as e:
-                #     return json({'msg': f'Wallet create error {str(e)}'})
             
-                # try:
-                #     initial_balance=0.0
+                try:
+                    initial_balance=0.0
+                    userID = user_instance.id
+                    user_first_name = user_instance.first_name
+                    user_last_name  = user_instance.lastname
 
-                #     if currency_list:
-                #         for currency_obj in currency_list:
-                #             wallet = Wallet(
-                #                 user_id = user_instance.id,
-                #                 currency_id = currency_obj.id,
-                #                 balance=initial_balance
-                #             )
-                #             session.add(wallet)
+                    try:                
+                        all_currency = await session.execute(select(Currency))
+                        currency_list = all_currency.scalars().all()
+                    except Exception as e:
+                        return json({'error': f'Currency error {str(e)}'})
 
-                #         await session.commit()
-                #         await session.refresh(wallet)
-                # except Exception as e:
-                #     return json({'msg': f'Wallet create error {str(e)}'}, 400)
+                    if currency_list:
+                        for currency_obj in currency_list:
+                            wallet = Wallet(
+                                user_id = userID,
+                                currency = currency_obj.name,
+                                balance=initial_balance,
+                                currency_id = currency_obj.id
+                            )
+                            session.add(wallet)
+
+                        await session.commit()
+                        await session.refresh(wallet)
+                        return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+                except Exception as e:
+                    return json({'msg': f'Wallet create error {str(e)}'}, 400)
 
                 # if wall:
                 #     print("done done done done done done done")
                     
-                link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
-                send_password_reset_email(user.email,"confirm mail",link)
+                # link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
+                # send_password_reset_email(user.email,"confirm mail",link)
                 
-                return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname} of ID {user_instance.id}'}, 201)
+                # return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname} of ID {user_instance.id}'}, 201)
         
         except Exception as e:
             return json({"Error": str(e)})

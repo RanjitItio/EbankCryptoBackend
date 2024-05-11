@@ -1,6 +1,6 @@
 from blacksheep.server.controllers import post, APIController
 from Models.schemas import TransferMoneySchema , ExternalTransectionSchema ,WithdrawlAndDeposieSchema
-from sqlmodel import select
+from sqlmodel import select, and_
 from database.db import async_engine, AsyncSession
 from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransection
 from blacksheep import Request, json
@@ -49,7 +49,7 @@ class DepositController(APIController):
                         userID = user_data["user_id"]
                         
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'})
+                   return json({'msg': 'Authentication Failed'}, 400)
                 
                 #Try to get the currency id
                 try:
@@ -60,16 +60,16 @@ class DepositController(APIController):
                
                 # Get the user's wallet
                 try:
-                    user_wallet = await session.execute(select(Wallet).where(Wallet.user_id == userID))
+                    user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == userID, Wallet.currency_id == currency_obj.id)))
                     user_wallet_obj = user_wallet.scalars().first()
                 except Exception as e:
                     return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
 
                 if not currency_obj:
-                    return json({"message": "Invalid currency"}, status=400)
+                    return json({"msg": "Invalid currency"}, status=400)
                 
                 if not user_wallet_obj:
-                    return json({"message": "Wallet not found"}, status=404)
+                    return json({"msg": "Wallet not found"}, status=404)
                 
                 # Update the user's wallet balance
                 user_wallet_obj.balance += transfer_money.deposit_amount
@@ -79,13 +79,13 @@ class DepositController(APIController):
                     user_id      = userID,
                     txdid        = str(uuid.uuid4()), 
                     txdtype      = 'Deposit',
-                    # txdrecever   = transfer_money.user_id,
                     amount       = transfer_money.deposit_amount,
                     txdfee       = currency_obj.fee,
                     totalamount  = transfer_money.total_amount,
                     txdcurrency  = currency_obj.id,
-                    # txdmassage   = transfer_money.note,
-                    payment_mode = transfer_money.payment_mode
+                    txdmassage   = "Deposit",
+                    payment_mode = transfer_money.payment_mode,
+                    txdstatus    = "Success"
                 )
 
                 session.add(user_wallet_obj)
@@ -95,7 +95,9 @@ class DepositController(APIController):
                 await session.refresh(new_transaction)
 
                 # Return success response with updated balance
-                return json({"message": "Deposit successful", "data": {"balance": user_wallet_obj.balance}}, status=200)
+                return json({"msg": "Deposit successful", "data": {"balance": user_wallet_obj.balance}}, status=200)
         except Exception as e:
             # Return error response with error message
-            return json({"message": "Error depositing funds", "error": str(e)}, status=400)
+            return json({"msg": "Error depositing funds", "error": str(e)}, status=400)
+        
+    

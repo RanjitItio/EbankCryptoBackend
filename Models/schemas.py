@@ -70,6 +70,13 @@ class WithdrawlAndDeposieSchema(BaseModel):
     payment_mode: str
     note: str
 
+class DepositMoneySchema(BaseModel):
+    currency: str
+    deposit_amount: float
+    fee: float
+    total_amount: float
+    payment_mode: str
+
 
 class ExternalTransectionSchema(BaseModel):
     user_id: int

@@ -1,5 +1,5 @@
 from blacksheep.server.controllers import post, APIController
-from Models.schemas import TransferMoneySchema , ExternalTransectionSchema ,WithdrawlAndDeposieSchema
+from Models.schemas import ExternalTransectionSchema ,WithdrawlAndDeposieSchema, DepositMoneySchema
 from sqlmodel import select, and_
 from database.db import async_engine, AsyncSession
 from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransection
@@ -23,7 +23,7 @@ class DepositController(APIController):
         return "Deposit Money"
 
     @post()
-    async def create_deposit(self, transfer_money: WithdrawlAndDeposieSchema, request: Request):
+    async def create_deposit(self, transfer_money: DepositMoneySchema, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
                 try:

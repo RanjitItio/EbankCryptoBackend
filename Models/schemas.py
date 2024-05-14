@@ -128,15 +128,18 @@ class Kycschema(BaseModel):
     uploaddocument: str 
    
 class ConfirmMail(BaseModel):
-       
        token: str
 
-class RequestMoneySchemas(BaseModel):
-    user_id: int
-    recipient_user_id: int
-    currency: int
-    amount: float
-    note: str
+
+from dataclasses import dataclass
+
+
+@dataclass
+class RequestMoneySchemas:
+    recipient_mail: str
+    currency:       float
+    amount:         float
+    note:           str = 'Request Money'
 
 
 class CurrencySchemas(BaseModel):
@@ -164,3 +167,9 @@ class UpdateCurrencySchema(BaseModel):
 class UpdateKycSchema(BaseModel):
     status: str
     kyc_id: int
+
+
+@dataclass
+class UpdateTransactionSchema:
+    status: str
+    transaction_id: int

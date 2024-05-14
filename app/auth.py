@@ -29,7 +29,7 @@ SECRET_KEY = "your_secret_key"
 def generate_access_token(user_id):
     payload = {
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=15),
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=120),
         "iat": datetime.datetime.utcnow(),
         "type": "access"
     }

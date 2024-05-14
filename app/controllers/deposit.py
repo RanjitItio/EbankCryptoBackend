@@ -72,7 +72,7 @@ class DepositController(APIController):
                     return json({"msg": "Wallet not found"}, status=404)
                 
                 # Update the user's wallet balance
-                user_wallet_obj.balance += transfer_money.deposit_amount
+                # user_wallet_obj.balance += transfer_money.deposit_amount
 
                 # Create a new transaction record
                 new_transaction = Transection(
@@ -80,12 +80,12 @@ class DepositController(APIController):
                     txdid        = str(uuid.uuid4()), 
                     txdtype      = 'Deposit',
                     amount       = transfer_money.deposit_amount,
-                    txdfee       = currency_obj.fee,
+                    txdfee       = transfer_money.fee,
                     totalamount  = transfer_money.total_amount,
                     txdcurrency  = currency_obj.id,
                     txdmassage   = "Deposit",
                     payment_mode = transfer_money.payment_mode,
-                    txdstatus    = "Success"
+                    txdstatus    = "Pending"
                 )
 
                 session.add(user_wallet_obj)

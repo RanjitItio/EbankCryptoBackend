@@ -5,10 +5,10 @@ from database.db import async_engine, AsyncSession
 from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransection
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
-from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
+from app.auth import  decode_token
 import time
 import uuid
-import jwt
+
 
 
 
@@ -96,8 +96,8 @@ class TransferMoneyController(APIController):
                     return json({'msg': 'Cannot transfer to self'}, 404)
                 
                 if user_wallet_obj.balance >= transfer_data.transfer_amount:
-                    user_wallet_obj.balance -=  transfer_data.transfer_amount
-                    recipient_wallet_obj.balance += transfer_data.transfer_amount
+                    # user_wallet_obj.balance -=  transfer_data.transfer_amount
+                    # recipient_wallet_obj.balance += transfer_data.transfer_amount
 
                     unique_transaction_id = uuid.uuid4()
                     timestamp = str(int(time.time()))
@@ -111,8 +111,8 @@ class TransferMoneyController(APIController):
                         totalamount = transfer_data.total_amount,
                         txdcurrency = currency_obj.id,
                         txdmassage  = transfer_data.note,
-                        txdstatus   = 'Success',
-                        txdtype     = 'Transfer'                        
+                        txdstatus   = 'Pending',
+                        txdtype     = 'Transfer'
                     )
                     session.add(user_wallet_obj)
                     session.add(addtransection)

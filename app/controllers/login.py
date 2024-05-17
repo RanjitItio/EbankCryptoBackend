@@ -37,11 +37,11 @@ class UserLoginController(APIController):
 
                         current_time = datetime.now()
                         # formattedtime = current_time.strftime("%H:%M %p")
-                        ip = request.original_client_ip
+                        # ip = request.original_client_ip
 
                         try:
                             first_user.lastlogin = current_time
-                            first_user.ipaddress = ip
+                            # first_user.ipaddress = ip
 
                             await session.commit()
                             await session.refresh(first_user)

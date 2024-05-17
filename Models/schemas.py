@@ -20,7 +20,9 @@ class AdminCreateSchema(BaseModel):
     lastname: str
     email: str
     password: str
-    is_admin:bool
+    confirm_password: str
+    phone_no: str
+    # is_admin:bool
 
  
 

@@ -27,6 +27,8 @@ class Users(SQLModel, table=True):
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)
     is_admin: bool                 = Field(default=False, nullable=True)
+    lastlogin: datetime            = Field(nullable=True)
+    ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
 
     
 
@@ -50,13 +52,12 @@ class Currency(SQLModel, table=True):
 
 
 class Wallet(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
-    currency_id: int = Field(foreign_key="currency.id")
+    id: int | None    = Field(default=None, primary_key=True)
+    user_id: int      = Field(foreign_key="users.id")
+    currency_id: int  = Field(foreign_key="currency.id")
     currency: str     = Field(default='None', nullable=True)
-    balance: float = Field(default=0.0)
-    is_active: bool = Field(default=True)
-
+    balance: float    = Field(default=0.0)
+    is_active: bool   = Field(default=True)
     # user: Optional[Users] = Relationship(back_populates="wallets")
     # currency: Optional[Currency] = Relationship(back_populates="wallets")
     
@@ -77,6 +78,7 @@ class Transection(SQLModel, table=True):
     txdstatus: str              = Field(default='Pending', nullable=True)
     payment_mode: str           = Field(default='None')
     txdtype: str                = Field(default='None')
+    is_completed: bool          = Field(default=False, nullable=True)
 
 
     

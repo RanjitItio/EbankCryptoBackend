@@ -2,7 +2,7 @@ from blacksheep.server.controllers import post, APIController
 from blacksheep import Request, json
 from Models.schemas import GenerateToken
 from app.auth import generate_access_token, generate_refresh_token
-import time
+from app.auth import decode_token
 
 
 
@@ -19,21 +19,35 @@ class UserRefreshController(APIController):
         return "Generate Token"
 
     @post()
-    async def generate_token(self, request: Request, authToken: GenerateToken):
+    async def generate_token(self, request: Request):
         try:
-            req_boy = await request.json()
-            get_id  = req_boy['user_id']
+            req_body = await request.json()
+            refresh_token = req_body['refresh_token']
 
-            if not get_id:
+            try:
+                user_data = decode_token(refresh_token)
+            except Exception as e:
+                return json({'mag': 'Decoding error', 'error': f'{str(e)}'})
+
+            if user_data == 'Token has expired':
+                return json({'msg': 'Token has expired'}, 400)
+            elif user_data == 'Invalid token':
+                return json({'msg': 'Invalid token'}, 400)
+            else:
+                user_data = user_data
+                
+            userID = user_data["user_id"]
+
+            if not userID:
                 return json({'msg': 'Please provide user id'}, 400)
             
-            access_token = generate_access_token(get_id)
-            refreh_token = generate_refresh_token(get_id)
+            access_token = generate_access_token(userID)
+            refreh_token = generate_refresh_token(userID)
 
-            # if token['exp'] < time.time():
-            #     return json({'msg': 'Refresh token expired'}, 400)
+            # # if token['exp'] < time.time():
+            # #     return json({'msg': 'Refresh token expired'}, 400)
             
             return json({'access_token': access_token, 'refresh_token': refreh_token})
 
         except Exception as e:
-            return json({'error': f'{str(e)}'}, 400)
+            return json({'msg': 'Server Error','error': f'{str(e)}'}, 500)

@@ -21,10 +21,11 @@ def configure_application(
         services=services, show_error_details=settings.app.show_error_details
     )
 
-
     configure_error_handlers(app)
     configure_authentication(app, settings)
     configure_docs(app, settings)
+
+    app.serve_files('Static', root_path='media', cache_time=90000)
 
     app.use_cors(
     allow_methods="*",

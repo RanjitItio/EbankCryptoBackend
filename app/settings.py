@@ -26,7 +26,7 @@ class APIInfo(BaseModel):
 
 
 class App(BaseModel):
-    show_error_details: bool = False
+    show_error_details: bool = True
 
 
 class Site(BaseModel):

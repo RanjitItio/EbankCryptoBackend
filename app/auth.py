@@ -7,12 +7,12 @@ import datetime
 from database.db import async_engine, AsyncSession
 import bcrypt
 import smtplib
-
 from decouple import config
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from blacksheep import json
+from blacksheep import Request
 
 
 # from database.db import engine
@@ -120,7 +120,6 @@ def decrypt_password_reset_token(token):
 def send_password_reset_email( recipient_email, subject, body):
     smtp_server = EMAIL_HOST
     smtp_port = int(EMAIL_PORT)  # For TLS
-
    
     msg = MIMEMultipart()
     msg['From'] = EMAIL_USERNAME
@@ -134,6 +133,27 @@ def send_password_reset_email( recipient_email, subject, body):
         server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 
+
+
+def send_welcome_email( recipient_email, subject, body):
+    smtp_server = EMAIL_HOST
+    smtp_port = int(EMAIL_PORT)  # For TLS
+   
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_USERNAME
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'html'))
+
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()  
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
+
+
+
+                
 
 def configure_authentication(app: Application, settings: Settings):
     """

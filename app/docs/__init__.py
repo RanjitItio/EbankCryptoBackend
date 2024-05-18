@@ -11,13 +11,15 @@ from app.docs.binders import set_binders_docs
 from app.settings import Settings
 
 
-
+docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
 
 def configure_docs(app: Application, settings: Settings):
-    docs = OpenAPIHandler(
-        info=Info(title=settings.info.title, version=settings.info.version),
-        anonymous_access=True,
-    )
+    # docs = OpenAPIHandler(
+    #     info=Info(title=settings.info.title, version=settings.info.version),
+    #     anonymous_access=True,
+    # )
+    docs.info = Info(title=settings.info.title, version=settings.info.version)
+    docs.anonymous_access=True
 
     # include only endpoints whose path starts with "/api/"
     docs.include = lambda path, _: path.startswith("/api/")

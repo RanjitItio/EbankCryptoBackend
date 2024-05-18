@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 import datetime
 from typing import Optional
+from dataclasses import dataclass
 
 
 
@@ -13,6 +14,17 @@ class UserCreateSchema(BaseModel):
     email: str
     is_merchent: bool 
 
+
+@dataclass
+class AdminUserCreateSchema:
+    first_name: str
+    last_name:  str
+    phoneno:    str
+    email:      str
+    group:      str
+    password:   str
+    confirm_password: str
+    status:     str
 
 
 class AdminCreateSchema(BaseModel):
@@ -113,7 +125,7 @@ class Kycschema(BaseModel):
     firstname: str 
     lastname: str 
     dateofbirth: datetime.date 
-    gander: str
+    gender: str
     marital_status: str
     email : str
     phoneno : str
@@ -175,3 +187,21 @@ class UpdateKycSchema(BaseModel):
 class UpdateTransactionSchema:
     status: str
     transaction_id: int
+
+@dataclass
+class UserDeleteSchema:
+    user_id: int
+
+
+@dataclass
+class AdminUpdateUserSchema:
+    user_id:          int
+    first_name:       str
+    last_name:        str
+    phoneno:          str
+    email:            str
+    group:            str
+    password:         str
+    confirm_password: str
+    status:           str
+

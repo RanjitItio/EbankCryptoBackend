@@ -11,6 +11,7 @@ from Models.schemas import UpdateKycSchema
 
 
 
+#View all the available applied KYC
 class UserKYCController(APIController):
 
     @classmethod
@@ -133,25 +134,25 @@ class UserKYCController(APIController):
                     # user.kyc_data = kyc_data
                     try:
                         kyca =  Kycdetails(
-                            user_id=kyc_data.user_id,
-                            firstname=kyc_data.firstname,
-                            lastname=kyc_data.lastname,
-                            dateofbirth=kyc_data.dateofbirth,
-                            gander=kyc_data.gander,
-                            marital_status=kyc_data.marital_status,
-                            email=kyc_data.email,
-                            phoneno=kyc_data.phoneno,
-                            address=kyc_data.address,
-                            landmark=kyc_data.landmark,
-                            city=kyc_data.city,
-                            zipcode=kyc_data.zipcode,
-                            state=kyc_data.state,
-                            country=kyc_data.country,
-                            nationality=kyc_data.nationality,
-                            id_type=kyc_data.id_type,
-                            id_number=kyc_data.id_number,
-                            id_expiry_date=kyc_data.id_expiry_date,
-                            uploaddocument=kyc_data.uploaddocument
+                            firstname      = kyc_data.firstname,
+                            user_id        = kyc_data.user_id,
+                            lastname       = kyc_data.lastname,
+                            dateofbirth    = kyc_data.dateofbirth,
+                            gander         = kyc_data.gender,
+                            marital_status = kyc_data.marital_status,
+                            email          = kyc_data.email,
+                            phoneno        = kyc_data.phoneno,
+                            address        = kyc_data.address,
+                            landmark       = kyc_data.landmark,
+                            zipcode        = kyc_data.zipcode,
+                            city           = kyc_data.city,
+                            state          = kyc_data.state,
+                            country        = kyc_data.country,
+                            nationality    = kyc_data.nationality,
+                            id_type        = kyc_data.id_type,
+                            id_number      = kyc_data.id_number,
+                            id_expiry_date = kyc_data.id_expiry_date,
+                            uploaddocument = kyc_data.uploaddocument
                         )
                     
                         session.add(kyca)              
@@ -211,8 +212,9 @@ class UserKYCController(APIController):
                             return json({'msg': f'{str(e)}'})
                         
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'})
-    
+                   return json({'msg': 'Authentication Failed'}, 400)
+
+                #Authentication ends here
 
                 try:
                     stmt       = select(Kycdetails).where(Kycdetails.id == update_kyc.kyc_id)
@@ -220,7 +222,7 @@ class UserKYCController(APIController):
                     kyc_detail = result.scalar()
                 except Exception as e:
                     return json({'msg': 'Unable to locate kyc'}, 400)
-                
+
                 try:
                     user_id = kyc_detail.user_id
 

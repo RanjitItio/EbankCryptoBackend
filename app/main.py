@@ -26,6 +26,8 @@ def configure_application(
     configure_docs(app, settings)
 
     app.serve_files('Static', root_path='media', cache_time=90000)
+    
+    # docs.bind_app(app)
 
     app.use_cors(
     allow_methods="*",

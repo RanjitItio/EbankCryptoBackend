@@ -14,19 +14,20 @@ class Users(SQLModel, table=True):
     phoneno: str 
     password: str
     default_wallets: Optional[int] = None
-    address1: str                  = Field(default='Update it later')
-    address2: str                  = Field(default='Update it later')
-    city: str                      = Field(default='Update it later')
-    state: str                     = Field(default='Update it later')
-    country: str                   = Field(default='Update it later')
-    picture: str                   = Field(default='Update it later')
-    dogecoin_address: str          = Field(default='Update it later')
-    bitcoin_address: str           = Field(default='Update it later')
-    litcoin_address: str           = Field(default='Update it later')
+    address1: str                  = Field(default='Address1')
+    address2: str                  = Field(default='Address2')
+    city: str                      = Field(default='City')
+    state: str                     = Field(default='State')
+    country: str                   = Field(default='Country')
+    picture: str                   = Field(default='Picture')
+    dogecoin_address: str          = Field(default='Doge Coin Address')
+    bitcoin_address: str           = Field(default='Bitcoin Address')
+    litcoin_address: str           = Field(default='Litcoin Address')
     is_merchent: bool              = Field(default=False)
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)
     is_admin: bool                 = Field(default=False, nullable=True)
+    is_suspended: bool             = Field(default=False, nullable=True)
     lastlogin: datetime            = Field(nullable=True)
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
 
@@ -41,10 +42,11 @@ class Admin(SQLModel, table=True):
     password: str
     picture: str = Field(default='Update it later')
     is_admin: bool = False
-    
+
+
 class Currency(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    name: str
+    name: str      = Field(index=True)
     symbol: str
     fee : float = Field(default=0.0)
     decimal_places: int = Field
@@ -59,7 +61,7 @@ class Wallet(SQLModel, table=True):
     balance: float    = Field(default=0.0)
     is_active: bool   = Field(default=True)
     # user: Optional[Users] = Relationship(back_populates="wallets")
-    # currency: Optional[Currency] = Relationship(back_populates="wallets")
+    # currency: Optional[Cusrrency] = Relationship(back_populates="wallets")
     
     
 

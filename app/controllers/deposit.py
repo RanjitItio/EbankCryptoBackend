@@ -27,6 +27,8 @@ class DepositController(APIController):
     async def create_deposit(self, transfer_money: DepositMoneySchema, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
+
+                #Authenticate user
                 try:
                     header_value = request.get_first_header(b"Authorization")
                     if not header_value:
@@ -65,6 +67,13 @@ class DepositController(APIController):
                     user_wallet_obj = user_wallet.scalars().first()
                 except Exception as e:
                     return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
+                
+                # Get the user
+                try:
+                    user     = await session.execute(select(Users).where(Users.id == userID))
+                    user_obj = user.scalar()
+                except Exception as e:
+                    return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
 
                 if not currency_obj:
                     return json({"msg": "Invalid currency"}, status=400)
@@ -75,6 +84,9 @@ class DepositController(APIController):
                 # Update the user's wallet balance
                 # user_wallet_obj.balance += transfer_money.deposit_amount
 
+                if user_obj.is_suspended:
+                    return json({'msg': 'Your account has been suspended please contact admin for Approval'}, 400)
+                
                 # Create a new transaction record
                 new_transaction = Transection(
                     user_id      = userID,

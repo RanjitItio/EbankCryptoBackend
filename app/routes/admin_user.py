@@ -248,11 +248,13 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                     elif value.status == 'Inactive':
                         #Update user data according to Inactive status
                         try:
-                            user_data_obj.first_name = value.first_name
-                            user_data_obj.lastname   = value.last_name
-                            user_data_obj.phoneno    = value.phoneno
-                            user_data_obj.email      = value.email
+                            user_data_obj.first_name  = value.first_name
+                            user_data_obj.lastname    = value.last_name
+                            user_data_obj.phoneno     = value.phoneno
+                            user_data_obj.email       = value.email
                             user_data_obj.password    = encrypt_password(value.password)
+                            user_data_obj.is_active   = False
+                            user_data_obj.is_verified = False
 
                             session.add(user_data_obj)
                             await session.commit()

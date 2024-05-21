@@ -1,8 +1,9 @@
-from blacksheep.server.controllers import post, APIController
+from blacksheep.server.controllers import APIController
 from blacksheep import Request, json
 from Models.schemas import GenerateToken
 from app.auth import generate_access_token, generate_refresh_token
 from app.auth import decode_token
+from app.controllers.controllers import get, post, put, delete
 
 
 

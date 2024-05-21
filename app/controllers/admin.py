@@ -1,4 +1,4 @@
-from blacksheep.server.controllers import get, post, put, delete, APIController
+from blacksheep.server.controllers import  APIController
 from Models.schemas import AdminCreateSchema
 from sqlmodel import select
 from database.db import async_engine, AsyncSession
@@ -6,6 +6,8 @@ from Models.models import Users, Admin
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import encrypt_password
+from app.controllers.controllers import get, post, put, delete
+
 
 
 class AdminController(APIController):

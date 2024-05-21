@@ -1,4 +1,4 @@
-from blacksheep.server.controllers import get, post, put, delete, APIController
+from blacksheep.server.controllers import APIController
 from sqlmodel import Session, select, and_
 from blacksheep import Request, json, FromJSON
 from Models.models import Transection, ExternalTransection, Currency, Users, Wallet
@@ -7,6 +7,7 @@ from app.auth import decode_token
 from blacksheep.server.responses import pretty_json
 from Models.schemas import UpdateTransactionSchema
 import asyncio
+from app.controllers.controllers import get, post, put, delete
 
 
 
@@ -22,6 +23,7 @@ class TransactionController(APIController):
     def class_name(cls):
         return "Transaction"
     
+    #Get all the Transactions
     @get()
     async def get_transaction(self, request: Request):
         try:
@@ -379,13 +381,13 @@ class SpecificUserTransaction(APIController):
                         return pretty_json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                     
                     try:
-                        transactions = await session.execute(select(Transection).where(Transection.user_id == user_id))
+                        transactions      = await session.execute(select(Transection).where(Transection.user_id == user_id))
                         transactions_list = transactions.scalars().all()
                     except Exception as e:
-                        return pretty_json({'msg': f'Transaction error {str(e)}'})
+                        return pretty_json({'msg': f'Transaction error {str(e)}'}, 400)
                     
                     try:
-                        user_obj = await session.execute(select(Users).where(Users.id == user_id))
+                        user_obj      = await session.execute(select(Users).where(Users.id == user_id))
                         user_obj_data = user_obj.scalar()
                     except Exception as e:
                         return json({'msg': 'User not found'}, 400)
@@ -490,6 +492,4 @@ class IDWiseTransactionController(APIController):
 
         except Exception as e:
             return pretty_json({'error': f'Server error {str(e)}'}, 500)
-
-
         

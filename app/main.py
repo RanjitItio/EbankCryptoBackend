@@ -8,6 +8,11 @@ from app.auth import configure_authentication
 from app.errors import configure_error_handlers
 from app.services import configure_services
 from app.settings import load_settings, Settings
+from app.auth import UserAuthHandler
+from blacksheep.server.authorization import Policy
+from guardpost.common import AuthenticatedRequirement
+from app.auth import AdminsPolicy
+from app.controllers.controllers import controller_router
 
 
 
@@ -25,7 +30,14 @@ def configure_application(
     configure_authentication(app, settings)
     configure_docs(app, settings)
 
+    app.use_authentication().add(UserAuthHandler())
+
+    app.use_authorization().add(Policy(('userauth'), AuthenticatedRequirement())).add(AdminsPolicy())
+
     app.serve_files('Static', root_path='media', cache_time=90000)
+
+    app.controllers_router = controller_router
+    
     
     # docs.bind_app(app)
 

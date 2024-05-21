@@ -1,4 +1,4 @@
-from blacksheep.server.controllers import APIController, get, post, put, delete
+from blacksheep.server.controllers import APIController
 from blacksheep import Request, json
 from database.db import async_engine, AsyncSession
 from Models.models import Currency
@@ -6,6 +6,7 @@ from Models import models
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from Models.schemas import CurrencySchemas, UpdateCurrencySchema
+from app.controllers.controllers import get, post, put, delete
 
 
 

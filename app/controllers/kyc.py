@@ -1,4 +1,4 @@
-from blacksheep.server.controllers import APIController, post, get, put
+from blacksheep.server.controllers import APIController
 from Models.schemas import Kycschema
 from sqlmodel import select, update
 from database.db import async_engine, AsyncSession
@@ -7,6 +7,8 @@ from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
 from Models.schemas import UpdateKycSchema
+from blacksheep.server.authorization import auth
+from app.controllers.controllers import get, post, put, delete
 
 
 
@@ -331,6 +333,7 @@ from blacksheep import FromFiles, FromBytes, FileInput
 from pathlib import Path
 from blacksheep.exceptions import BadRequest
 from datetime import datetime
+
 # from blacksheep.messages import 
 
 class UserKYCController(APIController):
@@ -343,6 +346,7 @@ class UserKYCController(APIController):
     def class_name(cls):
         return "File Upload test"
     
+    # @auth('userauth')
     @post()
     async def post_fileupload(self, request: Request, files: FromFiles):
             try:
@@ -359,8 +363,11 @@ class UserKYCController(APIController):
                     current_time = datetime.now()
                     formattedtime = current_time.strftime("%H:%M %p")
                     ip = request.original_client_ip
+                    
+                    user_identity = request.identity
+                    user_id = user_identity.claims.get("user_id") if user_identity else None
 
-                    return json({'msg': formattedtime, 'ip': ip})
+                    return json({'msg': formattedtime, 'ip': ip, 'user_id': user_id})
                 
             except Exception as e:
                 return json({'error': f'{str(e)}'})

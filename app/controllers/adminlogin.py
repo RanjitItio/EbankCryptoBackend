@@ -1,4 +1,4 @@
-from blacksheep.server.controllers import post, APIController
+from blacksheep.server.controllers import APIController
 from Models.schemas import UserLoginSchema
 from sqlmodel import select
 from database.db import async_engine, AsyncSession
@@ -7,6 +7,7 @@ from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token
 from app.auth import check_password
+from app.controllers.controllers import post
 
 
 

@@ -13,6 +13,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from blacksheep import json
 from blacksheep import Request
+from guardpost import AuthenticationHandler, Identity
+from typing import Optional
+from guardpost.authorization import AuthorizationContext
+from guardpost.authorization import Requirement
+from blacksheep.server.authorization import Policy
+
 
 
 # from database.db import engine
@@ -162,3 +168,52 @@ def configure_authentication(app: Application, settings: Settings):
     """
 
 
+
+
+
+class UserAuthHandler(AuthenticationHandler):
+    def __init__(self):
+        pass
+
+    async def authenticate(self, context: Request) -> Optional[Identity]:
+
+        header_value = context.get_first_header(b"Authorization")
+
+        if header_value:
+            header_value_str = header_value.decode("utf-8")
+            parts            = header_value_str.split()
+
+            if len(parts) == 2 and parts[0] == "Bearer":
+                token = parts[1]
+                user_data = decode_token(token)
+
+                if user_data == 'Token has expired':
+                    context.identity = None
+                elif user_data == 'Invalid token':
+                    context.identity = None
+                else:
+                    user_id = user_data["user_id"]
+                    context.identity = Identity({"user_id": user_id, "claims": user_data}, "JWT")
+            else:
+                context.identity = None
+        else:
+            context.identity = None
+            
+        return context.identity
+    
+
+
+
+
+class AdminRequirement(Requirement):
+    def handle(self, context: AuthorizationContext):
+        identity = context.identity
+
+        if identity is not None and identity.claims.get("role") == "admin":
+            context.succeed(self)
+
+
+
+class AdminsPolicy(Policy):
+    def __init__(self):
+        super().__init__("admin", AdminRequirement())

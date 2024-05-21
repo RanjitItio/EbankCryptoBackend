@@ -54,12 +54,13 @@ class Currency(SQLModel, table=True):
 
 
 class Wallet(SQLModel, table=True):
-    id: int | None    = Field(default=None, primary_key=True)
-    user_id: int      = Field(foreign_key="users.id")
-    currency_id: int  = Field(foreign_key="currency.id")
-    currency: str     = Field(default='None', nullable=True)
-    balance: float    = Field(default=0.0)
-    is_active: bool   = Field(default=True)
+    id: int | None         = Field(default=None, primary_key=True)
+    user_id: int           = Field(foreign_key="users.id")
+    currency_id: int       = Field(foreign_key="currency.id")
+    currency: str          = Field(default='None', nullable=True)
+    balance: float         = Field(default=0.0)
+    is_active: bool        = Field(default=True)
+    created_data: datetime = Field(default=datetime.now(), nullable=True)
     # user: Optional[Users] = Relationship(back_populates="wallets")
     # currency: Optional[Cusrrency] = Relationship(back_populates="wallets")
     
@@ -69,7 +70,7 @@ class Transection(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
     user_id: int                = Field(foreign_key="users.id")
     txdid: str                  = Field(index=True, unique=True)
-    txddate: datetime           = Field(default=datetime.today(), nullable=True)
+    txddate: date               = Field(default=date.today(), nullable=True)
     txdtime: datetime           = Field(default=datetime.now(), nullable=True)
     amount: float               = Field(default_factory=0)
     txdcurrency: int            = Field(foreign_key="currency.id")
@@ -140,7 +141,12 @@ class RequestMoney(SQLModel, table=True):
     status: bool = Field(default=False)
     created_at: datetime = Field(default=datetime.now())
     
-    
+
+
+class TestModel(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    created_date: date  = Field(default=date.today())
+
     
 
 

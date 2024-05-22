@@ -74,6 +74,7 @@ class TransferMoneySchema(BaseModel):
     note: str
     fee: float
     total_amount: float
+    payment_mode: str
 
 
 class WithdrawlAndDeposieSchema(BaseModel):

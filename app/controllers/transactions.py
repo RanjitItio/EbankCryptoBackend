@@ -328,35 +328,14 @@ class SpecificUserTransaction(APIController):
     def class_name(cls):
         return "User wise Transaction"
     
+    @auth('userauth')
     @get()
     async def get_userTransaction(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
-                try:
-                    header_value = request.get_first_header(b"Authorization")
-                    
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
+                user_identity = request.identity
+                user_id       = user_identity.claims.get("user_id") if user_identity else None
 
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'})
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'})
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-                except Exception as e:
-                    return json({'msg': 'Authentication Failed'})
-                
                 try:
                     try:
                         currency     = await session.execute(select(Currency))
@@ -371,29 +350,46 @@ class SpecificUserTransaction(APIController):
                         return pretty_json({'msg': f'Transaction error {str(e)}'}, 400)
                     
                     try:
-                        user_obj      = await session.execute(select(Users).where(Users.id == user_id))
-                        user_obj_data = user_obj.scalar()
+                        all_user_obj      = await session.execute(select(Users).where(Users.id == user_id))
+                        all_user_obj_data = all_user_obj.scalars().all()
                     except Exception as e:
                         return json({'msg': 'User not found'}, 400)
+                    
+                    # try:
+                    #     all_receiver_obj      = await session.execute(select(Users).where(Users.id == user_id))
+                    #     all_receiver_obj_data = all_receiver_obj.scalars().all()
+                    # except Exception as e:
+                    #     return json({'msg': 'User not found'}, 400)
 
                     currency_dict = {currency.id: currency for currency in currency_obj}
+                    user_dict     = {user.id: user         for user     in all_user_obj_data}
+                    receiver_dict = {receiver.id: receiver for receiver in all_user_obj_data}
+                    combined_data = []
 
                     for transaction in transactions_list:
                         currency_id   = transaction.txdcurrency
                         currency_data = currency_dict.get(currency_id)
-                        transaction.txdcurrency = currency_data
-                        transaction.user_id = {'user_id': user_obj_data.id,'first_name': user_obj_data.first_name, 'lastname': user_obj_data.lastname}
+
+                        receiverID    = transaction.txdrecever
+                        receiver_data = receiver_dict.get(receiverID)
+                        receiver_data = {'first_name': receiver_data.first_name, 'lastname': receiver_data.lastname, 'id': receiver_data.id} if receiver_data else None
+
+                        userID    = transaction.user_id
+                        user_data = user_dict.get(userID)
+                        user_data = {'first_name': user_data.first_name, 'lastname': user_data.lastname, 'id': user_data.id} if user_data else None
+                       
+                        combined_data.append({
+                            'transaction': transaction,
+                            'currency': currency_data,
+                            'user': user_data,
+                            'receiver': receiver_data
+                        })
                     
                 except Exception as e:
                     return json({'msg': f'Unable to get the Transactions {str(e)}'}, 400)
 
-                # try:
-                #     external_transactions = await session.execute(select(ExternalTransection).where(ExternalTransection.user_id == user_id))
-                #     external_transactions_list = external_transactions.scalars().all()
-                # except Exception as e:
-                #     return json({'msg': 'Unable to get the Transactions'}, 400)
                 
-                return json({'msg': 'Transaction data fetched successfully', 'all_transactions': transactions_list})
+                return json({'msg': 'Transaction data fetched successfully', 'all_transactions': combined_data})
                 
         except Exception as e:
             return json({'error': f'{str(e)}'})

@@ -59,11 +59,8 @@ class UserResetPasswdMailSendController(APIController):
                         <body>
                             <b>Dear</b>
 
-                            <p>Click the link below to Reset your forgot password</p>
+                            <p>Click the link below to Reset your forgot password, The link will remain valid for 15 minutes.</p>
                             <a href="{reseturl}">Reset your password</a>
-
-                            <p>If the button above doesn't work, you can copy and paste the following URL into your web browser:</p>
-                            <p><a href="{reseturl}">{reseturl}</a></p>
 
                             <p>Thank you for choosing Itio Innovex Pvt. Ltd. We look forward to providing you with the best possible experience.</p>
 

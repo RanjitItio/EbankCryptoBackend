@@ -8,12 +8,23 @@ from app.docs import docs
 
 
 
-@docs()
+@docs(responses={
+    400: 'Only admin can view the Transactions',
+    400: 'Unable to get Admin detail',
+    400: 'Transaction error',
+    400: 'Currency not available',
+    400: 'Currency error',
+    404: 'User is not available',
+    400: 'User not found',
+    404: 'No Transaction available to show',
+    200: 'Transfer Transaction data fetched successfully',
+    500: 'Server Error'
+})
 @auth('userauth')
 @get('/api/v1/transfer/transactions')
 async def get_transferTransaction(self, request: Request):
     """
-      Get all transfer Transactions, Only by Admin
+      Get all transfer Transactions, Only by Admin, All the API responses are mentioned
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -89,7 +100,7 @@ async def get_transferTransaction(self, request: Request):
             if not get_all_transaction_obj:
                 return json({'msg': "No Transaction available to show"}, 404)
             
-            return json({'msg': 'Deposit Transaction data fetched successfully', 'data': combined_data})
+            return json({'msg': 'Transfer Transaction data fetched successfully', 'data': combined_data}, 200)
         
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)

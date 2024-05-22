@@ -113,10 +113,10 @@ class DepositController(APIController):
         except Exception as e:
             # Return error response with error message
             return json({"msg": "Error depositing funds", "error": str(e)}, status=400)
-        
 
 
 
+#Admin will be able to view all the Deposits
 class AllDepositController(APIController):
 
     @classmethod

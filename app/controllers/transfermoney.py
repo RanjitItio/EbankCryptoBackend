@@ -102,17 +102,18 @@ class TransferMoneyController(APIController):
                     unique_transaction_id = uuid.uuid4()
                     timestamp = str(int(time.time()))
 
-                    addtransection  = Transection(
-                        user_id     = user_id,
-                        txdid       = f"{timestamp}-{unique_transaction_id}",
-                        txdrecever  = recipient_obj.id,
-                        amount      = transfer_data.transfer_amount,
-                        txdfee      = transfer_data.fee,
-                        totalamount = transfer_data.total_amount,
-                        txdcurrency = currency_obj.id,
-                        txdmassage  = transfer_data.note,
-                        txdstatus   = 'Pending',
-                        txdtype     = 'Transfer'
+                    addtransection   = Transection(
+                        user_id      = user_id,
+                        txdid        = f"{timestamp}-{unique_transaction_id}",
+                        txdrecever   = recipient_obj.id,
+                        amount       = transfer_data.transfer_amount,
+                        txdfee       = transfer_data.fee,
+                        totalamount  = transfer_data.total_amount,
+                        txdcurrency  = currency_obj.id,
+                        txdmassage   = transfer_data.note,
+                        txdstatus    = 'Pending',
+                        txdtype      = 'Transfer',
+                        payment_mode = transfer_data.payment_mode
                     )
 
                     # session.add(user_wallet_obj)

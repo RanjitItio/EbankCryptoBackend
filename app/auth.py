@@ -140,7 +140,7 @@ def send_password_reset_email( recipient_email, subject, body):
     msg['To'] = recipient_email
     msg['Subject'] = subject
 
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'html'))
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls()  

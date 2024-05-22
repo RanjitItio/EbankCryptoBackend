@@ -6,8 +6,8 @@ from database.db import async_engine, AsyncSession
 from app.auth import decode_token
 from blacksheep.server.responses import pretty_json
 from Models.schemas import UpdateTransactionSchema
-import asyncio
-from app.controllers.controllers import get, post, put, delete
+from app.controllers.controllers import get, put
+from blacksheep.server.authorization import auth
 
 
 
@@ -132,40 +132,19 @@ class TransactionController(APIController):
     
 
     #Update Transaction by Admin
+    @auth('userauth')
     @put()
     async def update_transactio(self, request: Request, input: FromJSON[UpdateTransactionSchema]):
         try:
             async with AsyncSession(async_engine) as session:
                 data = input.value
 
-                try:
-                    header_value = request.get_first_header(b"Authorization")
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
-                
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get("user_id") if user_identity else None
 
                 #Check the user is admin or Not
                 try:
-                    user_obj = await session.execute(select(Users).where(Users.id == user_id))
+                    user_obj = await session.execute(select(Users).where(Users.id == AdminID))
                     user_obj_data = user_obj.scalar()
 
                     if not user_obj_data.is_admin:
@@ -185,6 +164,7 @@ class TransactionController(APIController):
                 
                 except Exception as e:
                     return json({'msg': 'Unable to locate the transaction', 'error': f'{str(e)}'}, 400)
+
 
                 #If Transaction status is Success
                 if data.status == 'Success':
@@ -234,16 +214,17 @@ class TransactionController(APIController):
 
                     #If the Transaction type is Transfer
                     elif transaction_data.txdtype == 'Transfer':
-                        user_id     = transaction_data.user_id
-                        currency_id = transaction_data.txdcurrency
+                        user_id      = transaction_data.user_id
+                        currency_id  = transaction_data.txdcurrency
                         recipient_id = transaction_data.txdrecever
                         sent_amount  = transaction_data.amount
+                        total_amount = transaction_data.totalamount
 
                         if not transaction_data.is_completed:
 
                             #Get User Wallet
                             try:
-                                user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_id)))
+                                user_wallet     = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_id)))
                                 user_wallet_obj = user_wallet.scalars().first()
 
                                 if not user_wallet_obj:
@@ -267,43 +248,46 @@ class TransactionController(APIController):
                                 return json({'msg': 'Cannot transfer to self'}, 404)
                             
 
-                            #Deposit in Recipient Wallet
-                            try:
-                                recipient_wallet_obj.balance += sent_amount
+                            # Before Deducting from Sender wallet check does the user has sufficient wallet
+                            if user_wallet_obj.balance <= transaction_data.totalamount:
+                                return json({'msg': 'Sender do not have sufficient wallet balance'})
+                            
+
+                            if user_wallet_obj.balance >= transaction_data.totalamount:
+                                #Deposit in Recipient Wallet
+                                try:
+                                    recipient_wallet_obj.balance += sent_amount
+                                    
+                                    session.add(recipient_wallet_obj)
+
+                                except Exception as e:
+                                    return json({'msg': 'Unable to update recipient wallet', 'error': f'{str(e)}'}, 400)
                                 
-                                session.add(recipient_wallet_obj)
-                                # asyncio.sleep(1)
-                                await session.commit(recipient_wallet_obj)
+                                #Deduct from sender wallet
+                                try:
+                                    user_wallet_obj.balance -=  total_amount
+
+                                    session.add(user_wallet_obj)
+                                except Exception as e:
+                                    return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
+                                
+                                
+                                #Update the Transaction Status
+                                try:
+                                    transaction_data.txdstatus    = 'Success'
+                                    transaction_data.is_completed = True
+
+                                    session.add(transaction_data)
+
+                                except Exception as e:
+                                    return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
+                                
+                                await session.commit()
                                 await session.refresh(recipient_wallet_obj)
-
-                            except Exception as e:
-                                return json({'msg': 'Unable to update recipient wallet', 'error': f'{str(e)}'}, 400)
-                            
-                            #Deduct from sender wallet
-                            try:
-                                user_wallet_obj.balance -=  sent_amount
-
-                                session.add(user_wallet_obj)
-                                await session.commit()
                                 await session.refresh(user_wallet_obj)
-                            except Exception as e:
-                                return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
-                            
-                            
-                            #Update the Transaction Status
-                            try:
-                                transaction_data.txdstatus    = 'Success'
-                                transaction_data.is_completed = True
-
-                                session.add(transaction_data)
-                                await session.commit()
                                 await session.refresh(transaction_data)
 
-                            except Exception as e:
-                                return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
-                            
-                            
-                            return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
+                                return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
                             
                         else:
                             return json({'msg': 'Transaction is completed'}, 400)
@@ -333,7 +317,7 @@ class TransactionController(APIController):
         
 
 
-
+#Get all transaction of user in User dashboard section
 class SpecificUserTransaction(APIController):
 
     @classmethod

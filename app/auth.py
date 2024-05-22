@@ -1,7 +1,7 @@
 from blacksheep import Application
 from app.settings import Settings
 from Models.models import Users
-from sqlmodel import Session, select
+from sqlmodel import select
 import jwt
 import datetime
 from database.db import async_engine, AsyncSession
@@ -18,6 +18,10 @@ from typing import Optional
 from guardpost.authorization import AuthorizationContext
 from guardpost.authorization import Requirement
 from blacksheep.server.authorization import Policy
+import base64
+import os
+from itsdangerous import URLSafeTimedSerializer
+from datetime import timedelta
 
 
 
@@ -29,7 +33,10 @@ EMAIL_PASSWORD=config('EMAIL_PASSWORD')
 reset_token_secret_key = config('RESET_TOKEN_SECRET_KEY')
 
 
-SECRET_KEY = "your_secret_key"  
+SECRET_KEY = "your_secret_key"
+
+# new_salt = base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8')
+PASSWORD_RESET_SALT = '3BcOCacZqcaKOXuCvb7S1g=='
 
 
 def generate_access_token(user_id):
@@ -106,11 +113,12 @@ def check_password(plain_password: str, hashed_password: str) -> bool:
 def encrypt_password_reset_token(user_id):
     payload = {
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() +datetime.timedelta(hours=1),
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
         "iat": datetime.datetime.utcnow()
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
+
 
 
 def decrypt_password_reset_token(token):
@@ -153,10 +161,38 @@ def send_welcome_email( recipient_email, subject, body):
     msg.attach(MIMEText(body, 'html'))
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
+        
         server.starttls()  
         server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 
+
+
+def encrypt_password_reset(user_id: int):
+    serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+    user_id_bytes = str(user_id).encode('utf-8')
+    user_id_base64 = base64.urlsafe_b64encode(user_id_bytes).decode('utf-8')
+    
+    token = serializer.dumps(user_id_base64, salt=PASSWORD_RESET_SALT)
+
+    return token
+
+
+def verify_password_reset_token(token: str, max_age: int = 900):
+
+    serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+    try:
+        user_id_base64 = serializer.loads(token, salt=PASSWORD_RESET_SALT, max_age=max_age)
+        
+        user_id_bytes = base64.urlsafe_b64decode(user_id_base64)
+        user_id = int(user_id_bytes.decode('utf-8'))
+        
+        return user_id
+    
+    except Exception as e:
+        raise ValueError("Invalid or expired token") from e
 
 
                 

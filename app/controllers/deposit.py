@@ -14,7 +14,7 @@ from app.controllers.controllers import get, post, put, delete
 
 
 
-
+#User will be able to Deposit money into wallet
 class DepositController(APIController):
     @classmethod
     def route(cls):

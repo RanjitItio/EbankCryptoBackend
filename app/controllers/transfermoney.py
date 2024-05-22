@@ -9,11 +9,13 @@ from app.auth import  decode_token
 import time
 import uuid
 from blacksheep.server.responses import pretty_json
-from app.controllers.controllers import get, post, put, delete
+from app.controllers.controllers import get, post
+from blacksheep.server.authorization import auth
 
 
 
 
+#User will be able to Transfer money to Another user
 class TransferMoneyController(APIController):
     
     @classmethod
@@ -24,35 +26,30 @@ class TransferMoneyController(APIController):
     def class_name(cls):
         return "Transfer Money"
     
+
+    @auth('userauth')
     @post()
     async def create_transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
         
         try:
             async with AsyncSession(async_engine) as session:
+
+                user_identity    = request.identity
+                user_id          = user_identity.claims.get("user_id") if user_identity else None
+
+                # Get the user
                 try:
-                    header_value = request.get_first_header(b"Authorization")
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
+                    user     = await session.execute(select(Users).where(Users.id == user_id))
+                    user_obj = user.scalar()
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
+                    return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
                 
+
+                #If the user has been Suspended then Transaction can not be performed by this user.
+                if user_obj.is_suspended:
+                    return json({'msg': 'Your account has been suspended please contact admin for Approval'}, 400)
+                
+
                 try:
                     recipient = await session.execute(select(Users).where(Users.email == transfer_data.recivermail))
                     recipient_obj = recipient.scalars().first()
@@ -60,9 +57,11 @@ class TransferMoneyController(APIController):
                 except Exception as e:
                     return json({'msg': 'Unable to identify Recipient'}, 400)
 
+
                 if not recipient_obj:
                     return json({"msg": "Receipient not found please provide a valid email address"}, status=404)
                 
+
                 #Try to get the currency id
                 try:
                     currency = await session.execute(select(Currency).where(Currency.name == transfer_data.currency))
@@ -70,7 +69,8 @@ class TransferMoneyController(APIController):
                 except Exception as e:
                     return json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                 
-                #User Wallet
+
+                #Check User Wallet
                 try:
                     user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_obj.id)))
                     user_wallet_obj = user_wallet.scalars().first()
@@ -82,7 +82,7 @@ class TransferMoneyController(APIController):
                     return json({'msg': 'Unable to locate user Wallet'}, 400)
             
                 
-                #Recipient Wallet
+                #Check Recipient Wallet
                 try:
                     recipient_wallet = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == currency_obj.id))
                     recipient_wallet_obj = recipient_wallet.scalars().first()
@@ -93,17 +93,16 @@ class TransferMoneyController(APIController):
                 except Exception as e:
                     return json({'msg': 'Unable to locate recipient Wallet'}, 400)
                 
+                #If the Sender and Receiver both are same
                 if user_id == recipient_obj.id:
                     return json({'msg': 'Cannot transfer to self'}, 404)
                 
                 if user_wallet_obj.balance >= transfer_data.transfer_amount:
-                    # user_wallet_obj.balance -=  transfer_data.transfer_amount
-                    # recipient_wallet_obj.balance += transfer_data.transfer_amount
 
                     unique_transaction_id = uuid.uuid4()
                     timestamp = str(int(time.time()))
 
-                    addtransection = Transection(
+                    addtransection  = Transection(
                         user_id     = user_id,
                         txdid       = f"{timestamp}-{unique_transaction_id}",
                         txdrecever  = recipient_obj.id,
@@ -115,7 +114,8 @@ class TransferMoneyController(APIController):
                         txdstatus   = 'Pending',
                         txdtype     = 'Transfer'
                     )
-                    session.add(user_wallet_obj)
+
+                    # session.add(user_wallet_obj)
                     session.add(addtransection)
                     await session.commit()
 
@@ -123,128 +123,9 @@ class TransferMoneyController(APIController):
                 else:
                     return json({'msg': 'Insufficient Funds'},400)
                 
-        except SQLAlchemyError as e:
-                return json({"Error": str(e)}, 500)
-            
-
-
-
-class AllTransferController(APIController):
-
-    @classmethod
-    def route(cls):
-        return '/api/v1/transfer/transactions'
-    
-    @classmethod
-    def class_name(cls) -> str:
-        return 'All Transfer Transaction'
-    
-
-    @get()
-    async def get_transferTransaction(self, request: Request):
-        try:
-            async with AsyncSession(async_engine) as session:
-                try:
-                    #Get the token from requeseted header
-                    header_value = request.get_first_header(b"Authorization")
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-                    parts = header_value_str.split()
-
-                    #Decode the token
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
-                
-
-                #Check the user is admin or Not
-                try:
-                    user_obj = await session.execute(select(Users).where(Users.id == user_id))
-                    user_obj_data = user_obj.scalar()
-
-                    if not user_obj_data.is_admin:
-                        return json({'msg': 'Only admin can view the Transactions'}, 400)
-                    
-                except Exception as e:
-                    return pretty_json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
-                
-                #Get all transaction Data
-                try:
-                    get_all_transaction     = await session.execute(select(Transection).where(Transection.txdtype == 'Transfer'))
-                    get_all_transaction_obj = get_all_transaction.scalars().all()
-                except Exception as e:
-                    return json({'msg': 'Transaction error', 'error': f'{str(e)}'}, 400)
-                
-                #Get the Currency
-                try:
-                    currency     = await session.execute(select(Currency))
-                    currency_obj = currency.scalars().all()
-
-                    if not currency_obj:
-                        return json({'msg': 'Currency not available'}, 404)
-                        
-                except Exception as e:
-                    return pretty_json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
-                
-                #Get the user data
-                try:
-                    user_obj      = await session.execute(select(Users))
-                    user_obj_data = user_obj.scalars().all()
-
-                    if not user_obj_data:
-                        return json({'msg': 'User is not available'}, 404)
-                    
-                except Exception as e:
-                    return json({'msg': 'User not found'}, 400)
-                
-                # Prepare dictionaries for output data
-                currency_dict = {currency.id: currency for currency in currency_obj}
-                user_dict     = {user.id: user for user in user_obj_data}
-                receiver_dict = {receiver.id: receiver for receiver in user_obj_data}
-
-                combined_data = []
-                
-                for transaction in get_all_transaction_obj:
-                        currency_id             = transaction.txdcurrency
-                        currency_data           = currency_dict.get(currency_id)
-
-                        user_id   = transaction.user_id
-                        user_data = user_dict.get(user_id)
-                        user_data = {'first_name': user_data.first_name, 'lastname': user_data.lastname, 'id': user_data.id} if user_data else None
-
-                        receiver_id   = transaction.txdrecever
-                        receiver_data = receiver_dict.get(receiver_id)
-                        receiver_data = {'first_name': receiver_data.first_name, 'lastname': receiver_data.lastname, 'id': receiver_data.id} if receiver_data else None
-
-                        combined_data.append({
-                            'transaction': transaction,
-                            'currency': currency_data,
-                            'user': user_data,
-                            'receiver': receiver_data
-                        })
-
-                if not get_all_transaction_obj:
-                    return json({'msg': "No Transaction available to show"}, 404)
-                
-                return json({'msg': 'Deposit Transaction data fetched successfully', 'data': combined_data})
-            
         except Exception as e:
-            return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
-
+                return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+            
 
 
 class ExternalMoneyTransferController(APIController):

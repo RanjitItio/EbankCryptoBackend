@@ -118,6 +118,12 @@ class currencyExchange(BaseModel):
     total_amount: float
 
 class ResetPasswdSchema(BaseModel):
+    token:     str
+    password1: str
+    password2: str
+
+
+class ResetPasswdSMailchema(BaseModel):
     email: str
     
 class Kycschema(BaseModel):

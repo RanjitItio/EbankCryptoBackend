@@ -22,7 +22,6 @@ async def get_usertransaction(self, request: Request, schema: EachUserTransactio
     """
     try:
         async with AsyncSession(async_engine) as session:
-            #Check the user is Admin or not
             
             user_identity   = request.identity
             AdminID         = user_identity.claims.get("user_id") if user_identity else None

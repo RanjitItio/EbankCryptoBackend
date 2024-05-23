@@ -8,6 +8,8 @@ from blacksheep.server.responses import pretty_json
 from Models.schemas import UpdateTransactionSchema
 from app.controllers.controllers import get, put
 from blacksheep.server.authorization import auth
+from httpx import AsyncClient
+import http.client
 
 
 
@@ -169,28 +171,72 @@ class TransactionController(APIController):
                 #If Transaction status is Success
                 if data.status == 'Success':
                     if transaction_data.txdtype == 'Deposit':
-                        user_id     = transaction_data.user_id
-                        currency_id = transaction_data.txdcurrency
+                        user_id         = transaction_data.user_id
+                        currency_id     = transaction_data.txdcurrency
+                        selected_wallet = transaction_data.wallet_id
 
                         if not transaction_data.is_completed:
-                            # Get the user's wallet
+                            #Get the Sender Selected FIAT wallet
                             try:
-                                user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_id)))
-                                user_wallet_obj = user_wallet.scalars().first()
+                                sender_wallet = await session.execute(select(Wallet).where(Wallet.id == selected_wallet))
+                                sender_wallet_obj = sender_wallet.scalar()
 
-                                if not user_wallet_obj:
-                                    return json({"msg": "Wallet not found"}, status=404)
+                                if not sender_wallet:
+                                    return json({"msg": "Sender donot have a selected wallet"}, status=404)
                                 
+                                selected_wallet_currency_name = sender_wallet_obj.currency
+
                             except Exception as e:
                                 return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
                             
+                            #Get the currency name
+                            try:
+                                currency_to_convert     = await session.execute(select(Currency).where(Currency.id == currency_id))
+                                currency_to_convert_obj = currency_to_convert.scalar()
+
+                                if not currency_to_convert_obj:
+                                    return json({"msg": "Currency Not found"}, status=404)
+                                
+                                currency_to_convert_name = currency_to_convert_obj.name
+
+                            except Exception as e:
+                                return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
+                            
+                            #Call API
+                            try:
+                                url = f"https://currency-conversion-and-exchange-rates.p.rapidapi.com/convert?from={currency_to_convert_name}&to={selected_wallet_currency_name}&amount={transaction_data.amount}"
+                                headers = {
+                                'X-RapidAPI-Key': "d68ba047cdmshdb9424e30ff6741p18a7eejsn41ca175d188d",
+                                'X-RapidAPI-Host': "currency-conversion-and-exchange-rates.p.rapidapi.com"
+                            }
+                                
+                                async with AsyncClient() as client:
+                                    response = await client.get(url, headers=headers)
+                                    # print('APi Response', response)
+
+                                    if response.status_code == 200:
+                                        api_data = response.json()
+                                        # print('api data', api_data)
+
+                                    else:
+                                        return json({'msg': 'Error calling external API', 'error': response.text}, 400)
+                                    
+                            except Exception as e:
+                                return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
+
+                            converted_amount = api_data['result'] if 'result' in api_data else None
+
+                            if not converted_amount:
+                                return json({'msg': 'Invalid Curency Converter API response', 'error': 'Conversion result missing'}, 400)
+
+
                             #Update user wallet
                             try:
-                                user_wallet_obj.balance += transaction_data.amount
+                                sender_wallet_obj.balance += converted_amount
 
-                                session.add(user_wallet_obj)
+                                session.add(sender_wallet_obj)
                                 await session.commit()
-                                await session.refresh(user_wallet_obj)
+                                await session.refresh(sender_wallet_obj)
                             except Exception as e:
                                 return json({'msg': 'Unable to update user wallet', 'error': f'{str(e)}'}, 400)
                             
@@ -205,7 +251,6 @@ class TransactionController(APIController):
 
                             except Exception as e:
                                 return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
-                            
 
                             return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
                         

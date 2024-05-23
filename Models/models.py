@@ -82,6 +82,7 @@ class Transection(SQLModel, table=True):
     payment_mode: str           = Field(default='None')
     txdtype: str                = Field(default='None')
     is_completed: bool          = Field(default=False, nullable=True)
+    wallet_id: int                 = Field(foreign_key='wallet.id', nullable=True)
 
 
     

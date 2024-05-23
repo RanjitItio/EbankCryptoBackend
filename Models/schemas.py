@@ -91,6 +91,7 @@ class DepositMoneySchema(BaseModel):
     fee: float
     total_amount: float
     payment_mode: str
+    selected_wallet: int
 
 
 class ExternalTransectionSchema(BaseModel):

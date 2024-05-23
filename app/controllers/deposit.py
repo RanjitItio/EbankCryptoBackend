@@ -62,9 +62,20 @@ class DepositController(APIController):
                 except Exception as e:
                     return json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                
+               #Get the selectedWallet:
+                try:
+                    user_wallet     = await session.execute(select(Wallet).where(Wallet.id == transfer_money.selected_wallet))
+                    user_wallet_obj = user_wallet.scalars().first()
+
+                    if not user_wallet_obj:
+                        return json({'msg': 'Sender Selected FIAT wallet not fount'}, 404)
+                    
+                except Exception as e:
+                    return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
+            
                 # Get the user's wallet
                 try:
-                    user_wallet = await session.execute(select(Wallet).where(and_(Wallet.user_id == userID, Wallet.currency_id == currency_obj.id)))
+                    user_wallet     = await session.execute(select(Wallet).where(and_(Wallet.user_id == userID, Wallet.currency_id == currency_obj.id)))
                     user_wallet_obj = user_wallet.scalars().first()
                 except Exception as e:
                     return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
@@ -99,7 +110,8 @@ class DepositController(APIController):
                     txdcurrency  = currency_obj.id,
                     txdmassage   = "Deposit",
                     payment_mode = transfer_money.payment_mode,
-                    txdstatus    = "Pending"
+                    txdstatus    = "Pending",
+                    wallet_id    = transfer_money.selected_wallet
                 )
 
                 session.add(user_wallet_obj)

@@ -52,7 +52,7 @@ class UserResetPasswdMailSendController(APIController):
                 # if first_user :
                 password_reset_token = encrypt_password_reset(first_user.id)
 
-                reseturl = f"{mail_send_url}?token={password_reset_token}"
+                reseturl = f"{mail_send_url}reset-password/?token={password_reset_token}"
 
                 body = f"""
                         <html>

@@ -200,7 +200,7 @@ class TransactionController(APIController):
                                 currency_to_convert_name = currency_to_convert_obj.name
 
                             except Exception as e:
-                                return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
+                                return json({'mag': 'Currency error','error': f'{str(e)}'}, 400)
                             
                             #Call API
                             try:

@@ -1,7 +1,7 @@
 from blacksheep.server.controllers import APIController
 from sqlmodel import Session, select, and_
 from blacksheep import Request, json, FromJSON
-from Models.models import Transection, ExternalTransection, Currency, Users, Wallet
+from Models.models import Transection, ExternalTransection, Currency, Users, Wallet, ReceiverDetails
 from database.db import async_engine, AsyncSession
 from app.auth import decode_token
 from blacksheep.server.responses import pretty_json
@@ -10,8 +10,13 @@ from app.controllers.controllers import get, put
 from blacksheep.server.authorization import auth
 from httpx import AsyncClient
 import http.client
+from decouple import config
 
 
+
+currency_converter_api = config('CURRENCY_CONVERTER_API')
+RAPID_API_KEY          = config('RAPID_API_KEY')
+RAPID_API_HOST         = config('RAPID_API_HOST')
 
 
 
@@ -166,19 +171,35 @@ class TransactionController(APIController):
                 
                 except Exception as e:
                     return json({'msg': 'Unable to locate the transaction', 'error': f'{str(e)}'}, 400)
+                
 
+                #Get the Sender currency name from currency Table
+                try:
+                    sender_currency_name     = await session.execute(select(Currency).where(Currency.id == transaction_data.txdcurrency))
+                    sender_currency_name_obj = sender_currency_name.scalar()
 
+                    if not sender_currency_name_obj:
+                        return json({'msg': 'Did not found recipient Details'}, 404)
+                                
+                except Exception as e:
+                    return json({'msg': 'Recipient currency error', 'error': f'{str(e)}'}, 400)
+                
+
+                #================================
                 #If Transaction status is Success
-                if data.status == 'Success':
-                    if transaction_data.txdtype == 'Deposit':
-                        user_id         = transaction_data.user_id
-                        currency_id     = transaction_data.txdcurrency
-                        selected_wallet = transaction_data.wallet_id
+                #=================================
+                if not transaction_data.is_completed:
+                    if data.status == 'Success':
+                        if transaction_data.txdtype == 'Deposit':
+                            print(transaction_data.id)
+                            user_id         = transaction_data.user_id
+                            currency_id     = transaction_data.txdcurrency
+                            selected_wallet = transaction_data.wallet_id
 
-                        if not transaction_data.is_completed:
-                            #Get the Sender Selected FIAT wallet
+                            # if not transaction_data.is_completed:
+                                #Get the Sender Selected FIAT wallet according to users selected wallet
                             try:
-                                sender_wallet = await session.execute(select(Wallet).where(Wallet.id == selected_wallet))
+                                sender_wallet     = await session.execute(select(Wallet).where(Wallet.id == selected_wallet))
                                 sender_wallet_obj = sender_wallet.scalar()
 
                                 if not sender_wallet:
@@ -187,8 +208,8 @@ class TransactionController(APIController):
                                 selected_wallet_currency_name = sender_wallet_obj.currency
 
                             except Exception as e:
-                                return json({'mag': 'Wallet error','error': f'{str(e)}'}, 400)
-                            
+                                return json({'mag': 'Selected Wallet error','error': f'{str(e)}'}, 400)
+                                
                             #Get the currency name
                             try:
                                 currency_to_convert     = await session.execute(select(Currency).where(Currency.id == currency_id))
@@ -204,10 +225,10 @@ class TransactionController(APIController):
                             
                             #Call API
                             try:
-                                url = f"https://currency-conversion-and-exchange-rates.p.rapidapi.com/convert?from={currency_to_convert_name}&to={selected_wallet_currency_name}&amount={transaction_data.amount}"
+                                url = f"{currency_converter_api}/convert?from={currency_to_convert_name}&to={selected_wallet_currency_name}&amount={transaction_data.amount}"
                                 headers = {
-                                'X-RapidAPI-Key': "d68ba047cdmshdb9424e30ff6741p18a7eejsn41ca175d188d",
-                                'X-RapidAPI-Host': "currency-conversion-and-exchange-rates.p.rapidapi.com"
+                                'X-RapidAPI-Key': f"{RAPID_API_KEY}",
+                                'X-RapidAPI-Host': f"{RAPID_API_HOST}"
                             }
                                 
                                 async with AsyncClient() as client:
@@ -254,107 +275,218 @@ class TransactionController(APIController):
 
                             return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
                         
-                        else:
-                            return json({'msg': 'Transaction is completed'}, 400)
+                            # else:
+                            #     return json({'msg': 'Transaction is completed'}, 400)
+                            
+                        #====================================
+                        #If the Transaction type is Transfer
+                        #====================================
+                        elif transaction_data.txdtype == 'Transfer':
+                            user_id             = transaction_data.user_id
+                            recipient           = transaction_data.rec_detail
+                            recipient_id        = transaction_data.txdrecever
+                            sent_amount         = transaction_data.amount
+                            total_amount        = transaction_data.totalamount
 
-                    #If the Transaction type is Transfer
-                    elif transaction_data.txdtype == 'Transfer':
-                        user_id      = transaction_data.user_id
-                        currency_id  = transaction_data.txdcurrency
-                        recipient_id = transaction_data.txdrecever
-                        sent_amount  = transaction_data.amount
-                        total_amount = transaction_data.totalamount
+                            recipient_payment_mode = transaction_data.rec_pay_mode
 
-                        if not transaction_data.is_completed:
-
-                            #Get User Wallet
+                            #Get Sender Wallet
                             try:
-                                user_wallet     = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == currency_id)))
-                                user_wallet_obj = user_wallet.scalars().first()
+                                sender_wallet     = await session.execute(select(Wallet).where(and_(Wallet.user_id == user_id, Wallet.currency_id == transaction_data.txdcurrency)))
+                                sender_wallet_obj = sender_wallet.scalars().first()
 
-                                if not user_wallet_obj:
+                                if not sender_wallet_obj:
                                     return json({"msg": "Sender Wallet not found"}, status=404)
                                 
                             except Exception as e:
-                                return json({'msg': 'Unable to locate user Wallet'}, 400)
-                            
-                            #Get recipient wallet
-                            try:
-                                recipient_wallet    = await session.execute(select(Wallet).where(and_(Wallet.user_id == recipient_id, Wallet.currency_id == currency_id)))
-                                recipient_wallet_obj = recipient_wallet.scalars().first()
+                                return json({'msg': 'Unable to locate Sender Wallet', 'error': f'{str(e)}'}, 400)
 
-                                if not recipient_wallet_obj:
-                                    return json({'msg': 'Recipient wallet not found'}, 404)
-        
-                            except Exception as e:
-                                return json({'msg': 'Unable to locate recipient Wallet'}, 400)
-                            
-                            if user_id == recipient_id:
-                                return json({'msg': 'Cannot transfer to self'}, 404)
-                            
 
-                            # Before Deducting from Sender wallet check does the user has sufficient wallet
-                            if user_wallet_obj.balance <= transaction_data.totalamount:
-                                return json({'msg': 'Sender do not have sufficient wallet balance'})
-                            
+                            if recipient_payment_mode:
+                                # Check Recipient payment mode is bank or Not
+                                if recipient_payment_mode == 'Bank':
+                                    #Get the receiver details
+                                    try:
+                                        receiver_details      = await session.execute(select(ReceiverDetails).where(ReceiverDetails.id == recipient))
+                                        receiver_details_obj = receiver_details.scalar()
 
-                            if user_wallet_obj.balance >= transaction_data.totalamount:
-                                #Deposit in Recipient Wallet
-                                try:
-                                    recipient_wallet_obj.balance += sent_amount
+                                        if not recipient_details_obj:
+                                            return json({'msg': 'Did not found recipient Details'}, 404)
+                                        
+                                    except Exception as e:
+                                        return json({'msg': 'Recipient currency error', 'error': f'{str(e)}'}, 400)
+
+                                #Check Recipient payment mode is Wallet or Not
+                                elif recipient_payment_mode == 'Wallet':
+                                    #Get The Receiver details
+                                    try:
+                                        recipient_details     = await session.execute(select(ReceiverDetails).where(ReceiverDetails.id == recipient))
+                                        recipient_details_obj = recipient_details.scalar()
+
+                                        if not recipient_details_obj:
+                                            return json({'msg': 'Did not found recipient Details'}, 404)
+                                        
+                                    except Exception as e:
+                                        return json({'msg': 'Recipient currency error', 'error': f'{str(e)}'}, 400)
                                     
-                                    session.add(recipient_wallet_obj)
+                                    #Get The Receiver Currency
+                                    try:
+                                        receiver_currency     = await session.execute(select(Currency).where(Currency.id == recipient_details_obj.currency))
+                                        receiver_currency_obj = receiver_currency.scalar()
 
-                                except Exception as e:
-                                    return json({'msg': 'Unable to update recipient wallet', 'error': f'{str(e)}'}, 400)
-                                
-                                #Deduct from sender wallet
-                                try:
-                                    user_wallet_obj.balance -=  total_amount
+                                        if not recipient_details_obj:
+                                            return json({'msg': 'Did not found recipient Details'}, 404)
+                                        
+                                    except Exception as e:
+                                        return json({'msg': 'Recipient currency error', 'error': f'{str(e)}'}, 400)
+                                    
+                                    #Get the Receiver wallet
+                                    try:
+                                        recipient_wallet    = await session.execute(select(Wallet).where(and_(Wallet.user_id == recipient_id, Wallet.currency_id == recipient_details_obj.currency)))
+                                        recipient_wallet_obj = recipient_wallet.scalars().first()
 
-                                    session.add(user_wallet_obj)
-                                except Exception as e:
-                                    return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
-                                
-                                
-                                #Update the Transaction Status
-                                try:
-                                    transaction_data.txdstatus    = 'Success'
-                                    transaction_data.is_completed = True
-
-                                    session.add(transaction_data)
-
-                                except Exception as e:
-                                    return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
-                                
-                                await session.commit()
-                                await session.refresh(recipient_wallet_obj)
-                                await session.refresh(user_wallet_obj)
-                                await session.refresh(transaction_data)
-
-                                return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
-                            
-                        else:
-                            return json({'msg': 'Transaction is completed'}, 400)
-                        
-                elif data.status == "Pending":
-                    return pretty_json({'msg': 'Updated successfully'}, 200)
+                                        if not recipient_wallet_obj:
+                                            return json({'msg': 'Recipient wallet not found'}, 404)
                 
+                                    except Exception as e:
+                                        return json({'msg': 'Unable to locate recipient Wallet'}, 400)
 
-                #If the transaction status is cancelled
+                                    #If Sender wallet and receiver wallet are same
+                                    if sender_wallet_obj.id == recipient_wallet_obj.id:
+                                        return json({'msg': 'Cannot transfer to self'}, 404)
+
+                                    if sender_wallet_obj.balance <= transaction_data.totalamount:
+                                        return json({'msg': 'Sender do not have sufficient wallet balance'})
+
+                                    if sender_wallet_obj.balance >= transaction_data.totalamount:
+
+                                        #Convert currency using API
+                                        try:
+                                            url = f"{currency_converter_api}/convert?from={sender_currency_name_obj.name}&to={receiver_currency_obj.name}&amount={transaction_data.amount}"
+                                            headers = {
+                                            'X-RapidAPI-Key': f"{RAPID_API_KEY}",
+                                            'X-RapidAPI-Host': f"{RAPID_API_HOST}"
+                                        }
+                                            async with AsyncClient() as client:
+                                                response = await client.get(url, headers=headers)
+                                                # print('APi Response', response)
+
+                                            if response.status_code == 200:
+                                                api_data = response.json()
+                                                print('api data', api_data)
+
+                                            else:
+                                                return json({'msg': 'Error calling external API', 'error': response.text}, 400)
+                                    
+                                        except Exception as e:
+                                            return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
+
+                                        converted_amount = api_data['result'] if 'result' in api_data else None
+
+                                        if not converted_amount:
+                                            return json({'msg': 'Invalid Curency Converter API response', 'error': 'Conversion result missing'}, 400)
+
+
+                                        #Add into Receiver Wallet
+                                        try:
+                                            recipient_wallet_obj.balance += converted_amount
+                                            session.add(recipient_wallet_obj)
+                                        except Exception as e:
+                                            return json({'msg': 'Unable to update recipient wallet', 'error': f'{str(e)}'}, 400)
+
+                                        # Deduct from sender wallet
+                                        try:
+                                            sender_wallet_obj.balance -=  total_amount
+                                            session.add(sender_wallet_obj)
+
+                                        except Exception as e:
+                                            return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
+
+                                        try:
+                                            transaction_data.txdstatus    = 'Success'
+                                            transaction_data.is_completed = True
+
+                                            session.add(transaction_data)
+
+                                        except Exception as e:
+                                            return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
+
+                                        await session.commit()
+                                        await session.refresh(recipient_wallet_obj)
+                                        await session.refresh(sender_wallet_obj)
+                                        await session.refresh(transaction_data)
+                            else:
+                                return json({'msg': 'Recipient payment mode does not exists please update New transaction'}, 404)
+                            
+                                
+                                
+                                # if user_id == recipient_id:
+                                #     return json({'msg': 'Cannot transfer to self'}, 404)
+                                
+
+                                # Before Deducting from Sender wallet check does the user has sufficient wallet
+                                # if user_wallet_obj.balance <= transaction_data.totalamount:
+                                #     return json({'msg': 'Sender do not have sufficient wallet balance'})
+                                
+
+                                # if user_wallet_obj.balance >= transaction_data.totalamount:
+                                #     #Deposit in Recipient Wallet
+                                #     try:
+                                #         recipient_wallet_obj.balance += sent_amount
+                                        
+                                #         session.add(recipient_wallet_obj)
+
+                                #     except Exception as e:
+                                #         return json({'msg': 'Unable to update recipient wallet', 'error': f'{str(e)}'}, 400)
+                                    
+                                #     #Deduct from sender wallet
+                                #     try:
+                                #         user_wallet_obj.balance -=  total_amount
+
+                                #         session.add(user_wallet_obj)
+                                #     except Exception as e:
+                                #         return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
+                                    
+                                    
+                                #     #Update the Transaction Status
+                                #     try:
+                                #         transaction_data.txdstatus    = 'Success'
+                                #         transaction_data.is_completed = True
+
+                                #         session.add(transaction_data)
+
+                                #     except Exception as e:
+                                #         return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
+                                    
+                                #     await session.commit()
+                                #     await session.refresh(recipient_wallet_obj)
+                                #     await session.refresh(user_wallet_obj)
+                                #     await session.refresh(transaction_data)
+
+                                #     return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
+
+                        else:
+                            return json({'msg': 'Working in Withdraw and Request money'})
+                            
+                    elif data.status == "Pending":
+                        return pretty_json({'msg': 'Updated successfully'}, 200)
+                    
+
+                    #If the transaction status is cancelled
+                    else:
+                        #Update the Transaction Status
+                        try:
+                            transaction_data.txdstatus = 'Cancelled'
+
+                            session.add(transaction_data)
+                            await session.commit()
+                            await session.refresh(transaction_data)
+                        except Exception as e:
+                            return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
+
+                        return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
                 else:
-                    #Update the Transaction Status
-                    try:
-                        transaction_data.txdstatus = 'Cancelled'
-
-                        session.add(transaction_data)
-                        await session.commit()
-                        await session.refresh(transaction_data)
-                    except Exception as e:
-                        return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
-
-                    return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data}, 200)
-
+                    return json({'msg': 'Transaction is completed'}, 400)
                 # return pretty_json({'msg': 'success', 'data': data})
         except Exception as e:
             return pretty_json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

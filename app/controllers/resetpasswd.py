@@ -99,14 +99,14 @@ class UserResetPasswdController(APIController):
            500: 'Server Error',
            })
     @post()
-    async def reset_password_mail(self, schema: ResetPasswdSchema, request: Request):
+    async def reset_password(self, schema: ResetPasswdSchema, request: Request):
         
         try:
             async with AsyncSession(async_engine) as session:
                 token = schema.token
                 password1 = schema.password1
                 password2 = schema.password2
-                user_id = verify_password_reset_token(token)
+                user_id   = verify_password_reset_token(token)
 
                 try:
                     existing_user = await session.execute(select(Users).where(Users.id == user_id))
@@ -120,7 +120,6 @@ class UserResetPasswdController(APIController):
                 
                 if password1 != password2:
                     return json({'msg': 'Password did not match'}, 400)
-                
             
                 first_user.password = encrypt_password(schema.password1)
 
@@ -165,13 +164,15 @@ class UserChangePasswordController(APIController):
                         session.add(first_user)
                         await session.commit()
                         await session.refresh(first_user)
+
                         return json({
                             'msg': 'Password has been reset successfully.'
                         }, 200)
+                    
                     else:
                         return json({'msg': 'Passwords do not match.'}, 400)
                 else:
-                    return json({'msg': 'Invailed request.'}, 400)
+                    return json({'msg': 'Invalied request.'}, 400)
                 
         except SQLAlchemyError as e:
             return json({"Error": str(e)}, 500)

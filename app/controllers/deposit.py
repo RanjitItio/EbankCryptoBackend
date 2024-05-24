@@ -196,6 +196,13 @@ class AllDepositController(APIController):
                 except Exception as e:
                     return pretty_json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                 
+                #Get the converted currency wallet
+                try:
+                    converted_currency_wallet     = await session.execute(select(Wallet))
+                    converted_currency_wallet_obj = converted_currency_wallet.scalars().all()
+                except Exception as e:
+                    return pretty_json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
+                
                 #Get the user data
                 try:
                     user_obj      = await session.execute(select(Users))
@@ -205,6 +212,7 @@ class AllDepositController(APIController):
 
                 currency_dict = {currency.id: currency for currency in currency_obj}
                 user_dict     = {user.id: user for user in user_obj_data}
+                converted_currency_wallet_dict = {wallet.id: wallet for wallet in converted_currency_wallet_obj}
                 combined_data = []
                 
                 for transaction in get_all_transaction_obj:
@@ -214,10 +222,14 @@ class AllDepositController(APIController):
                         user_id   = transaction.user_id
                         user_data = user_dict.get(user_id)
 
+                        converted_currency_id = transaction.wallet_id
+                        converted_currency    = converted_currency_wallet_dict.get(converted_currency_id)
+
                         combined_data.append({
                             'transaction': transaction,
                             'currency': currency_data,
-                            'user': user_data
+                            'user': user_data,
+                            'converted_currency': converted_currency if converted_currency else None
                         })
                 
                 if not get_all_transaction_obj:

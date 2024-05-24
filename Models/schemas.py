@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 import datetime
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 
@@ -67,14 +67,43 @@ class ResetPassword(BaseModel):
     new_password: str
     confirm_password: str   
 
-class TransferMoneySchema(BaseModel):
-    currency: str
-    transfer_amount: float
-    recivermail:str
-    note: str
+@dataclass
+class TransferMoneySchema:
+    send_amount: float
     fee: float
     total_amount: float
-    payment_mode: str
+    send_currency: str
+    sender_payment_mode: str
+    purpose: str
+    
+    rec_currency: str
+    rec_full_name: str
+    rec_email: str
+    rec_phoneno: str
+    rec_add_info: str
+    rec_address: str
+
+    rec_pay_mode: str
+    rec_bank_name: Optional[str]      = field(default=None)
+    rec_acc_no: Optional[str]         = field(default=None)
+    rec_ifsc: Optional[str]           = field(default=None)
+
+    # sender_bank_name: Optional[str]   = field(default=None)
+    # sender_acc_no: Optional[str]      = field(default=None)
+    # sender_ifsc: Optional[str]        = field(default=None)
+
+    
+    # card_no: Optional[str]     = field(default=None)
+    # card_cvv: Optional[str]    = field(default=None)
+    # card_expiry: Optional[str] = field(default=None)
+
+    # currency: str
+    # transfer_amount: float
+    # recivermail:str
+    # note: str
+    # fee: float
+    # total_amount: float
+    # payment_mode: str
 
 
 class WithdrawlAndDeposieSchema(BaseModel):

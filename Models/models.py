@@ -63,8 +63,41 @@ class Wallet(SQLModel, table=True):
     created_data: date     = Field(default=date.today(), nullable=True)
     # user: Optional[Users] = Relationship(back_populates="wallets")
     # currency: Optional[Cusrrency] = Relationship(back_populates="wallets")
-    
-    
+
+
+
+class ReceiverDetails(SQLModel, table=True):
+    id: int | None         = Field(default=None, primary_key=True)
+    currency: int          = Field(foreign_key="currency.id", nullable=True)
+    full_name: str         = Field(default='')
+    email:str              = Field(default='')
+    mobile_number: str     = Field(default='')
+    amount: float          = Field(default=0.00, nullable=True)
+    pay_via: str           = Field(default='')
+    bank_name: str         = Field(default='', nullable=True)
+    acc_number: str        = Field(default='', nullable=True)
+    ifsc_code: str         = Field(default='', nullable=True)
+    add_info: str          = Field(default='', nullable=True)
+    address: str           = Field(default='', nullable=True)
+    card_number: str       = Field(default='', nullable=True)
+    card_cvv: str          = Field(default='', nullable=True)
+    card_expiry: str       = Field(default='', nullable=True)
+
+
+#Not used yet
+class SenderDetails(SQLModel, table=True):
+    id: int | None         = Field(default=None, primary_key=True)
+    bank_name: str         = Field(default='', nullable=True)
+    acc_number: str        = Field(default='', nullable=True)
+    ifsc_code: str         = Field(default='', nullable=True)
+    add_info: str          = Field(default='', nullable=True)
+    address: str           = Field(default='', nullable=True)
+    card_number: str       = Field(default='', nullable=True)
+    card_cvv: str          = Field(default='', nullable=True)
+    card_expiry: str       = Field(default='', nullable=True)
+
+
+
 
 class Transection(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
@@ -82,7 +115,12 @@ class Transection(SQLModel, table=True):
     payment_mode: str           = Field(default='None')
     txdtype: str                = Field(default='None')
     is_completed: bool          = Field(default=False, nullable=True)
-    wallet_id: int                 = Field(foreign_key='wallet.id', nullable=True)
+    wallet_id: int              = Field(foreign_key='wallet.id', nullable=True)
+    rec_currency: int           = Field(foreign_key="currency.id", nullable=True)
+    rec_detail: int             = Field(foreign_key='receiverdetails.id', nullable=True)
+    send_detail: int            = Field(foreign_key='senderdetails.id', nullable=True)
+    rec_pay_mode: str           = Field(default='', nullable=True)
+
 
 
     
@@ -142,6 +180,7 @@ class RequestMoney(SQLModel, table=True):
     status: bool = Field(default=False)
     created_at: datetime = Field(default=datetime.now())
     
+
 
 
 class TestModel(SQLModel, table=True):

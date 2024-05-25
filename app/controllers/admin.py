@@ -6,7 +6,8 @@ from Models.models import Users, Admin
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import encrypt_password
-from app.controllers.controllers import get, post, put, delete
+from app.controllers.controllers import get, post
+
 
 
 
@@ -20,17 +21,17 @@ class AdminController(APIController):
     def class_name(cls):
         return "Admin register"
 
-    @get()
-    async def get_user(self, email: str):
-        try:
-            async with AsyncSession(async_engine) as session:
-                statement = select(Users).where(Users.email == email)
-                results = await session.execute(statement)
-                # users = [user.to_dict() for user in results.scalars()]
-                return json({'users': results})
+    # @get()
+    # async def get_user(self, email: str):
+    #     try:
+    #         async with AsyncSession(async_engine) as session:
+    #             statement = select(Users).where(Users.email == email)
+    #             results = await session.execute(statement)
+    #             # users = [user.to_dict() for user in results.scalars()]
+    #             return json({'users': results})
 
-        except SQLAlchemyError as e:
-            return json({"Error": str(e)})
+    #     except SQLAlchemyError as e:
+    #         return json({"Error": str(e)})
 
 
     @post()
@@ -71,14 +72,14 @@ class AdminController(APIController):
             return json({"Error": str(e)})
 
 
-    @put()
-    async def update_user(self):
-        return {'msg': 'update user'}
+    # @put()
+    # async def update_user(self):
+    #     return {'msg': 'update user'}
 
 
-    @delete()
-    async def delete_user(self):
-        return {'msg': 'Delete user'}
+    # @delete()
+    # async def delete_user(self):
+    #     return {'msg': 'Delete user'}
 
 
 

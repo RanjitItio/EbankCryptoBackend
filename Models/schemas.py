@@ -62,10 +62,10 @@ class TokenCreate(BaseModel):
     created_date:datetime.datetime
 
 
-class ResetPassword(BaseModel):
-    token: str
-    new_password: str
-    confirm_password: str   
+# class ResetPassword(BaseModel):
+#     token: str
+#     new_password: str
+#     confirm_password: str   
 
 @dataclass
 class TransferMoneySchema:

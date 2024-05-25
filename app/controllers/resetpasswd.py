@@ -1,5 +1,5 @@
 from blacksheep.server.controllers import APIController
-from Models.schemas import UserCreateSchema, ResetPasswdSMailchema ,ResetPassword ,ResetPasswdSchema
+from Models.schemas import UserCreateSchema, ResetPasswdSMailchema ,ResetPasswdSchema
 from sqlmodel import select
 from database.db import async_engine, AsyncSession
 from Models.models import Users
@@ -10,6 +10,7 @@ import time
 from app.controllers.controllers import get, post, put, delete
 from decouple import config
 from app.docs import docs
+from blacksheep.server.authorization import auth
 
 
 mail_send_url = config('SIGNUP_MAIL_URL')
@@ -100,7 +101,9 @@ class UserResetPasswdController(APIController):
            })
     @post()
     async def reset_password(self, schema: ResetPasswdSchema, request: Request):
-        
+        """
+          Reset Forgot Password
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 token = schema.token
@@ -144,35 +147,49 @@ class UserChangePasswordController(APIController):
     def class_name(cls):
         return "Users change password"
     
+
+    @docs(responses={
+        200: 'Password Changed Successfully',
+        403: 'Password did not match',
+        400: 'Invalied request',
+        500: 'Server Error'
+    })
+    @auth('userauth')
     @post()
-    async def change_password(self, data: ResetPassword, request: Request):
+    async def change_password(self, request: Request):
         """
-         Reset Password get the response(error.response.data.msg)
+          Change users password, Authenticated Route
         """
         try:
             async with AsyncSession(async_engine) as session:
-                # Decode the password reset token to get the user ID
-                user_id = decode_token(data.token)['user_id']
-                # Find the user based on the user ID
-                user = await session.execute(select(Users).where(Users.id == user_id))
-                first_user = user.scalars().first()
-                if first_user:
-                    # Check if the password reset token is still valid
-                    if data.new_password == data.confirm_password:
-                        # Update the user's password
-                        first_user.password = encrypt_password(data.new_password)
-                        session.add(first_user)
-                        await session.commit()
-                        await session.refresh(first_user)
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-                        return json({
-                            'msg': 'Password has been reset successfully.'
-                        }, 200)
-                    
-                    else:
-                        return json({'msg': 'Passwords do not match.'}, 400)
-                else:
-                    return json({'msg': 'Invalied request.'}, 400)
+                request_body = await request.json()
+                password1    = request_body['password1']
+                password2    = request_body['password2']
                 
-        except SQLAlchemyError as e:
-            return json({"Error": str(e)}, 500)
+                if password1 != password2:
+                    return json({'msg': 'Password did not match'}, 403)
+                
+                user       = await session.execute(select(Users).where(Users.id == user_id))
+                user_obj   = user.scalar()
+                
+                if user_obj:
+                    encrypted_password = encrypt_password(password1)
+                    user_obj.password  = encrypted_password
+
+                    session.add(user_obj)
+                    await session.commit()
+                    await session.refresh(user_obj)
+
+                    return json({
+                        'msg': 'Password Changed Successfully'
+                    }, 200)
+                
+                else:
+                    return json({'msg': 'Invalied request'}, 400)
+                
+        except Exception as e:
+            return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+        

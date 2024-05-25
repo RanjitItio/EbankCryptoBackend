@@ -28,8 +28,10 @@ class TransferMoneyController(APIController):
 
     @auth('userauth')
     @post()
-    async def create_transfer_money(self, transfer_data: TransferMoneySchema, request: Request):
-        
+    async def create_transfermoney(self, transfer_data: TransferMoneySchema, request: Request):
+        """
+          User will be able to Transfer amount to another user, Authenticated route.
+        """
         try:
             async with AsyncSession(async_engine) as session:
 
@@ -82,20 +84,63 @@ class TransferMoneyController(APIController):
                 except Exception as e:
                     return json({'msg': 'Unable to identify Sendeer wallet', 'error': f'{str(e)}'}, 400)
                 
+                
+                #===========================================
+                #If the recipient payment method is wallet
+                #===========================================
+                if transfer_data.rec_pay_mode == 'Wallet':
+                    
+                    #Check recipient exist as a user or not
+                    try:
+                        recipient     = await session.execute(select(Users).where(Users.email == transfer_data.rec_email))
+                        recipient_obj = recipient.scalars().first()
 
-                #Sender part
-                #==========================================================================
-                #If te sender payment Mode is Bank and Receiver payment Mode is also bank
-                #===========================================================================
-                if transfer_data.sender_payment_mode == "Bank" and transfer_data.rec_pay_mode == 'Bank':
+                        if not recipient_obj:
+                            return json({"msg": "Recipient email does not exist"}, status=404)
+                        
+                    except Exception as e:
+                        return json({'msg': 'Unable to identify Recipient'}, 400)
+                    
+                    #Check Recipient wallet exists or not
+                    try:
+                        recipient_wallet     = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == receiver_currency_obj.id))
+                        recipient_wallet_obj = recipient_wallet.scalars().first()
 
-                    # sender_details = SenderDetails(
-                    #     bank_name = transfer_data.sender_bank_name,
-                    #     acc_number = transfer_data.sender_acc_no,
-                    #     ifsc_code  = transfer_data.sender_ifsc,
-                    #     add_info   = transfer_data.purpose
-                    # )
-                    # session.add(sender_details)
+                        if not recipient_wallet_obj:
+                            return json({'msg': 'Recipient wallet not found'}, 404)
+                    
+                    except Exception as e:
+                        return json({'msg': 'Unable to locate recipient Wallet'}, 400)
+                    
+                    if sender_wallet_obj.id == recipient_wallet_obj.id:
+                        return json({'msg': 'Cannot transfer to same wallet'}, 404)
+                    
+                    addtransection   = Transection(
+                                user_id      = user_id,
+                                txdid        = f"{timestamp}-{unique_transaction_id}",
+                                txdrecever   = recipient_obj.id,
+                                amount       = transfer_data.send_amount,
+                                txdfee       = transfer_data.fee,
+                                totalamount  = transfer_data.total_amount,
+                                txdcurrency  = sender_currency_obj.id,
+                                txdmassage   = transfer_data.purpose,
+                                txdstatus    = 'Pending',
+                                txdtype      = 'Transfer',
+                                payment_mode = transfer_data.sender_payment_mode,
+                                rec_pay_mode = transfer_data.rec_pay_mode,
+                                rec_currency = receiver_currency_obj.id
+                            )
+
+                    session.add(addtransection)
+                    await session.commit()
+                    await session.refresh(addtransection)
+
+                    return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
+                
+                #===========================================
+                #If the recipient payment method is Bank
+                #===========================================
+                elif transfer_data.rec_pay_mode == 'Bank':
 
                     receiver_details = ReceiverDetails(
                         full_name     = transfer_data.rec_full_name,
@@ -122,234 +167,61 @@ class TransferMoneyController(APIController):
                         txdstatus    = 'Pending',
                         txdtype      = 'Transfer',
                         payment_mode = transfer_data.sender_payment_mode,
-                        rec_pay_mode = transfer_data.rec_pay_mode
-                        # send_detail  = sender_details.id
+                        rec_pay_mode = transfer_data.rec_pay_mode,
+                        rec_currency = receiver_currency_obj.id
                     )
-
-                    # await session.commit()
-                    # await session.refresh(sender_details)
 
                     await session.commit()
                     await session.refresh(receiver_details)
 
-                    # addtransection.send_detail = sender_details.id
                     addtransection.rec_detail  = receiver_details.id
                     
                     session.add(addtransection)
                     await session.commit()
                     await session.refresh(addtransection)
 
-                    return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
-                
-                #===========================================
-                #IF Sender payment method is Wallet
-                #==========================================
-                elif transfer_data.sender_payment_mode == 'Wallet' and transfer_data.rec_pay_mode == 'Wallet':
-                    
-                    #Check recipient exist as a user or not
-                    try:
-                        recipient     = await session.execute(select(Users).where(Users.email == transfer_data.rec_email))
-                        recipient_obj = recipient.scalars().first()
-
-                        if not recipient_obj:
-                            return json({"msg": "Recipient email does not exist"}, status=404)
-                        
-                    except Exception as e:
-                        return json({'msg': 'Unable to identify Recipient'}, 400)
-                    
-                    #Check Recipient wallet exists or not
-                    try:
-                        recipient_wallet     = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == receiver_currency_obj.id))
-                        recipient_wallet_obj = recipient_wallet.scalars().first()
-
-                        if not recipient_wallet_obj:
-                            return json({'msg': 'Recipient wallet not found'}, 404)
-                    
-                    except Exception as e:
-                        return json({'msg': 'Unable to locate recipient Wallet'}, 400)
-                    
-                    # If the Sender and Receiver both are same
-                    if user_id == recipient_obj.id:
-                        return json({'msg': 'Cannot transfer to self'}, 404)
-                    
-                    if sender_wallet_obj.balance >= transfer_data.total_amount:
-
-                        #Create Receiver Details
-                        receiver_details = ReceiverDetails(
-                            currency      = receiver_currency_obj.id,
-                            email         = transfer_data.rec_email,
-                            mobile_number = transfer_data.rec_phoneno,
-                            pay_via       = transfer_data.rec_pay_mode,
-                            full_name     = transfer_data.rec_full_name,
-                            bank_name     = transfer_data.rec_bank_name,
-                            acc_number    = transfer_data.rec_acc_no,
-                            ifsc_code     = transfer_data.rec_ifsc,
-                            add_info      = transfer_data.rec_add_info,
-                            address       = transfer_data.rec_address,
-                        )
-
-                        session.add(receiver_details)
-
-                        addtransection   = Transection(
-                            user_id      = user_id,
-                            txdid        = f"{timestamp}-{unique_transaction_id}",
-                            txdrecever   = recipient_obj.id,
-                            amount       = transfer_data.send_amount,
-                            txdfee       = transfer_data.fee,
-                            totalamount  = transfer_data.total_amount,
-                            txdcurrency  = sender_currency_obj.id,
-                            txdmassage   = transfer_data.purpose,
-                            txdstatus    = 'Pending',
-                            txdtype      = 'Transfer',
-                            payment_mode = transfer_data.sender_payment_mode,
-                            rec_pay_mode = transfer_data.rec_pay_mode
-                        )
-
-                        await session.commit()
-                        await session.refresh(receiver_details)
-
-                        addtransection.rec_detail = receiver_details.id
-
-                        session.add(addtransection)
-                        await session.commit()
-                        await session.refresh(addtransection)
-
-                        return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
-                    
-                    else:
-                        return json({'msg': 'Insufficient balance in Sener account'}, 400)
-                
-                #=========================================================================
-                #If the Sender Payment mode Is Bank and Reciver payment method is Wallet
-                #==========================================================================
-                elif transfer_data.sender_payment_mode == "Bank" and transfer_data.rec_pay_mode == "Wallet":
-
-                    #Check recipient exist as a user or not
-                    try:
-                        recipient     = await session.execute(select(Users).where(Users.email == transfer_data.rec_email))
-                        recipient_obj = recipient.scalars().first()
-
-                        if not recipient_obj:
-                            return json({"msg": "Recipient email does not exist"}, status=404)
-                        
-                    except Exception as e:
-                        return json({'msg': 'Unable to identify Recipient'}, 400)
-                    
-                    #Check Recipient wallet exists or not
-                    try:
-                        recipient_wallet     = await session.execute(select(Wallet).where(Wallet.user_id == recipient_obj.id and Wallet.currency_id == receiver_currency_obj.id))
-                        recipient_wallet_obj = recipient_wallet.scalars().first()
-
-                        if not recipient_wallet_obj:
-                            return json({'msg': 'Recipient wallet not found'}, 404)
-                    
-                    except Exception as e:
-                        return json({'msg': 'Unable to locate recipient Wallet'}, 400)
-
-                    # sender_details = SenderDetails(
-                    #     bank_name   = transfer_data.sender_bank_name,
-                    #     acc_number = transfer_data.sender_acc_no,
-                    #     ifsc_code  = transfer_data.sender_ifsc,
-                    #     add_info   = transfer_data.purpose
-                    # )
-                    # session.add(sender_details)
-
-                    if sender_wallet_obj.balance >= transfer_data.total_amount:
-
-                        receiver_details = ReceiverDetails(
-                            currency      = receiver_currency_obj.id,
-                            email         = transfer_data.rec_email,
-                            mobile_number = transfer_data.rec_phoneno,
-                            pay_via       = transfer_data.rec_pay_mode,
-                            full_name     = transfer_data.rec_full_name,
-                            bank_name     = transfer_data.rec_bank_name,
-                            acc_number    = transfer_data.rec_acc_no,
-                            ifsc_code     = transfer_data.rec_ifsc,
-                            add_info      = transfer_data.rec_add_info,
-                            address       = transfer_data.rec_address,
-                            
-                        )
-                        session.add(receiver_details)
-
-                        addtransection   = Transection(
-                            user_id      = user_id,
-                            txdid        = f"{timestamp}-{unique_transaction_id}",
-                            amount       = transfer_data.send_amount,
-                            txdfee       = transfer_data.fee,
-                            totalamount  = transfer_data.total_amount,
-                            txdcurrency  = sender_currency_obj.id,
-                            txdmassage   = transfer_data.purpose,
-                            txdstatus    = 'Pending',
-                            txdtype      = 'Transfer',
-                            txdrecever   = recipient_obj.id,
-                            payment_mode = transfer_data.sender_payment_mode,
-                            rec_pay_mode = transfer_data.rec_pay_mode
-                        )
-
-                        # await session.commit()
-                        # await session.refresh(sender_details)
-
-                        await session.commit()
-                        await session.refresh(receiver_details)
-
-                        # addtransection.send_detail = sender_details.id
-                        addtransection.rec_detail  = receiver_details.id
-
-                        session.add(addtransection)
-                        await session.commit()
-                        await session.refresh(addtransection)
-                        
-                        return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
-                
-                #=======================================================================
-                #If the Sender Payment mode Is Wallet and Reciver payment method is Bank
-                #=======================================================================
-                elif transfer_data.sender_payment_mode == "Wallet" and transfer_data.rec_pay_mode == "Bank":
-
-                    if sender_wallet_obj.balance >= transfer_data.total_amount:
-                        #Create Receiver Details
-                        receiver_details = ReceiverDetails(
-                            currency      = receiver_currency_obj.id,
-                            email         = transfer_data.rec_email,
-                            mobile_number = transfer_data.rec_phoneno,
-                            pay_via       = transfer_data.rec_pay_mode,
-                            full_name     = transfer_data.rec_full_name,
-                            bank_name     = transfer_data.rec_bank_name,
-                            acc_number    = transfer_data.rec_acc_no,
-                            ifsc_code     = transfer_data.rec_ifsc,
-                            add_info      = transfer_data.rec_add_info,
-                            address       = transfer_data.rec_address,
-                        )
-
-                        session.add(receiver_details)
-
-                        addtransection   = Transection(
-                            user_id      = user_id,
-                            txdid        = f"{timestamp}-{unique_transaction_id}",
-                            amount       = transfer_data.send_amount,
-                            txdfee       = transfer_data.fee,
-                            totalamount  = transfer_data.total_amount,
-                            txdcurrency  = sender_currency_obj.id,
-                            txdmassage   = transfer_data.purpose,
-                            txdstatus    = 'Pending',
-                            txdtype      = 'Transfer',
-                            payment_mode = transfer_data.sender_payment_mode,
-                            rec_pay_mode = transfer_data.rec_pay_mode
-                        )
-
-                        await session.commit()
-                        await session.refresh(receiver_details)
-
-                        addtransection.rec_detail = receiver_details.id
-
-                        session.add(addtransection)
-                        await session.commit()
-                        await session.refresh(addtransection)
-
-                        return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
+                    return json({'msg': 'Transaction Successfull please wait for Admin Approval'}, 200)
 
                 else:
-                    return json({'msg': 'Please select payment mode between Bank or Wallet'}, 400)
+                    receiver_details = ReceiverDetails(
+                        full_name     = transfer_data.rec_full_name,
+                        email         = transfer_data.rec_email,
+                        mobile_number = transfer_data.rec_phoneno,
+                        pay_via       = transfer_data.rec_pay_mode,
+                        bank_name     = transfer_data.rec_bank_name,
+                        acc_number    = transfer_data.rec_acc_no,
+                        ifsc_code     = transfer_data.rec_ifsc,
+                        add_info      = transfer_data.rec_add_info,
+                        address       = transfer_data.rec_address,
+                        currency      = receiver_currency_obj.id
+                    )
+                    session.add(receiver_details)
+
+                    addtransection   = Transection(
+                        user_id      = user_id,
+                        txdid        = f"{timestamp}-{unique_transaction_id}",
+                        amount       = transfer_data.send_amount,
+                        txdfee       = transfer_data.fee,
+                        totalamount  = transfer_data.total_amount,
+                        txdcurrency  = sender_currency_obj.id,
+                        txdmassage   = transfer_data.purpose,
+                        txdstatus    = 'Pending',
+                        txdtype      = 'Transfer',
+                        payment_mode = transfer_data.sender_payment_mode,
+                        rec_pay_mode = transfer_data.rec_pay_mode,
+                        rec_currency = receiver_currency_obj.id
+                    )
+
+                    await session.commit()
+                    await session.refresh(receiver_details)
+
+                    addtransection.rec_detail  = receiver_details.id
+
+                    session.add(addtransection)
+                    await session.commit()
+                    await session.refresh(addtransection)
+
+                    return json({'msg': 'Transaction Successfull please wait for Admin Approval'}, 200)
 
         except Exception as e:
                 return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

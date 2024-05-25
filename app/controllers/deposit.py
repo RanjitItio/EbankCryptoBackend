@@ -6,11 +6,11 @@ from Models.models import Users ,Wallet ,Transection ,Currency , ExternalTransec
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
-import time
 import uuid
 from app.auth import decode_token
 from blacksheep.server.responses import pretty_json
-from app.controllers.controllers import get, post, put, delete
+from app.controllers.controllers import get, post
+
 
 
 
@@ -22,10 +22,13 @@ class DepositController(APIController):
 
     @classmethod
     def class_name(cls):
-        return "Deposit Money"
-
+        return "User Deposit Money"
+    
     @post()
     async def create_deposit(self, transfer_money: DepositMoneySchema, request: Request):
+        """
+         User will be able to Deposit Money, Authenticated Route.
+        """
         try:
             async with AsyncSession(async_engine) as session:
 
@@ -141,6 +144,9 @@ class AllDepositController(APIController):
     
     @get()
     async def get_transaction(self, request: Request):
+        """
+          View all the Deposit Transactions, By Admin
+        """
         try:
             async with AsyncSession(async_engine) as session:
 

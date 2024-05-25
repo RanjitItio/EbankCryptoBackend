@@ -14,7 +14,8 @@ from blacksheep import FromJSON, FromQuery
 from typing import List
 from app.docs import docs
 from decouple import config
-from app.controllers.controllers import get, post, put, delete
+from app.controllers.controllers import get, post
+from blacksheep.server.authorization import auth
 
 
 signup_mail_sent_url = config('SIGNUP_MAIL_URL')
@@ -161,6 +162,76 @@ class UserController(APIController):
             return json({"Error": str(e)})
 
 
+
+class SuspendedUserCheck(APIController):
+    @classmethod
+    def route(cls):
+        return '/api/v1/user/is_suspended/'
+
+    @classmethod
+    def class_name(cls):
+        return "Check Suspended user"
+    
+    @auth('userauth')
+    @get()
+    async def suspended_user_check(self, request: Request):
+        """
+         Check user is Suspended or not
+        """
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                try:
+                    user = await session.execute(select(Users).where(Users.id == user_id))
+                    user_obj = user.scalar()
+                except Exception as e:
+                    return json({'msg': 'User fetch error', 'error': f'{str(e)}'}, 400)
+                
+                if user_obj.is_suspended:
+                    return json({'msg': 'User has been suspended'}, 401)
+                
+                return json({'msg': 'User is active'}, 200)
+            
+        except Exception as e:
+            return json({'Error': str(e)}, 500)
+
+
+
+class InactiveUserCheck(APIController):
+    @classmethod
+    def route(cls):
+        return '/api/v1/user/is_active/'
+
+    @classmethod
+    def class_name(cls):
+        return "Check Inactive user"
+    
+    @auth('userauth')
+    @get()
+    async def inactive_user_check(self, request: Request):
+        """
+         Check user is Active or not
+        """
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                try:
+                    user = await session.execute(select(Users).where(Users.id == user_id))
+                    user_obj = user.scalar()
+                except Exception as e:
+                    return json({'msg': 'User fetch error', 'error': f'{str(e)}'}, 400)
+                
+                if not user_obj.is_active:
+                    return json({'msg': 'User is not active'}, 401)
+                
+                return json({'msg': 'User is active'}, 200)
+            
+        except Exception as e:
+            return json({'Error': str(e)}, 500)
 
 
 

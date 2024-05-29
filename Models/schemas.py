@@ -5,6 +5,12 @@ from dataclasses import dataclass, field
 
 
 
+@dataclass
+class AllKycByAdminSchema:
+    limit: Optional[int] = field(default=10)
+    offset: Optional[int] = field(default=0)
+
+
 class UserCreateSchema(BaseModel):
     firstname: str
     lastname: str
@@ -237,8 +243,16 @@ class AdminUpdateUserSchema:
     last_name:        str
     phoneno:          str
     email:            str
-    group:            str
-    password:         str
-    confirm_password: str
+    group:            int
     status:           str
+
+    dob:              str
+    gender:           str
+    state:            str
+    city:             str
+    landmark:         str
+    address:          str
+
+    password: Optional[str]         = field(default='')
+    confirm_password: Optional[str] = field(default='')
 

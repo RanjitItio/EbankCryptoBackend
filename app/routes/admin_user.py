@@ -4,10 +4,12 @@ from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
 from app.docs import docs
 from app.auth import decode_token, encrypt_password
-from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel
+from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
 from sqlmodel import select
 from blacksheep.server.authorization import auth
 from typing import List
+from datetime import datetime
+
 
 
 
@@ -15,7 +17,7 @@ from typing import List
 #Delete User by Admin
 @docs(responses={200: 'All the data related to user (Transactions, Wallet, Kyc) will be deleted'})
 @auth('userauth')
-@delete('/api/v1/admin/del/user/')
+@post('/api/v1/admin/del/user/')
 async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSchema]):
     """
      Delete the user and its related Data, Only admin can access the path, Provide user_id which is to be deleted
@@ -54,8 +56,12 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
             
             #Get the kyc related to the user
             try:
-                user_kyc = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user_id))
-                user_kyc_obj = user_kyc.scalar()
+                user_kyc     = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user_id))
+                user_kyc_obj = user_kyc.scalars()
+
+                if not user_kyc_obj:
+                    return json({'msg': 'Kyc of user not available'}, 404)
+                
             except Exception as e:
                 return json({'msg': 'Kyc fetch error', 'error': f'{str(e)}'}, 400)
         
@@ -75,16 +81,31 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
             
             #Get the wallets related to the user
             try:
-                user_wallets = await session.execute(select(Wallet).where(Wallet.user_id == user_id))
+                user_wallets     = await session.execute(select(Wallet).where(Wallet.user_id == user_id))
                 user_wallets_obj = user_wallets.scalars().all()
             except Exception as e:
                 return json({'msg': 'Wallet fetch error', 'error': f'{str(e)}'}, 400)
             
+            #Delete the Transaction related to the Selected wallet
+            try:
+                for wallet in user_wallets_obj:
+                    user_selected_wallet     = await session.execute(select(Transection).where(Transection.wallet_id == wallet.id))
+                    user_selected_wallet_obj = user_selected_wallet.scalar_one_or_none()
+
+                    if user_selected_wallet_obj:
+                        await session.delete(user_selected_wallet_obj)
+                        await session.commit()
+
+            except Exception as e:
+                return json({'msg': 'Selected wallet Transaction error', 'error': f'{str(e)}'}, 500)
+            
 
             if user_kyc_obj:
                 try:
-                    await session.delete(user_kyc_obj)
-                    await session.commit()
+                    for kyc in user_kyc_obj:
+                        await session.delete(kyc)
+                        await session.commit()
+
                 except Exception as e:
                     return json({'msg': 'Error while deleting the user kyc', 'error': f'{str(e)}'}, 400)
         
@@ -128,7 +149,7 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
                 return json({'msg': 'Error while deleting the user', 'error': f'{str(e)}'}, 400)
 
 
-            return json({'msg': 'Deleted successfully'}, 200)
+            return json({'msg': 'User Deleted successfully'}, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
@@ -152,6 +173,9 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             adminID          = user_identity.claims.get("user_id") if user_identity else None
 
             value = user_update_schema.value
+
+            dob_str  = value.dob
+            dob_date = datetime.strptime(dob_str, '%Y-%m-%d').date()
         
             #Check the user is admin or Not
             try:
@@ -198,9 +222,19 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                 if existing_mobile_number_obj.phoneno != user_data_obj.phoneno:
                     return json({'msg': 'Provided Mobile No already exists'}, 200)
             
+            if value.password:
+                password = value.password
+            else:
+                password = user_data_obj.password
+
+            if  value.confirm_password:
+                confirm_password = value.confirm_password
+            else:
+                confirm_password = user_data_obj.password
+
 
             #Check the given password matching or not
-            if value.password != value.confirm_password:
+            if password != confirm_password:
                 return json({'msg': 'Password did not match'}, 400)
 
             #Get the Kyc details of the user
@@ -211,91 +245,108 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             except Exception as e:
                 return json({'msg': 'Unable to locate kyc', 'error': f'{str(e)}'}, 400)
             
-
             #Update the user data
             try:
-                if value.group == 'Default User':
-                    if value.status == 'Active':
-                        #Update user
+                # if value.group == 'Default User':
+                if value.status == 'Active':
+                    #Update user
+                    try:
+                        user_data_obj.first_name   = value.first_name
+                        user_data_obj.lastname     = value.last_name
+                        user_data_obj.phoneno      = value.phoneno
+                        user_data_obj.email        = value.email
+                        user_data_obj.password     = encrypt_password(password)
+                        user_data_obj.is_active    = True
+                        user_data_obj.is_verified  = True
+                        user_data_obj.is_suspended = False
+                        user_data_obj.group        = value.group
+
+                        session.add(user_data_obj)
+                        await session.commit()
+
+                    except Exception as e:
+                        return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
                         try:
-                            user_data_obj.first_name   = value.first_name
-                            user_data_obj.lastname     = value.last_name
-                            user_data_obj.phoneno      = value.phoneno
-                            user_data_obj.email        = value.email
-                            user_data_obj.password     = encrypt_password(value.password)
-                            user_data_obj.is_active    = True
-                            user_data_obj.is_verified  = True
-                            user_data_obj.is_suspended = False
 
-                            session.add(user_data_obj)
+                            kyc_detail.status = 'Approved'
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
+
+                            session.add(kyc_detail)
                             await session.commit()
-
+                            await session.refresh(kyc_detail)
                         except Exception as e:
-                            return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
-                        
-                        #Update Kyc status
-                        if kyc_detail:
-                            try:
-                                kyc_detail.status = 'Approved'
-                                
-                                session.add(kyc_detail)
-                                await session.commit()
-                                await session.refresh(kyc_detail)
-                            except Exception:
-                                return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
-        
-                    #If the status is inactive
-                    elif value.status == 'Inactive':
-                        #Update user data according to Inactive status
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+    
+                #If the status is inactive
+                elif value.status == 'Inactive':
+                    #Update user data according to Inactive status
+                    try:
+                        user_data_obj.first_name  = value.first_name
+                        user_data_obj.lastname    = value.last_name
+                        user_data_obj.phoneno     = value.phoneno
+                        user_data_obj.email       = value.email
+                        user_data_obj.password    = encrypt_password(password)
+                        user_data_obj.is_active   = False
+                        user_data_obj.is_verified = False
+                        user_data_obj.group       = value.group
+
+                        session.add(user_data_obj)
+                        await session.commit()
+
+                    except Exception as e:
+                        return json({'msg': 'Error while updating inactive user data', 'error': f'{str(e)}'}, 400)
+
+                elif value.status == 'Suspended':
+                    try:
+                        user_data_obj.first_name   = value.first_name
+                        user_data_obj.lastname     = value.last_name
+                        user_data_obj.phoneno      = value.phoneno
+                        user_data_obj.email        = value.email
+                        user_data_obj.password     = encrypt_password(password)
+                        user_data_obj.is_active    = True
+                        user_data_obj.is_verified  = True
+                        user_data_obj.is_suspended = True
+                        user_data_obj.group        = value.group
+
+                        session.add(user_data_obj)
+                        await session.commit()
+
+                    except Exception as e:
+                        return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
                         try:
-                            user_data_obj.first_name  = value.first_name
-                            user_data_obj.lastname    = value.last_name
-                            user_data_obj.phoneno     = value.phoneno
-                            user_data_obj.email       = value.email
-                            user_data_obj.password    = encrypt_password(value.password)
-                            user_data_obj.is_active   = False
-                            user_data_obj.is_verified = False
-
-                            session.add(user_data_obj)
-                            await session.commit()
-
-                        except Exception as e:
-                            return json({'msg': 'Error while updating inactive user data', 'error': f'{str(e)}'}, 400)
-
-                    elif value.status == 'Suspended':
-                        try:
-                            user_data_obj.first_name   = value.first_name
-                            user_data_obj.lastname     = value.last_name
-                            user_data_obj.phoneno      = value.phoneno
-                            user_data_obj.email        = value.email
-                            user_data_obj.password     = encrypt_password(value.password)
-                            user_data_obj.is_active    = True
-                            user_data_obj.is_verified  = True
-                            user_data_obj.is_suspended = True
-
-                            session.add(user_data_obj)
-                            await session.commit()
-
-                        except Exception as e:
-                            return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
-                        
-                        #Update Kyc status
-                        if kyc_detail:
-                            try:
-                                kyc_detail.status = 'Approved'
-                                
-                                session.add(kyc_detail)
-                                await session.commit()
-                                await session.refresh(kyc_detail)
-                            except Exception:
-                                return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+                            kyc_detail.status      = 'Approved'
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
                             
-                    else:
-                        return json({'msg': 'Please provide valid user status'}, 400)
+                            session.add(kyc_detail)
+                            
+                            await session.commit()
+                            await session.refresh(kyc_detail)
+
+                        except Exception:
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+                        
+                else:
+                    return json({'msg': 'Please provide valid user status'}, 400)
                 
                 #If the user group is Merchant
-                elif value.group == 'Merchant Regular':
-                    return json({'msg': 'Work in progress'}, 200)
+                # elif value.group == 'Merchant Regular':
+                #     return json({'msg': 'Work in progress'}, 200)
 
             except Exception as e:
                 return json({'msg': 'User update error', 'error': f'{str(e)}'}, 400)
@@ -571,7 +622,24 @@ async def create_newuser(self, request: Request, user_create_schema: FromJSON[Ad
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
-    
+
+
+ 
+@get('/api/all/groups/')
+async def get_groups(self, request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            try:
+                all_groups    = await session.execute(select(Group))
+                all_group_obj = all_groups.scalars().all()
+
+            except Exception as e:
+                return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
+            
+            return json({'msg': 'Group data fetched successfully', 'data': all_group_obj}, 200)
+
+    except Exception as e:
+        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
 
 
 @get('/api/test/date/')

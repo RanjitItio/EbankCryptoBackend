@@ -5,6 +5,10 @@ from sqlalchemy.orm import selectinload, Relationship
 from typing import List
 
 
+class Group(SQLModel, table=True):
+    id: int | None     = Field(primary_key=True, default=None)
+    name: str          = Field(default='None')
+
 
 class Users(SQLModel, table=True):
     id: int | None                 = Field(default=None, primary_key=True)
@@ -30,6 +34,7 @@ class Users(SQLModel, table=True):
     is_suspended: bool             = Field(default=False, nullable=True)
     lastlogin: datetime            = Field(nullable=True)
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
+    group: int                     = Field(foreign_key='group.id', nullable=True)
 
     
 

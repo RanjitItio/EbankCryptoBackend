@@ -8,6 +8,7 @@ from app.docs import docs
 
 
 
+
 @docs(responses={
     400: 'Only admin can view the Transactions',
     400: 'Unable to get Admin detail',

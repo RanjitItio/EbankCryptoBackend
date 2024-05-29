@@ -6,6 +6,8 @@ from typing import Optional
 @dataclass
 class EachUserTransactionSchema:
     user_id: int
+    limit: Optional[int] = 20
+    offset: Optional[int] = 0
 
 
 
@@ -29,3 +31,8 @@ class UserTransactionFilterSchema:
     currency:  Optional[str]  = field(default=None)
     status:    Optional[str]  = field(default=None)
     type:      Optional[str]  = field(default=None)
+
+
+
+
+

@@ -10,6 +10,7 @@ import uuid
 from app.auth import decode_token
 from blacksheep.server.responses import pretty_json
 from app.controllers.controllers import get, post
+from blacksheep.server.authorization import auth
 
 
 
@@ -142,40 +143,19 @@ class AllDepositController(APIController):
     def class_name(cls) -> str:
         return 'All Deposits'
     
+    @auth('userauth')
     @get()
-    async def get_transaction(self, request: Request):
+    async def get_transaction(self, request: Request, limit: int = 25, offset: int = 0):
         """
           View all the Deposit Transactions, By Admin
         """
         try:
             async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-                try:
-                    #Get the token from requeseted header
-                    header_value = request.get_first_header(b"Authorization")
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-                    parts = header_value_str.split()
-
-                    #Decode the token
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
-                
+                limit = limit
+                offset = offset
 
                 #Check the user is admin or Not
                 try:
@@ -190,7 +170,7 @@ class AllDepositController(APIController):
                 
                 #Get all transaction Data
                 try:
-                    get_all_transaction     = await session.execute(select(Transection).where(Transection.txdtype == 'Deposit'))
+                    get_all_transaction     = await session.execute(select(Transection).where(Transection.txdtype == 'Deposit').order_by(Transection.id.desc()).limit(limit).offset(offset))
                     get_all_transaction_obj = get_all_transaction.scalars().all()
                 except Exception as e:
                     return json({'msg': f'{str(e)}'}, 400)

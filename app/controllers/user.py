@@ -2,11 +2,9 @@ from http.client import HTTPException
 from blacksheep.server.controllers import APIController
 from Models.schemas import UserCreateSchema ,ConfirmMail, AdminUserCreateSchema, UserDeleteSchema, AdminUpdateUserSchema
 from sqlmodel import Session, select
-from Models.models import Users ,Currency ,Wallet, Transection, Kycdetails
+from Models.models import Users ,Currency ,Wallet, Transection, Kycdetails, Group
 from blacksheep import Request, json
 from database.db import async_engine, AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
-from Models.cryptoapi import Dogecoin
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
 from app.auth import encrypt_password , encrypt_password_reset_token,send_password_reset_email ,decrypt_password_reset_token, decode_token, send_welcome_email
 from app.module import createcurrencywallet
@@ -68,6 +66,19 @@ class UserController(APIController):
                     mobileno = existing_mobieno.scalars().first()
                 except Exception as e:
                     return json({'msg': 'Mobile no fetche error', 'error': f'{str(e)}'}, 400)
+                
+                try:
+                    user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
+                    user_group_obj = user_group.scalars().first()
+
+                    if not user_group_obj:
+                        user_group_id = 1
+                    else:
+                        user_group_id = user_group_obj.id
+
+                except Exception as e:
+                    return json({'msg': 'Group assign error', 'error': f'{str(e)}'}, 400)
+
 
                 if first_user:
                     return json({'msg': f"{first_user.email} already exists"}, 400)
@@ -85,18 +96,21 @@ class UserController(APIController):
 
                 try:
                     user_instance = Users(
-                        first_name=user.firstname,
-                        lastname=user.lastname,
-                        email=user.email,
-                        phoneno=user.phoneno,
-                        password=encrypt_password(user.password1),
+                        first_name  = user.firstname,
+                        lastname    = user.lastname,
+                        email       = user.email,
+                        phoneno     = user.phoneno,
+                        password    = encrypt_password(user.password1),
+                        group       = user_group_id
                         # dogecoin_address=dogeaddress,
                         # bitcoin_address=bitaddress,
                         # litcoin_address=litaddress
                     )
+
                     session.add(user_instance)
                     await session.commit()
                     await session.refresh(user_instance)
+
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'})
             

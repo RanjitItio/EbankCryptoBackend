@@ -27,6 +27,8 @@ async def get_usertransaction(self, request: Request, schema: EachUserTransactio
             AdminID         = user_identity.claims.get("user_id") if user_identity else None
             
             requested_user_id = schema.user_id
+            limit             = schema.limit
+            offset            = schema.offset
 
             #Check the user is admin or Not
             try:
@@ -60,16 +62,15 @@ async def get_usertransaction(self, request: Request, schema: EachUserTransactio
                 try:
                     transactions = await session.execute(
                             select(Transection)
-                            .where(
-                                or_(
-                                    Transection.user_id    == requested_user_id,
-                                    Transection.txdrecever == requested_user_id
-                                )
-                            )
+                            .where(Transection.user_id == requested_user_id).order_by(Transection.id.desc()).limit(limit).offset(offset)
                         )
                     transactions_list = transactions.scalars().all()
+
+                    if not transactions_list:
+                        return json({'msg': 'No Transaction Available'}, 404)
+                    
                 except Exception as e:
-                    return pretty_json({'msg': f'Transaction error {str(e)}'})
+                    return pretty_json({'msg': 'Transaction error', 'error': f'{str(e)}'}, 400)
                 
         
                 currency_dict = {currency.id: currency for currency in currency_obj}
@@ -266,7 +267,7 @@ async def get_searchedeusers(self, request: Request, schema: TransactionSearchSc
     
 
 
-
+#Filter Transaction
 @docs(responses={200: 'user_id is compulsory'})
 @auth('userauth')
 @post('/api/v2/admin/transaction/filter/')

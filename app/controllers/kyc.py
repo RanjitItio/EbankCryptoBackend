@@ -6,9 +6,11 @@ from Models.models import Users,Kycdetails
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
-from Models.schemas import UpdateKycSchema
+from Models.schemas import UpdateKycSchema, AllKycByAdminSchema
 from blacksheep.server.authorization import auth
 from app.controllers.controllers import get, post, put, delete
+from blacksheep.server.authorization import auth
+from blacksheep import FromQuery
 
 
 
@@ -24,54 +26,33 @@ class UserKYCController(APIController):
     def class_name(cls):
         return "Users KYC"
     
+    @auth('userauth')
     @get()
-    async def get_kyc(self, request: Request):
+    async def get_kyc(self, request: Request, limit: int = 25, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
 
-                # Authenticate user
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+                limit  = limit
+                offset = offset
+
+                # check the user is Admin or not
                 try:
-                    header_value = request.get_first_header(b"Authorization")
+                    user_object      = select(Users).where(Users.id == user_id)
+                    save_to_db       = await session.execute(user_object)
+                    user_object_data = save_to_db.scalar()
 
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
+                    if user_object_data.is_admin == False:
+                        return json({'msg': 'Only admin can view all the KYC'}, 400)
                     
-                    header_value_str = header_value.decode("utf-8")
-
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                        # check the user is Admin or not
-                        try:
-                            user_object      = select(Users).where(Users.id == user_id)
-                            save_to_db       = await session.execute(user_object)
-                            user_object_data = save_to_db.scalar()
-
-                            if user_object_data.is_admin == False:
-                                return json({'msg': 'Only admin can view all the KYC'}, 400)
-                            
-                        except Exception as e:
-                            return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'})
-                        
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
+                    return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
                 #Authentication end here
 
-
                 try:
-                    kyc_details = await session.execute(select(Kycdetails))
+                    kyc_details = await session.execute(select(Kycdetails).order_by(Kycdetails.id.desc()).limit(limit).offset(offset))
                     all_kyc     = kyc_details.scalars().all()
                 except Exception as e:
                     return json({'msg': 'Unknown Error occure during kyc process','error': f'{str(e)}'}, 400)
@@ -104,7 +85,8 @@ class UserKYCController(APIController):
                         'merchant': user_data.is_merchent, 
                         'admin': user_data.is_admin,
                         'active': user_data.is_active,
-                        'verified': user_data.is_verified
+                        'verified': user_data.is_verified,
+                        'group': user_data.group
                         }
 
                     combined_data.append({
@@ -112,10 +94,10 @@ class UserKYCController(APIController):
                         'user': user_data
                         })
 
-                return json({'all_Kyc': combined_data})
+                return json({'all_Kyc': combined_data}, 200)
             
         except Exception as e:
-            return json({'msg': 'Server error','error': f'{str(e)}'})
+            return json({'msg': 'Server error','error': f'{str(e)}'}, 500)
 
 
     @post()

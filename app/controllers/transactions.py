@@ -11,6 +11,7 @@ from blacksheep.server.authorization import auth
 from httpx import AsyncClient
 import http.client
 from decouple import config
+from blacksheep.server.authorization import auth
 
 
 
@@ -30,39 +31,17 @@ class TransactionController(APIController):
     def class_name(cls):
         return "Transaction"
     
-    #Get all the Transactions
+    #Get all the Transactions by Admin
+    @auth('userauth')
     @get()
-    async def get_transaction(self, request: Request):
+    async def get_transaction(self, request: Request, limit: int = 25, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
-
-                #Get the token from header
-                try:
-                    header_value = request.get_first_header(b"Authorization")
-
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-                    parts = header_value_str.split()
-
-                    #Decode the token
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
                 
+                limit  = limit
+                offset = offset
 
                 #Check the user is admin or Not
                 try:
@@ -77,7 +56,7 @@ class TransactionController(APIController):
                 
                 #Get all transaction Data
                 try:
-                    get_all_transaction     = await session.execute(select(Transection))
+                    get_all_transaction     = await session.execute(select(Transection).order_by(Transection.id.desc()).limit(limit).offset(offset))
                     get_all_transaction_obj = get_all_transaction.scalars().all()
 
                     if not get_all_transaction_obj:

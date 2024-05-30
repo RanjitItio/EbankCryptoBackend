@@ -253,6 +253,6 @@ class AdminUpdateUserSchema:
     landmark:         str
     address:          str
 
-    password: Optional[str]         = field(default='')
-    confirm_password: Optional[str] = field(default='')
+    # password: Optional[str]         = field(default='')
+    # confirm_password: Optional[str] = field(default='')
 

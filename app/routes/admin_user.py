@@ -3,7 +3,7 @@ from Models.schemas import UserDeleteSchema, AdminUpdateUserSchema, AdminUserCre
 from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
 from app.docs import docs
-from app.auth import decode_token, encrypt_password
+from app.auth import decode_token, encrypt_password, check_password
 from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
 from sqlmodel import select
 from blacksheep.server.authorization import auth
@@ -222,20 +222,21 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                 if existing_mobile_number_obj.phoneno != user_data_obj.phoneno:
                     return json({'msg': 'Provided Mobile No already exists'}, 200)
             
-            if value.password:
-                password = value.password
-            else:
-                password = user_data_obj.password
+            # if value.password:
+            #     password = value.password
+            # else:
+            #     password = user_data_obj.password
 
-            if  value.confirm_password:
-                confirm_password = value.confirm_password
-            else:
-                confirm_password = user_data_obj.password
+            # if  value.confirm_password:
+            #     confirm_password = value.confirm_password
+            # else:
+            #     confirm_password = user_data_obj.password
 
+            # print(password)
 
             #Check the given password matching or not
-            if password != confirm_password:
-                return json({'msg': 'Password did not match'}, 400)
+            # if password != confirm_password:
+            #     return json({'msg': 'Password did not match'}, 400)
 
             #Get the Kyc details of the user
             try:
@@ -255,7 +256,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname     = value.last_name
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
-                        user_data_obj.password     = encrypt_password(password)
+                        # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True
                         user_data_obj.is_suspended = False
@@ -301,7 +302,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname    = value.last_name
                         user_data_obj.phoneno     = value.phoneno
                         user_data_obj.email       = value.email
-                        user_data_obj.password    = encrypt_password(password)
+                        # user_data_obj.password    = encrypt_password(password)
                         user_data_obj.is_active   = False
                         user_data_obj.is_verified = False
                         user_data_obj.group       = value.group
@@ -343,7 +344,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname     = value.last_name
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
-                        user_data_obj.password     = encrypt_password(password)
+                        # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True
                         user_data_obj.is_suspended = True

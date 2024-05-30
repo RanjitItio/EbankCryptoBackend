@@ -252,7 +252,7 @@ class TransactionController(APIController):
                             except Exception as e:
                                 return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
 
-                            return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data, 'is_completed': True}, 200)
+                            return pretty_json({'msg': 'Deposit Transaction Updated Successfully', 'data': transaction_data, 'is_completed': True}, 200)
                         
                             # else:
                             #     return json({'msg': 'Transaction is completed'}, 400)

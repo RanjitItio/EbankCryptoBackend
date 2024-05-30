@@ -269,15 +269,23 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                     
                     #Update Kyc status
                     if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
                         try:
 
-                            kyc_detail.status = 'Approved'
+                            kyc_detail.status      = 'Approved'
                             kyc_detail.dateofbirth = dob_date
                             kyc_detail.gander      = value.gender
                             kyc_detail.state       = value.state
                             kyc_detail.city        = value.city
                             kyc_detail.landmark    = value.landmark
                             kyc_detail.address     = value.address
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
 
                             session.add(kyc_detail)
                             await session.commit()
@@ -303,6 +311,31 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 
                     except Exception as e:
                         return json({'msg': 'Error while updating inactive user data', 'error': f'{str(e)}'}, 400)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
+                        try:
+
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
+
+                            session.add(kyc_detail)
+                            await session.commit()
+                            await session.refresh(kyc_detail)
+                        except Exception as e:
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
 
                 elif value.status == 'Suspended':
                     try:
@@ -324,6 +357,9 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                     
                     #Update Kyc status
                     if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
                         try:
                             kyc_detail.status      = 'Approved'
                             kyc_detail.dateofbirth = dob_date
@@ -332,13 +368,16 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                             kyc_detail.city        = value.city
                             kyc_detail.landmark    = value.landmark
                             kyc_detail.address     = value.address
-                            
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
+
                             session.add(kyc_detail)
-                            
                             await session.commit()
                             await session.refresh(kyc_detail)
-
-                        except Exception:
+                        except Exception as e:
                             return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
                         
                 else:

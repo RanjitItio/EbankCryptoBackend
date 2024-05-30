@@ -29,12 +29,12 @@ class CurrencyController(APIController):
                     available_currency = await session.execute(select(Currency))
                     all_currency = available_currency.scalars().all()
                 except Exception as e:
-                    return json({'msg': 'Currency error'})
+                    return json({'msg': 'Currency error'}, 400)
 
                 if not all_currency:
                     return json({'msg': 'No currency available'}, 400)
                 
-                return json({'currencies': all_currency})
+                return json({'currencies': all_currency}, 200)
         except SQLAlchemyError as e:
             return json({'error': f'{str(e)}'}, 500)
 

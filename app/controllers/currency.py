@@ -7,6 +7,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from Models.schemas import CurrencySchemas, UpdateCurrencySchema
 from app.controllers.controllers import get, post, put, delete
+from decouple import config
+from httpx import AsyncClient
+
+
+
+currency_converter_api = config('CURRENCY_CONVERTER_API')
+RAPID_API_KEY          = config('RAPID_API_KEY')
+RAPID_API_HOST         = config('RAPID_API_HOST')
 
 
 
@@ -131,6 +139,56 @@ class CurrencyController(APIController):
                 
         except Exception as e:
             return json({'finalerror': f'{str(e)}'})
+        
+
+
+
+class CurrencyConverterController(APIController):
+
+    @classmethod
+    def route(cls):
+        return '/api/v2/convert/currency/'
+    
+    @classmethod
+    def class_name(cls):
+        return "Currency Converter"
+
+    @post()
+    async def convert_currency(self, request: Request):
+        request_body = await request.json()
+        
+        from_currency = request_body['from_currency']
+        to_currency   = request_body['to_currency']
+        amount        = request_body['amount']
+
+        try:
+            url = f"{currency_converter_api}/convert?from={from_currency}&to={to_currency}&amount={amount}"
+            headers = {
+            'X-RapidAPI-Key': f"{RAPID_API_KEY}",
+            'X-RapidAPI-Host': f"{RAPID_API_HOST}"
+        }
+                                
+            async with AsyncClient() as client:
+                response = await client.get(url, headers=headers)
+                # print('APi Response', response)
+
+                if response.status_code == 200:
+                    api_data = response.json()
+                    # print('api data', api_data)
+
+                else:
+                    return json({'msg': 'Error calling external API', 'error': response.text}, 400)
+                                    
+        except Exception as e:
+            return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
+
+        converted_amount = api_data['result'] if 'result' in api_data else None
+
+        if not converted_amount:
+            return json({'msg': 'Invalid Curency Converter API response', 'error': 'Conversion result missing'}, 400)
+        
+
+        return json({'converted_amount': converted_amount}, 200)
         
     
 

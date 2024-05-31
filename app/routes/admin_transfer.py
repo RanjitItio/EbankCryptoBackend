@@ -8,7 +8,7 @@ from app.docs import docs
 
 
 
-
+#Get all the Transfer transactions by Admin
 @docs(responses={
     400: 'Only admin can view the Transactions',
     400: 'Unable to get Admin detail',
@@ -23,14 +23,17 @@ from app.docs import docs
 })
 @auth('userauth')
 @get('/api/v1/transfer/transactions')
-async def get_transferTransaction(self, request: Request):
+async def get_transferTransaction(self, request: Request, limit: int = 25, offset: int = 0):
     """
-      Get all transfer Transactions, Only by Admin, All the API responses are mentioned
+      Get all transfer Transactions, Only by Admin
     """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity   = request.identity
             AdminID          = user_identity.claims.get("user_id") if user_identity else None
+
+            limit  = limit
+            offset = offset
 
             #Check the user is admin or Not
             try:
@@ -45,7 +48,7 @@ async def get_transferTransaction(self, request: Request):
             
             #Get all transaction Data
             try:
-                get_all_transaction     = await session.execute(select(Transection).where(Transection.txdtype == 'Transfer'))
+                get_all_transaction     = await session.execute(select(Transection).where(Transection.txdtype == 'Transfer').order_by(Transection.id.desc()).limit(limit).offset(offset))
                 get_all_transaction_obj = get_all_transaction.scalars().all()
             except Exception as e:
                 return json({'msg': 'Transaction error', 'error': f'{str(e)}'}, 400)
@@ -93,7 +96,7 @@ async def get_transferTransaction(self, request: Request):
 
                     combined_data.append({
                         'transaction': transaction,
-                        'currency': currency_data,
+                        'sender_currency': currency_data,
                         'user': user_data,
                         'receiver': receiver_data
                     })

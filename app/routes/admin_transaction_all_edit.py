@@ -42,6 +42,10 @@ async def each_transaction_details(self, request: Request, transaction_id: int):
             try:
                 transaction_id_obj     = await session.execute(select(Transection).where(Transection.id == transaction_id))
                 transaction_id_details = transaction_id_obj.scalar()
+
+                if not transaction_id_details:
+                    return json({'msg': 'Transaction does not exist'}, 404)
+                
             except Exception as e:
                 return json({'msg': 'Transaction error', 'error': f'{str(e)}'}, 400)
             
@@ -102,7 +106,7 @@ async def each_transaction_details(self, request: Request, transaction_id: int):
             receiver_details_id = transaction_id_details.rec_detail
             receiver_details_data = receiver_details_dict.get(receiver_details_id, None)
 
-            print(receiver_details_data)
+            # print(receiver_details_data)
 
             if receiver_details_data:
                 sender_currency      = currency_data.name

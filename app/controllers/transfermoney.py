@@ -142,6 +142,7 @@ class TransferMoneyController(APIController):
                 #===========================================
                 elif transfer_data.rec_pay_mode == 'Bank':
 
+                    
                     receiver_details = ReceiverDetails(
                         full_name     = transfer_data.rec_full_name,
                         email         = transfer_data.rec_email,
@@ -155,6 +156,7 @@ class TransferMoneyController(APIController):
                         currency      = receiver_currency_obj.id
                     )
                     session.add(receiver_details)
+                    
 
                     addtransection   = Transection(
                         user_id      = user_id,

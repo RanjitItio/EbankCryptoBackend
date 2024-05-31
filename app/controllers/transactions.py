@@ -261,11 +261,11 @@ class TransactionController(APIController):
                         #If the Transaction type is Transfer
                         #====================================
                         elif transaction_data.txdtype == 'Transfer':
-                            receiver_detail     = transaction_data.rec_detail
-                            recipient_id        = transaction_data.txdrecever
-                            sender_id           = transaction_data.user_id
-                            sender_currency     = transaction_data.txdcurrency
-                            total_amount        = transaction_data.totalamount
+                            receiver_detail        = transaction_data.rec_detail
+                            recipient_id           = transaction_data.txdrecever
+                            sender_id              = transaction_data.user_id
+                            sender_currency        = transaction_data.txdcurrency
+                            total_amount           = transaction_data.totalamount
 
                             recipient_payment_mode = transaction_data.rec_pay_mode
 
@@ -325,7 +325,7 @@ class TransactionController(APIController):
 
                                             if response.status_code == 200:
                                                 api_data = response.json()
-                                                print('api data', api_data)
+                                                # print('api data', api_data)
 
                                             else:
                                                 return json({'msg': 'Error calling external API', 'error': response.text}, 400)
@@ -491,7 +491,7 @@ class TransactionController(APIController):
 
                                             if response.status_code == 200:
                                                 api_data = response.json()
-                                                print('api data', api_data)
+                                                # print('api data', api_data)
 
                                             else:
                                                 return json({'msg': 'Error calling external API', 'error': response.text}, 400)
@@ -538,7 +538,19 @@ class TransactionController(APIController):
                             return json({'msg': 'Working in Withdraw and Request money'})
                             
                     elif data.status == "Pending":
-                        return pretty_json({'msg': 'Updated successfully', 'is_completed': False}, 200)
+                        #Update the Transaction Status
+                        try:
+                            transaction_data.txdstatus = 'Pending'
+
+                            session.add(transaction_data)
+                            await session.commit()
+                            await session.refresh(transaction_data)
+
+                        except Exception as e:
+                            return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
+
+                        return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data, 'is_completed': False}, 200)
+                    
 
                     #If the transaction status is cancelled
                     else:

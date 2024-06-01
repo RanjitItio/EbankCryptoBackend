@@ -138,7 +138,6 @@ class TransactionController(APIController):
                     
                 except Exception as e:
                     return pretty_json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
-                
 
                 #Get the transaction by ID
                 try:
@@ -242,8 +241,10 @@ class TransactionController(APIController):
                             
                             #Update the transaction status
                             try:
-                                transaction_data.txdstatus    = 'Success'
-                                transaction_data.is_completed = True
+                                transaction_data.txdstatus         = 'Success'
+                                transaction_data.is_completed      = True
+                                transaction_data.credited_amount   = converted_amount
+                                transaction_data.credited_currency = currency_to_convert_name
 
                                 session.add(transaction_data)
                                 await session.commit()
@@ -253,7 +254,6 @@ class TransactionController(APIController):
                                 return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
 
                             return pretty_json({'msg': 'Deposit Transaction Updated Successfully', 'data': transaction_data, 'is_completed': True}, 200)
-                        
                             # else:
                             #     return json({'msg': 'Transaction is completed'}, 400)
                             
@@ -351,8 +351,10 @@ class TransactionController(APIController):
                                             return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
                                         
                                         try:
-                                            transaction_data.txdstatus    = 'Success'
-                                            transaction_data.is_completed = True
+                                            transaction_data.txdstatus         = 'Success'
+                                            transaction_data.is_completed      = True
+                                            transaction_data.credited_amount   = converted_amount
+                                            transaction_data.credited_currency = receiver_currency_obj.name
 
                                             session.add(transaction_data)
                                         except Exception as e:
@@ -376,7 +378,7 @@ class TransactionController(APIController):
 
                                         if not recipient_wallet_obj:
                                             return json({'msg': 'Recipient wallet not found'}, 404)
-                
+            
                                     except Exception as e:
                                         return json({'msg': 'Unable to locate recipient Wallet'}, 400)
                                 
@@ -398,7 +400,6 @@ class TransactionController(APIController):
                                         }
                                             async with AsyncClient() as client:
                                                 response = await client.get(url, headers=headers)
-                                                # print('APi Response', response)
 
                                             if response.status_code == 200:
                                                 api_data = response.json()
@@ -406,7 +407,7 @@ class TransactionController(APIController):
 
                                             else:
                                                 return json({'msg': 'Error calling external API', 'error': response.text}, 400)
-                                    
+
                                         except Exception as e:
                                             return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
 
@@ -432,8 +433,10 @@ class TransactionController(APIController):
                                             return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
 
                                         try:
-                                            transaction_data.txdstatus    = 'Success'
-                                            transaction_data.is_completed = True
+                                            transaction_data.txdstatus         = 'Success'
+                                            transaction_data.is_completed      = True
+                                            transaction_data.credited_amount   = converted_amount
+                                            transaction_data.credited_currency = recipient_wallet_obj.currency
 
                                             session.add(transaction_data)
 
@@ -517,8 +520,10 @@ class TransactionController(APIController):
                                             return json({'msg': 'Unable to update sender wallet', 'error': f'{str(e)}'}, 400)
                                         
                                         try:
-                                            transaction_data.txdstatus    = 'Success'
-                                            transaction_data.is_completed = True
+                                            transaction_data.txdstatus         = 'Success'
+                                            transaction_data.is_completed      = True
+                                            transaction_data.credited_currency = receiver_currency_obj.name
+                                            transaction_data.credited_amount   = converted_amount
 
                                             session.add(transaction_data)
                                         except Exception as e:
@@ -550,7 +555,6 @@ class TransactionController(APIController):
                             return pretty_json({'msg': 'Unable to update transaction status', 'error': f'{str(e)}'}, 400)
 
                         return pretty_json({'msg': 'Transaction Updated Successfully', 'data': transaction_data, 'is_completed': False}, 200)
-                    
 
                     #If the transaction status is cancelled
                     else:
@@ -575,7 +579,7 @@ class TransactionController(APIController):
 
         
 
-
+from sqlalchemy import desc, asc
 #Get all transaction of user in User dashboard section
 class SpecificUserTransaction(APIController):
 
@@ -603,7 +607,7 @@ class SpecificUserTransaction(APIController):
                         return pretty_json({'msg': 'Currency error','error': f'{str(e)}'}, 400)
                     
                     try:
-                        transactions      = await session.execute(select(Transection).where(Transection.user_id == user_id))
+                        transactions      = await session.execute(select(Transection).where(Transection.user_id == user_id).order_by(desc(Transection.id)))
                         transactions_list = transactions.scalars().all()
                     except Exception as e:
                         return pretty_json({'msg': f'Transaction error {str(e)}'}, 400)
@@ -636,18 +640,23 @@ class SpecificUserTransaction(APIController):
                         userID    = transaction.user_id
                         user_data = user_dict.get(userID)
                         user_data = {'first_name': user_data.first_name, 'lastname': user_data.lastname, 'id': user_data.id} if user_data else None
-                       
+
+                        credited_amount   = transaction.credited_amount
+                        credited_currency = transaction.credited_currency
+
                         combined_data.append({
-                            'transaction': transaction,
-                            'currency': currency_data,
-                            'user': user_data,
-                            'receiver': receiver_data
+                            'transaction':       transaction,
+                            'currency':          currency_data,
+                            'user':              user_data,
+                            'receiver':          receiver_data,
+                            'credited_amount':   credited_amount if credited_amount else None,
+                            'credited_currency': credited_currency if credited_currency else None
                         })
-                    
+
                 except Exception as e:
                     return json({'msg': f'Unable to get the Transactions {str(e)}'}, 400)
-
                 
+
                 return json({'msg': 'Transaction data fetched successfully', 'all_transactions': combined_data})
                 
         except Exception as e:

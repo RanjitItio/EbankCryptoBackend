@@ -7,6 +7,7 @@ from Models.schemas import CreateWalletSchemas
 from blacksheep.server.responses import pretty_json
 from app.auth import decode_token
 from app.controllers.controllers import get, post, put, delete
+from blacksheep.server.authorization import auth
 
 
 
@@ -100,35 +101,13 @@ class UseWiseWalletController(APIController):
     def class_name(cls):
         return "Wallet"
     
+    @auth('userauth')
     @get()
     async def get_wallet(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
-                #Authenticate user
-                try:
-                    header_value = request.get_first_header(b"Authorization")
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
-                    
-                    header_value_str = header_value.decode("utf-8")
-
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'})
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'})
-                        else:
-                            user_data = user_data
-                            
-                        userID = user_data["user_id"]
-                        
-                except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
+                user_identity = request.identity
+                userID        = user_identity.claims.get('user_id') if user_identity else None
                 
                 #Get the wallets related to the user
                 try:
@@ -145,3 +124,4 @@ class UseWiseWalletController(APIController):
             
         except Exception as e:
             return pretty_json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+

@@ -683,14 +683,19 @@ async def get_groups(self, request: Request):
 
 
 @get('/api/test/date/')
-async def test_api(self):
+async def test_api(self, currency: str = ''):
     try:
         async with AsyncSession(async_engine) as session:
-            create_test_model = TestModel()
+            # create_test_model = TestModel()
+            input_currency = currency
 
-            session.add(create_test_model)
+            test_model = TestModel(
+                currency = input_currency
+            )
+
+            session.add(test_model)
             await session.commit()
-            await session.refresh(create_test_model)
+            await session.refresh(test_model)
             
     except Exception as e:
         return json({'msg': f'{str(e)}'}, 500)

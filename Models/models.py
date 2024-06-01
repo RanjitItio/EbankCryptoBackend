@@ -2,7 +2,8 @@ from sqlmodel import SQLModel, Field, Column, String, Integer
 from typing import Optional
 from datetime import datetime, date
 from sqlalchemy.orm import selectinload, Relationship
-from typing import List
+from sqlalchemy import event
+
 
 
 class Group(SQLModel, table=True):
@@ -12,8 +13,8 @@ class Group(SQLModel, table=True):
 
 class Users(SQLModel, table=True):
     id: int | None                 = Field(default=None, primary_key=True)
-    first_name: str                = Field(default='Default User First Name')
-    lastname: str                  = Field(default='Default User Last Name')
+    first_name: str                = Field(default='NA')
+    lastname: str                  = Field(default='NA')
     email: str                     = Field(index=True, unique=True)
     phoneno: str 
     password: str
@@ -66,6 +67,18 @@ class Wallet(SQLModel, table=True):
     balance: float         = Field(default=0.0)
     is_active: bool        = Field(default=True)
     created_data: date     = Field(default=date.today(), nullable=True)
+    wallet_id: str         = Field(nullable=True)
+
+    def assign_wallet_id(self):
+        wallet_id_mapping = {
+            'USD': '1111-000-2222',
+            'EUR': '4545-9090-6767',
+            'INR': '1212-2323-8989',
+            'GBP': '3030-4554-8998'
+        }
+        
+        self.wallet_id = wallet_id_mapping.get(self.currency, '0000-0000-0000')
+    # wallet_id
     # user: Optional[Users] = Relationship(back_populates="wallets")
     # currency: Optional[Cusrrency] = Relationship(back_populates="wallets")
 
@@ -125,10 +138,11 @@ class Transection(SQLModel, table=True):
     rec_detail: int             = Field(foreign_key='receiverdetails.id', nullable=True)
     send_detail: int            = Field(foreign_key='senderdetails.id', nullable=True)
     rec_pay_mode: str           = Field(default='', nullable=True)
+    credited_amount: int        = Field(nullable=True, default=0)
+    credited_currency: str      = Field(nullable=True, default='')
 
 
 
-    
 class ExternalTransection(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     txdid: str = Field(index=True, unique=True)
@@ -192,6 +206,28 @@ class TestModel(SQLModel, table=True):
     id: int | None         = Field(default=None, primary_key=True)
     created_date: date     = Field(default=date.today())
     created_time: str      = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    currency:  str         = Field(nullable=True)
+    test_id: str | None = None
+
+
+    def assign_test_id(self):
+        test_id_mapping = {
+            'USD': '111-000-9090',
+            'EUR': '222-900-3030',
+            'INR': '123-870-2004'
+        }
+        
+        self.test_id = test_id_mapping.get(self.currency, '0000-0000-0000')
+
+
+@event.listens_for(TestModel, "before_insert")
+def before_insert_listener(mapper, connection, target):
+    target.assign_test_id()
+
+
+@event.listens_for(Wallet, "before_insert")
+def before_insert_listener(mapper, connection, target):
+    target.assign_wallet_id()
 
 
     

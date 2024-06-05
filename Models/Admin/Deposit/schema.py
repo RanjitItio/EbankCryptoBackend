@@ -3,7 +3,7 @@ from typing import Optional
 
 
 @dataclass
-class AdminAllTransactionFilterSchema:
+class AdminDepositTransactionFilterSchema:
     from_date: str
     to_date:   str
     currency:  Optional[str]  = field(default=None)

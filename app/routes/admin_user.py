@@ -403,8 +403,8 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 #Search users
 @docs(responses={200: 'Search Users'})
 @auth('userauth')
-@get('/api/v1/admin/user/search/{search_query}/')
-async def get_searchedeusers(self, request: Request, search_query):
+@get('/api/v1/admin/user/search/')
+async def get_searchedeusers(self, request: Request, query: str = ''):
     """
      Search users by (First name, Last name, Active, Inactive, email, phoneno, City, State, Address)
     """
@@ -413,7 +413,7 @@ async def get_searchedeusers(self, request: Request, search_query):
             user_identity    = request.identity
             adminID          = user_identity.claims.get("user_id") if user_identity else None
 
-            data = search_query
+            data = query
         
             #Check the user is admin or Not
             try:
@@ -464,26 +464,32 @@ async def get_searchedeusers(self, request: Request, search_query):
                 except Exception as e:
                     return json({'msg': 'Search error', 'error': f'{str(e)}'}, 400)
 
-            users: List[Users] = searched_user_obj.scalars().all()
+            all_users: List[Users] = searched_user_obj.scalars().all()
 
-            users_data = [
-                {
+            combined_data = []
+
+            for user in all_users:
+                kyc_detail     = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user.id))
+                kyc_detail_obj = kyc_detail.scalar()
+
+                users_data = {
                     "id": user.id,
-                    "first_name": user.first_name,
-                    "lastname": user.lastname,
-                    "email": user.email,
-                    "phoneno": user.phoneno,
-                    "address1": user.address1,
-                    "address2": user.address2,
-                    "city": user.city,
-                    "state": user.state,
-                    "country": user.country,
-                    'status': user.is_active
-                }
-                for user in users
-            ]
+                    'ip_address': user.ipaddress, 
+                    'lastlogin': user.lastlogin, 
+                    'merchant': user.is_merchent, 
+                    'admin': user.is_admin,
+                    'active': user.is_active,
+                    'verified': user.is_verified,
+                    'group': user.group
+                } 
+            
 
-            return json({'user_data': users_data}, 200)
+                combined_data.append({
+                    'user_kyc_details': kyc_detail_obj,
+                    'user': users_data
+                })
+
+            return json({'all_Kyc': combined_data}, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
@@ -682,15 +688,19 @@ async def get_groups(self, request: Request):
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
 
 
-@get('/api/test/date/')
-async def test_api(self, currency: str = ''):
+@post('/api/test/date/')
+async def test_api(self, request: Request):
     try:
         async with AsyncSession(async_engine) as session:
             # create_test_model = TestModel()
-            input_currency = currency
-
+            request_body = await request.json()
+            first_name = request_body['first_name']
+            last_name = request_body['last_name']
+            print(first_name)
+            
             test_model = TestModel(
-                currency = input_currency
+                first_name = first_name,
+                last_name = last_name
             )
 
             session.add(test_model)

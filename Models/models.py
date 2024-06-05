@@ -15,6 +15,7 @@ class Users(SQLModel, table=True):
     id: int | None                 = Field(default=None, primary_key=True)
     first_name: str                = Field(default='NA')
     lastname: str                  = Field(default='NA')
+    full_name: str | None          = None
     email: str                     = Field(index=True, unique=True)
     phoneno: str 
     password: str
@@ -36,6 +37,10 @@ class Users(SQLModel, table=True):
     lastlogin: datetime            = Field(nullable=True)
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
     group: int                     = Field(foreign_key='group.id', nullable=True)
+
+
+    def assign_full_name(self):
+        self.full_name = self.first_name + " " + self.lastname
 
     
 
@@ -208,6 +213,9 @@ class TestModel(SQLModel, table=True):
     created_time: str      = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
     currency:  str         = Field(nullable=True)
     test_id: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None
 
 
     def assign_test_id(self):
@@ -219,10 +227,23 @@ class TestModel(SQLModel, table=True):
         
         self.test_id = test_id_mapping.get(self.currency, '0000-0000-0000')
 
+    def assign_full_name(self):
+        self.full_name = self.first_name + " " + self.last_name
+
 
 @event.listens_for(TestModel, "before_insert")
 def before_insert_listener(mapper, connection, target):
     target.assign_test_id()
+
+
+@event.listens_for(TestModel, "before_insert")
+def before_insert_listener(mapper, connection, target):
+    target.assign_full_name()
+
+
+@event.listens_for(Users, "before_insert")
+def before_insert_listener(mapper, connection, target):
+    target.assign_full_name()
 
 
 @event.listens_for(Wallet, "before_insert")

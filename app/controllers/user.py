@@ -250,6 +250,55 @@ class InactiveUserCheck(APIController):
 
 
 
+#Count all avilable user From KYC
+class CountAvailableUser(APIController):
+    @classmethod
+    def route(cls):
+        return '/api/v1/user/count/'
+
+    @classmethod
+    def class_name(cls):
+        return "Count Users"
+    
+    @auth('userauth')
+    @get()
+    async def count_users(self, request: Request):
+        """
+         Check user is Active or not
+        """
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id      = user_identity.claims.get('user_id') if user_identity else None
+
+                # Check the user is admin or Not
+        
+                user_obj = await session.execute(select(Users).where(Users.id == admin_id))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 400)
+                
+            
+
+                user_kyc_obj = await session.execute(select(Kycdetails))
+                user_kyc_obj_data = user_kyc_obj.scalars().all()
+
+                if not user_kyc_obj_data:
+                    return json({'msg': 'No users Available'}, 404)
+                
+            
+                count_users = len(user_kyc_obj_data)
+
+            # print(count_users)
+
+                return json({'msg': 'Success', 'total_users': count_users})
+        
+        except Exception as e:
+            return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+        
+
+
 class ConfirmMail(APIController):
     @classmethod
     def route(cls):

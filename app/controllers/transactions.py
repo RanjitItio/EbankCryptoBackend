@@ -12,6 +12,7 @@ from httpx import AsyncClient
 import http.client
 from decouple import config
 from blacksheep.server.authorization import auth
+from sqlalchemy import desc
 
 
 
@@ -110,7 +111,7 @@ class TransactionController(APIController):
                 if not get_all_transaction_obj:
                     return json({'msg': "No transactions available to show"}, 404)
                 
-                return json({'msg': 'Transaction data fetched successfully', 'data': combined_data})
+                return json({'msg': 'Transaction data fetched successfully', 'data': combined_data}, 200)
             
         except Exception as e:
             return json({'msg': 'Server error', 'error': f'{str(e)}'}, 400)
@@ -579,7 +580,7 @@ class TransactionController(APIController):
 
         
 
-from sqlalchemy import desc, asc
+
 #Get all transaction of user in User dashboard section
 class SpecificUserTransaction(APIController):
 

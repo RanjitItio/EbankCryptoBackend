@@ -2,7 +2,7 @@ from blacksheep.server.controllers import APIController
 from Models.schemas import Kycschema
 from sqlmodel import select, update
 from database.db import async_engine, AsyncSession
-from Models.models import Users,Kycdetails
+from Models.models import Users,Kycdetails, Group
 from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password ,send_password_reset_email,encrypt_password_reset_token ,decrypt_password_reset_token
@@ -79,6 +79,10 @@ class UserKYCController(APIController):
                     user_id   = kyc_details.user_id
                     user_data = user_dict.get(user_id)
 
+                    group_obj      = await session.execute(select(Group).where(Group.id == user_data.group))
+                    group_obj_data = group_obj.scalar()
+                    group_name     = group_obj_data.name if group_obj_data else None
+
                     user_data = {
                         'ip_address': user_data.ipaddress, 
                         'lastlogin': user_data.lastlogin, 
@@ -86,7 +90,9 @@ class UserKYCController(APIController):
                         'admin': user_data.is_admin,
                         'active': user_data.is_active,
                         'verified': user_data.is_verified,
-                        'group': user_data.group
+                        'group': user_data.group,
+                        'group_name': group_name,
+                        'status': 'Active' if user_data.is_active else 'Inactive'
                         }
 
                     combined_data.append({

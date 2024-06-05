@@ -268,7 +268,7 @@ async def get_searchedeusers(self, request: Request, schema: TransactionSearchSc
 
 
 #Filter Transaction
-@docs(responses={200: 'user_id is compulsory'})
+@docs(description='User ID Mandatory')
 @auth('userauth')
 @post('/api/v2/admin/transaction/filter/')
 async def filter_transaction(self, request: Request, schema: FromJSON[UserTransactionFilterSchema]):
@@ -296,12 +296,12 @@ async def filter_transaction(self, request: Request, schema: FromJSON[UserTransa
             
 
             #All the values of the Schema
-            userId    = filter_data.user_id
+            userId        = filter_data.user_id
             from_date_str = filter_data.from_date
             to_date_str   = filter_data.to_date
-            currency  = filter_data.currency
-            status    = filter_data.status
-            type      = filter_data.type
+            currency      = filter_data.currency
+            status        = filter_data.status
+            type          = filter_data.type
 
 
             try:

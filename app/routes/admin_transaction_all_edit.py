@@ -1,5 +1,4 @@
-from blacksheep import json, Request, FromJSON, get
-from blacksheep.server.controllers import APIController
+from blacksheep import json, Request, FromJSON, get, post
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from sqlmodel import select
@@ -7,6 +6,10 @@ from Models.models import Users,  Transection, Currency, ReceiverDetails, Wallet
 from app.docs import docs
 from decouple import config
 from httpx import AsyncClient
+import re
+from Models.Admin.AllTransaction.schema import AdminAllTransactionFilterSchema
+from datetime import datetime
+
 
 
 currency_converter_api = config('CURRENCY_CONVERTER_API')
@@ -320,6 +323,298 @@ async def each_transaction_details(self, request: Request, transaction_id: int):
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
     
+
+
+
+
+@auth('userauth')
+@get('/api/v4/admin/transaction/search/')
+async def search_all_transaction(self, request: Request, query: str = ''):
+    """
+     Admin will be able to Search Transaction
+    """
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            AdminID       = user_identity.claims.get('user_id') if user_identity else None
+
+            searched_text = query
+
+            if re.fullmatch(r'\d+', searched_text):
+                parsed_value = int(searched_text)
+            else:
+                parsed_value = searched_text
+
+            #Check the user is Admin or not
+            try:
+                admin_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                admin_obj_data = admin_obj.scalar()
+
+                if not admin_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 401)
+                
+            except Exception as e:
+                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
+            
+            try:
+                currency_obj      = await session.execute(select(Currency))
+                currency_data     = currency_obj.scalars().all()
+            except Exception as e:
+                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+            
+            try:
+                all_user_obj      = await session.execute(select(Users))
+                all_user_obj_data = all_user_obj.scalars().all()
+
+                if not all_user_obj_data:
+                    return json({'msg': 'No users available'})
+                
+            except Exception as e:
+                return json({'msg': 'User not found'}, 400)
+            
+            currency_id      = None
+            user_search_id   = None
+            user_search_list = []
+            transactions_list = []
+
+            if isinstance(parsed_value, str):
+                check_word = parsed_value.split()
+                # print(check_word)
+
+                if len(check_word) >= 2:
+                    # first_name, last_name = check_word[0], check_word[1]
+
+                    for users in all_user_obj_data:
+                        if users.full_name == parsed_value:
+                            user_search_id  = users.id
+                            user_search_list.append(user_search_id)
+
+                else:
+                    try:
+                        transaction_query = select(Transection).where(
+                            (Transection.txdtype.ilike(parsed_value))     |
+                            (Transection.txdid.ilike(parsed_value))       |
+                            (Transection.txdstatus.ilike(parsed_value))    
+                        )
+
+                        searched_transaction_obj = await session.execute(transaction_query)
+
+                        transactions_list = searched_transaction_obj.scalars().all()
+                                                                                                                                                                                                                                   
+                    except Exception as e:
+                        return json({'msg': 'Transaction Search error', 'error': f'{str(e)}'}, 400)
+                    
+            for currency in currency_data:
+                if currency.name == parsed_value:
+                    currency_id  = currency.id
+                    break
+
+            if currency_id is not None:
+                try:
+                    searched_transaction_obj = await session.execute(select(Transection).where(
+                        Transection.txdcurrency == currency_id
+                    ))
+
+                    transactions_list = searched_transaction_obj.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Error while searching for currency', 'error': f'{str(e)}'}, 400)
+                
+            
+            elif user_search_list is not None:
+                try:
+                    # transactions_list = []
+
+                    for user in user_search_list:
+                        searched_transaction_obj = await session.execute(select(Transection).where(
+                            Transection.user_id == user
+                        ))
+
+                        transactions_list = searched_transaction_obj.scalars().all()
+
+                        # transactions_list.append(transactions)
+                except Exception as e:
+                    return json({'msg': 'Error while searching for users Transaction', 'error': f'{str(e)}'}, 400)
+                
+            
+            elif isinstance(parsed_value, int):
+                try:
+                    transaction_query = select(Transection).where(
+                        (Transection.amount == parsed_value)      |
+                        (Transection.txdfee == parsed_value)        
+                    )
+
+                    searched_transaction_obj = await session.execute(transaction_query)
+
+                    transactions_list = searched_transaction_obj.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Transaction amount fee Search error', 'error': f'{str(e)}'}, 400)
+                
+        
+            combined_data = []
+            user_dict     = {user.id: user for user in all_user_obj_data}
+            currency_dict = {currency.id: currency for currency in currency_data}
+            receiver_dict = {receiver.id: receiver for receiver in all_user_obj_data}
+
+
+            for transaction in transactions_list:
+                user_id    = transaction.user_id
+                user_data  = user_dict.get(user_id)
+                user_data  = {'first_name': user_data.first_name, 'lastname': user_data.lastname, 'id': user_data.id} if user_data else None
+
+                currency_id   = transaction.txdcurrency
+                currency_data = currency_dict.get(currency_id)
+
+                receiver_id = transaction.txdrecever
+                receiver_data = receiver_dict.get(receiver_id)
+
+                combined_data.append({
+                    'transaction': transaction,
+                    'currency': currency_data,
+                    'user': user_data,
+                    'receiver': receiver_data
+                })
+
+            return json({'msg': 'Transaction data fetched successfully', 'data': combined_data}, 200)
+
+    except Exception as e:
+        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+    
+
+
+
+@auth('userauth')
+@post('/api/v4/admin/filter/transaction/')
+async def search_all_transaction(self, request: Request, schema: FromJSON[AdminAllTransactionFilterSchema]):
+    """
+     Admin will be able to Filter Transactions
+    """
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            AdminID       = user_identity.claims.get('user_id') if user_identity else None
+
+            filter_data = schema.value
+
+            #Check the user is Admin or not
+            try:
+                admin_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                admin_obj_data = admin_obj.scalar()
+
+                if not admin_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 401)
+                
+            except Exception as e:
+                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
+            
+
+            try:
+                all_user_obj      = await session.execute(select(Users))
+                all_user_obj_data = all_user_obj.scalars().all()
+
+                if not all_user_obj_data:
+                    return json({'msg': 'No users available'})
+                
+            except Exception as e:
+                return json({'msg': 'User not found'}, 400)
+            
+
+            #Get all the input values
+            from_date_str = filter_data.from_date
+            to_date_str   = filter_data.to_date
+            currency      = filter_data.currency
+            status        = filter_data.status
+            user_name     = filter_data.user_name
+            payment_mode  = filter_data.pay_mode
+
+            # print('From date',from_date_str)
+            # print('To date',to_date_str)
+            # print('Currency',currency)
+            # print('Status',status)
+            # print('User Name',user_name)
+            # print('Payment Mode',payment_mode)
+
+            try:
+                query = select(Transection)
+            except Exception as e:
+                return json({'msg': 'Transaction fetch error', 'error': f'{str(e)}'}, 400)
+            
+            if from_date_str:
+                from_datetime = datetime.strptime(from_date_str, '%Y-%m-%d')
+                from_date     = from_datetime.date()
+
+                query = query.where(Transection.txddate >= from_date)
+
+            if to_date_str:
+                to_datetime = datetime.strptime(to_date_str, '%Y-%m-%d')
+                to_date    = to_datetime.date()
+
+                query = query.where(Transection.txddate <= to_date)
+
+            if currency is not None:
+                currency_obj = await session.execute(select(Currency).where(Currency.name == currency))
+                currency_data = currency_obj.scalar()
+
+                if currency_data:
+                    query = query.where(Transection.txdcurrency == currency_data.id)
+            
+            if status is not None:
+                query = query.where(Transection.txdstatus == status)
+
+            if user_name is not None:
+                user_search_id   = None
+
+                for user in all_user_obj_data:
+                    if user.full_name == user_name:
+                        user_search_id  = user.id
+
+                query = query.where(Transection.user_id == user_search_id)
+
+            if payment_mode is not None:
+                query = query.where(Transection.payment_mode == payment_mode)
+
+            
+            result            = await session.execute(query)
+            transactions_list = result.scalars().all()
+
+            try:
+                currency_obj      = await session.execute(select(Currency))
+                all_currency_data = currency_obj.scalars().all()
+            except Exception as e:
+                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+
+
+            combined_data = []
+            user_dict     = {user.id: user for user in all_user_obj_data}
+            currency_dict = {currency.id: currency for currency in all_currency_data}
+            receiver_dict = {receiver.id: receiver for receiver in all_user_obj_data}
+
+            for transaction in transactions_list:
+                user_id    = transaction.user_id
+                user_data  = user_dict.get(user_id)
+                user_data  = {'first_name': user_data.first_name, 'lastname': user_data.lastname, 'id': user_data.id} if user_data else None
+
+                currency_id   = transaction.txdcurrency
+                currency_data = currency_dict.get(currency_id)
+
+                receiver_id = transaction.txdrecever
+                receiver_data = receiver_dict.get(receiver_id)
+
+                combined_data.append({
+                    'transaction': transaction,
+                    'currency': currency_data,
+                    'user': user_data,
+                    'receiver': receiver_data
+                })
+
+            return json({'msg': 'Transaction data fetched successfully', 'data': combined_data}, 200)
+
+    except Exception as e:
+        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+
+
+
 
 
 

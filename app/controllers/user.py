@@ -14,6 +14,11 @@ from app.docs import docs
 from decouple import config
 from app.controllers.controllers import get, post
 from blacksheep.server.authorization import auth
+# from app.controllers.media import save_user_image
+from pathlib import Path
+from blacksheep.exceptions import BadRequest
+from datetime import datetime
+import uuid
 
 
 signup_mail_sent_url = config('SIGNUP_MAIL_URL')
@@ -30,6 +35,7 @@ class UserController(APIController):
     @classmethod
     def class_name(cls):
         return "Users Data"
+    
     
     @get()
     async def get_user(self, request: Request):
@@ -54,27 +60,36 @@ class UserController(APIController):
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
-                
+ 
                 try:
                     existing_user = await session.execute(select(Users).where(Users.email == user.email))
                     first_user = existing_user.scalars().first()
                 except Exception as e:
-                    return json({'error': f'user fetch error {str(e)}'})
+                    return json({'error': f'user fetch error {str(e)}'}, 400)
                 
                 try:
                     existing_mobieno = await session.execute(select(Users).where(Users.phoneno == user.phoneno))
-                    mobileno = existing_mobieno.scalars().first()
+                    mobileno         = existing_mobieno.scalars().first()
                 except Exception as e:
                     return json({'msg': 'Mobile no fetche error', 'error': f'{str(e)}'}, 400)
                 
                 try:
-                    user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
-                    user_group_obj = user_group.scalars().first()
+                    if user.is_merchent:
+                        user_group     = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
+                        user_group_obj = user_group.scalars().first()
 
-                    if not user_group_obj:
-                        user_group_id = 1
+                        if not user_group_obj:
+                            user_group_id = 1
+                        else:
+                            user_group_id = user_group_obj.id
                     else:
-                        user_group_id = user_group_obj.id
+                        user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
+                        user_group_obj = user_group.scalars().first()
+
+                        if not user_group_obj:
+                            user_group_id = 1
+                        else:
+                            user_group_id = user_group_obj.id
 
                 except Exception as e:
                     return json({'msg': 'Group assign error', 'error': f'{str(e)}'}, 400)
@@ -87,12 +102,18 @@ class UserController(APIController):
                     return json({'msg': f"{mobileno.phoneno} number already exists"}, 400)
                 
                 if user.password != user.password1:
-                    return json({"msg":"Password is not same Please try again"} ,status=403)   
+                    return json({"msg":"Password is not same Please try again"}, status=403)   
                 
                 # # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
                 # dogeaddress = bitaddress = litaddress = "nahi hai"
+
+                # try:
+                #     user_image_path = await self.save_user_image(request)
+
+                # except Exception as e:
+                #     return json({'msg': f'Image upload error {str(e)}'}, 400)
 
                 try:
                     user_instance = Users(
@@ -100,11 +121,10 @@ class UserController(APIController):
                         lastname    = user.lastname,
                         email       = user.email,
                         phoneno     = user.phoneno,
-                        password    = encrypt_password(user.password1),
-                        group       = user_group_id
-                        # dogecoin_address=dogeaddress,
-                        # bitcoin_address=bitaddress,
-                        # litcoin_address=litaddress
+                        password    = encrypt_password(user.password),
+                        group       = user_group_id,
+                        is_merchent = user.is_merchent,
+                        # picture     = user_image_path if user_image_path else ''
                     )
 
                     session.add(user_instance)
@@ -115,8 +135,8 @@ class UserController(APIController):
                     return json({'msg': f'user create error {str(e)}'})
             
                 try:
-                    initial_balance=0.0
-                    userID = user_instance.id
+                    initial_balance = 0.0
+                    userID          = user_instance.id
                     user_first_name = user_instance.first_name
                     user_last_name  = user_instance.lastname
 
@@ -129,9 +149,9 @@ class UserController(APIController):
                     if currency_list:
                         for currency_obj in currency_list:
                             wallet = Wallet(
-                                user_id = userID,
-                                currency = currency_obj.name,
-                                balance=initial_balance,
+                                user_id     = userID,
+                                currency    = currency_obj.name,
+                                balance     = initial_balance,
                                 currency_id = currency_obj.id
                             )
                             session.add(wallet)
@@ -160,7 +180,7 @@ class UserController(APIController):
                         send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
 
                         return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
-                    
+                
                 except Exception as e:
                     return json({'msg': f'Wallet create error {str(e)}'}, 400)
 
@@ -173,7 +193,7 @@ class UserController(APIController):
                 # return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname} of ID {user_instance.id}'}, 201)
         
         except Exception as e:
-            return json({"Error": str(e)})
+            return json({"Error": str(e)}, 500)
 
 
 

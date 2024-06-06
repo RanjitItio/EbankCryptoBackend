@@ -36,6 +36,7 @@ def configure_application(
 
     app.serve_files('Static', root_path='media', cache_time=90000)
 
+
     app.controllers_router = controller_router
     
     

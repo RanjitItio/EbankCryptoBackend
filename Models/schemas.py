@@ -11,14 +11,16 @@ class AllKycByAdminSchema:
     offset: Optional[int] = field(default=0)
 
 
-class UserCreateSchema(BaseModel):
+@dataclass
+class UserCreateSchema:
     firstname: str
     lastname: str
     phoneno: str 
     password: str
     password1: str
     email: str
-    is_merchent: bool 
+    is_merchent: bool
+
 
 
 @dataclass

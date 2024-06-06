@@ -17,7 +17,8 @@ env.bak/
 venv.bak/
 migrations.__pycache__/
 .pyc
-
+.Static
+.Static/
 # Distribution / packaging
 .Python
 build/

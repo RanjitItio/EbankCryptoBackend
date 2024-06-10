@@ -48,10 +48,10 @@ class UserLoginController(APIController):
                             await session.refresh(first_user)
                             
                         except Exception as e:
-                            return json({'msg': 'Login time error', 'error': f'{str(e)}'})
+                            return json({'msg': 'Login time error', 'error': f'{str(e)}'}, 400)
 
                         return json({
-                            # 'user': first_user,
+                            'is_merchant': first_user.is_merchent,
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
                         },200)

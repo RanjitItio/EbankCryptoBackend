@@ -3,6 +3,10 @@ from typing import Optional
 from datetime import datetime, date
 from sqlalchemy.orm import selectinload, Relationship
 from sqlalchemy import event
+import time
+import random
+import uuid
+import string
 
 
 
@@ -194,16 +198,55 @@ class Kycdetails(SQLModel, table=True):
    
 
 class RequestMoney(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="users.id")
-    recipient_id: int = Field(foreign_key="users.id")
+    id: int | None       = Field(default=None, primary_key=True)
+    user_id: int         = Field(foreign_key="users.id")
+    recipient_id: int    = Field(foreign_key="users.id")
     amount: float
-    currency_id: int = Field(foreign_key="currency.id")
-    message: str = Field(default='')
-    active: bool = Field(default=True)
-    status: bool = Field(default=False)
+    currency_id: int     = Field(foreign_key="currency.id")
+    message: str         = Field(default='')
+    active: bool         = Field(default=True)
+    status: bool         = Field(default=False)
     created_at: datetime = Field(default=datetime.now())
-    
+
+
+class MerchantGroup(SQLModel, table=True):
+    id: int | None  = Field(primary_key=True)
+    name: str       = Field(default = '')
+
+
+class MerchantProfile(SQLModel, table=True):
+    id:           int | None = Field(default = None, primary_key=True)
+    user:         int        = Field(foreign_key = 'users.id')
+    bsn_name:     str        = Field(default = "")
+    bsn_url:      str        = Field(default = 'https://example.com')
+    currency:     int        = Field(foreign_key ='currency.id')
+    merchant_id:  str        = Field(nullable=True)
+    bsn_msg:      str        = Field(default ='Empty') 
+    logo:         str        = Field(default ='Merchant/default-merchant.png')
+    fee:          float      = Field(nullable=True)
+    group:        int        = Field(foreign_key='merchantgroup.id', nullable=True)
+    created_date: date       = Field(default = date.today())
+    created_time: str        = Field(default = datetime.now().strftime('%H:%M:%S'))
+    status:       str        = Field(default='Moderation', nullable=True)
+    is_active:    bool       = Field(default=False, nullable=True)
+
+
+
+    def assign_current_date(self):
+        self.created_date = date.today()
+
+
+    def assign_current_time(self):
+        self.created_time = datetime.now().strftime('%H:%M:%S')
+
+
+    def generate_unique_merchant_id(self):
+        timestamp    = str(int(time.time()))
+        random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+        custom_id    =  f"{timestamp}-{random_chars}"
+
+        self.merchant_id = custom_id
+
 
 
 
@@ -249,6 +292,23 @@ def before_insert_listener(mapper, connection, target):
 @event.listens_for(Wallet, "before_insert")
 def before_insert_listener(mapper, connection, target):
     target.assign_wallet_id()
+
+
+@event.listens_for(MerchantProfile, 'before_insert')
+def merchant_profile_date_listener(mapper, connection, target):
+    target.assign_current_date()
+
+
+
+@event.listens_for(MerchantProfile, 'before_insert')
+def merchant_profile_time_listener(mapper, connection, target):
+    target.assign_current_time()
+
+
+
+@event.listens_for(MerchantProfile, 'before_insert')
+def merchant_uid_listener(mapper, connection, target):
+    target.generate_unique_merchant_id()
 
 
     

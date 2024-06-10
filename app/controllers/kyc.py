@@ -156,9 +156,9 @@ class UserKYCController(APIController):
 
                 request_body        = await request.form()
 
-                user_email          = request_body['email']
-                user_mobile_no      = request_body['phoneno']
-                user_firstname      = request_body['firstname']
+                user_email          =  request_body['email']
+                user_mobile_no      =  request_body['phoneno']
+                user_firstname      =  request_body['firstname']
                 user_lastname       =  request_body['lastname']
                 user_id             =  request_body['user_id']
                 user_dob            =  request_body['dateofbirth']

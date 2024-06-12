@@ -200,12 +200,10 @@ async def search_transferTransaction(self, request: Request, search: str = ''):
                     except Exception as e:
                         return json({'msg': 'Transaction Search error', 'error': f'{str(e)}'}, 400)
 
-
             for currency in currency_data:
                 if currency.name == parsed_value:
                     currency_id  = currency.id
                     break
-
 
             if currency_id is not None:
                 try:

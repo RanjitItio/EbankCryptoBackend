@@ -3,10 +3,23 @@ from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from sqlmodel import select
 from Models.models import Users, MerchantGroup, MerchantProfile, Currency
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from blacksheep.exceptions import BadRequest
 from pathlib import Path
+from decouple import config
+from sqlalchemy import desc
+import re
+
+is_development  = config('IS_DEVELOPMENT')
+development_url = config('DEVELOPMENT_URL_MEDIA')
+production_url  = config('PRODUCTION_URL_MEDIA')
+
+
+if is_development == 'True':
+    url = development_url
+else:
+    url = production_url
 
 
 async def save_business_logo(request: Request):
@@ -71,9 +84,9 @@ async def search_all_transaction(self, request: Request, query: str = ''):
             fee           = request_body['fee']
             logo          = await request.files()
 
+
             merchant_id  = int(merchant_id)
             fee          = float(fee)
-
 
             #Check the user is Admin or not
             try:
@@ -175,7 +188,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
                     merchant_obj_data.group     = merchant_group_id
                     merchant_obj_data.fee       = fee
                     merchant_obj_data.logo      = business_logo_path
-                    merchant_obj_data.status    = status
+                    merchant_obj_data.status    = 'Cancelled'
                     merchant_obj_data.status    = status
                     merchant_obj_data.is_active = False
 
@@ -197,7 +210,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 #View all merchant by Admin
 @auth('userauth')
 @get('/api/admin/all/merchant/')
-async def search_all_transaction(self, request: Request, query: str = ''):
+async def search_all_transaction(self, request: Request, limit: int = 25, offset: int = 0):
     """
      Admin will be able to View Merchants
     """
@@ -219,7 +232,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
             #Admin Verification Complete
 
             try:
-                merchant_obj = await session.execute(select(MerchantProfile))
+                merchant_obj = await session.execute(select(MerchantProfile).order_by(desc(MerchantProfile.id)).limit(limit).offset(offset))
                 merchant_obj_data = merchant_obj.scalars().all()
 
                 if not merchant_obj_data:
@@ -245,8 +258,25 @@ async def search_all_transaction(self, request: Request, query: str = ''):
             except Exception as e:
                 return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
             
+            #Get The Merchant Groups
+            try:
+                currency_obj      = await session.execute(select(Currency))
+                currency_obj_data = currency_obj.scalars().all()
+                
+            except Exception as e:
+                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+            
+            #Get The Merchant Groups
+            try:
+                group_obj      = await session.execute(select(MerchantGroup))
+                group_obj_data = group_obj.scalars().all()
+                
+            except Exception as e:
+                return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
+            
             user_dict  = {user.id: user for user in user_obj_data}
             group_dict = {grp.id: grp for grp in group_obj_data}
+            currency_dict = {cur.id: cur for cur in currency_obj_data}
 
             combined_data = []
         
@@ -256,6 +286,9 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 
                 group_id   = merchant.group
                 group_data = group_dict.get(group_id)
+
+                currency_id   = merchant.currency
+                currency_data = currency_dict.get(currency_id)
 
                 user_data = {
                     'full_name': user.full_name,
@@ -267,7 +300,23 @@ async def search_all_transaction(self, request: Request, query: str = ''):
                     {
                         'user': user_data,
                         'group': group_data,
-                        'merchant': merchant
+                        'currency': currency_data,
+                        'merchant': {
+                            'id':           merchant.id,
+                            'bsn_url':      merchant.bsn_url,
+                            'user':         merchant.user,
+                            'merchant_id':  merchant.merchant_id,
+                            'logo':         f"{url}{merchant.logo}",
+                            'group':        merchant.group,
+                            'created_time': merchant.created_time,
+                            'is_active':    merchant.is_active,
+                            'bsn_name':     merchant.bsn_name,
+                            'currency':     merchant.currency,
+                            'bsn_msg':      merchant.bsn_msg,
+                            'fee':          merchant.fee,
+                            'created_date': merchant.created_date,
+                            'status':       merchant.status
+                        }
                     }
                 )
 
@@ -275,4 +324,189 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+    
 
+
+
+@auth('userauth')
+@get('/api/v2/admin/search/merchant/')
+async def search_merchant(self, request: Request, query: str):
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity   = request.identity
+            AdminID         = user_identity.claims.get("user_id") if user_identity else None
+
+            searched_text = query
+
+            # Check the user is admin or Not
+            try:
+                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 400)
+                
+            except Exception as e:
+                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+            
+            if re.fullmatch(r'\d+', searched_text):
+                parsed_value = int(searched_text)
+
+            elif re.fullmatch(r'\d{4}-\d{2}-\d{2}', searched_text):
+                parsed_value = datetime.strptime(searched_text, '%Y-%m-%d').date()
+
+            else:
+                parsed_value = searched_text
+
+            try:
+                all_user_obj      = await session.execute(select(Users))
+                all_user_obj_data = all_user_obj.scalars().all()
+
+                user_search_id   = None
+                
+            except Exception as e:
+                return json({'msg': 'User not found'}, 400)
+            
+            try:
+                currency_obj      = await session.execute(select(Currency))
+                currency_data     = currency_obj.scalars().all()
+
+                currency_id      = None
+
+            except Exception as e:
+                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+            
+            try:
+                merchant_grp_obj  = await session.execute(select(MerchantGroup))
+                merchant_grp_data = merchant_grp_obj.scalars().all()
+
+                merchant_grp_id = None
+
+            except Exception as e:
+                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+            
+            if parsed_value == ' ':
+                try:
+                    merchant_profile_obj = select(MerchantProfile).order_by((MerchantProfile.id).desc)
+                    
+                    searched_profile = await session.execute(merchant_profile_obj)
+
+                    merchant_list = searched_profile.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
+                
+            elif isinstance(parsed_value, date):
+                try:
+                    merchant_profile_obj = select(MerchantProfile).where(
+                        MerchantProfile.created_date == parsed_value).order_by((MerchantProfile.id).desc())
+                    
+                    searched_profile = await session.execute(merchant_profile_obj)
+
+                    merchant_list = searched_profile.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
+            
+            elif isinstance(parsed_value, str):
+
+                for user in all_user_obj_data:
+                    if user.full_name == parsed_value:
+                        user_search_id = user.id
+
+                for currency in currency_data:
+                    if currency.name == parsed_value:
+                        currency_id   = currency.id
+
+                for grp in merchant_grp_data:
+                    if grp.name == parsed_value:
+                        merchant_grp_id = grp.id
+
+                if user_search_id:
+                    merchant_profile_obj = select(MerchantProfile).where(
+                        MerchantProfile.user == user_search_id).order_by((MerchantProfile.id).desc())
+                    
+                    searched_profile = await session.execute(merchant_profile_obj)
+                    merchant_list = searched_profile.scalars().all()
+
+                elif currency_id:
+                    merchant_profile_obj = select(MerchantProfile).where(
+                        MerchantProfile.currency == currency_id).order_by((MerchantProfile.id).desc())
+                    
+                    searched_profile = await session.execute(merchant_profile_obj)
+                    merchant_list    = searched_profile.scalars().all()
+                
+                elif merchant_grp_id:
+                    merchant_profile_obj = select(MerchantProfile).where(
+                        MerchantProfile.group == merchant_grp_id).order_by((MerchantProfile.id).desc())
+                    
+                    searched_profile = await session.execute(merchant_profile_obj)
+                    merchant_list    = searched_profile.scalars().all()
+
+                else:
+                    try:
+                        merchant_profile_obj = select(MerchantProfile).where(
+                            (MerchantProfile.merchant_id.ilike(parsed_value))  |
+                            (MerchantProfile.bsn_name.ilike(parsed_value))  |
+                            (MerchantProfile.bsn_url.ilike(parsed_value))  |
+                            (MerchantProfile.status.ilike(parsed_value))  
+                        )
+
+                        searched_profile = await session.execute(merchant_profile_obj)
+
+                        merchant_list = searched_profile.scalars().all()
+
+                    except Exception as e:
+                        return json({'msg': 'Merchant profile search error in string', 'error': f'{str(e)}'}, 400)
+                    
+            user_dict  = {user.id: user for user in all_user_obj_data}
+            group_dict = {grp.id: grp for grp in merchant_grp_data}
+            currency_dict = {cur.id: cur for cur in currency_data}
+
+            combined_data = []
+
+            for merchant in merchant_list:
+                user_id   = merchant.user
+                user      = user_dict.get(user_id)
+
+                group_id   = merchant.group
+                group_data = group_dict.get(group_id)
+
+                currency_id   = merchant.currency
+                currency_data = currency_dict.get(currency_id)
+
+                user_data = {
+                    'full_name': user.full_name,
+                    'id': user.id
+
+                } if user else None
+                
+                combined_data.append(
+                    {
+                        'user': user_data,
+                        'group': group_data,
+                        'currency': currency_data,
+                        'merchant': {
+                            'id':           merchant.id,
+                            'bsn_url':      merchant.bsn_url,
+                            'user':         merchant.user,
+                            'merchant_id':  merchant.merchant_id,
+                            'logo':         f"{url}{merchant.logo}",
+                            'group':        merchant.group,
+                            'created_time': merchant.created_time,
+                            'is_active':    merchant.is_active,
+                            'bsn_name':     merchant.bsn_name,
+                            'currency':     merchant.currency,
+                            'bsn_msg':      merchant.bsn_msg,
+                            'fee':          merchant.fee,
+                            'created_date': merchant.created_date,
+                            'status':       merchant.status
+                        }
+                    }
+                )
+
+            return json({'msg': 'merchant data fetched successfully', 'data': combined_data}, 200)
+                
+
+    except Exception as e:
+        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)

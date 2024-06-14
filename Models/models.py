@@ -249,6 +249,20 @@ class MerchantProfile(SQLModel, table=True):
 
 
 
+class MerchantTransactions(SQLModel, table=True):
+    id: int | None  = Field(default = None, primary_key=True)
+    merchant: int   = Field(foreign_key = 'merchantprofile.id')
+    product: str    = Field(default='-')
+    order_id: str   = Field(default='-')
+    amount: int     = Field(default=0)
+    currency: int   = Field(foreign_key = 'currency.id')
+    credit_amt: int = Field(default=0)
+    pay_mode: str   = Field(default='-')
+    status: str     = Field(default='Pending')
+
+
+
+
 
 class TestModel(SQLModel, table=True):
     id: int | None         = Field(default=None, primary_key=True)

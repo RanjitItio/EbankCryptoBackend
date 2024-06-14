@@ -280,7 +280,10 @@ class TransactionController(APIController):
 
                             except Exception as e:
                                 return json({'mag': 'Selected Wallet error','error': f'{str(e)}'}, 400)
-                           
+                            
+                            if sender_wallet_transfer_obj.balance <= total_amount:
+                                return json({'msg': 'Sender donot have sufficient balance in wallet'}, 400)
+                            
 
                             if recipient_payment_mode:
                                 

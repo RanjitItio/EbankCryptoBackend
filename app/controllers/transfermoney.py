@@ -84,6 +84,8 @@ class TransferMoneyController(APIController):
                 except Exception as e:
                     return json({'msg': 'Unable to identify Sendeer wallet', 'error': f'{str(e)}'}, 400)
                 
+                if sender_wallet_obj.balance < transfer_data.total_amount:
+                        return json({'msg': 'Sender donot have sufficient balance in wallet'}, 403)
                 
                 #===========================================
                 #If the recipient payment method is wallet
@@ -114,6 +116,7 @@ class TransferMoneyController(APIController):
                     
                     if sender_wallet_obj.id == recipient_wallet_obj.id:
                         return json({'msg': 'Cannot transfer to same wallet'}, 404)
+                
                     
                     addtransection   = Transection(
                                 user_id      = user_id,

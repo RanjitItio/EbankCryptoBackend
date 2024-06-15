@@ -256,6 +256,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname     = value.last_name
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
+                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
                         # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True
@@ -302,6 +303,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname    = value.last_name
                         user_data_obj.phoneno     = value.phoneno
                         user_data_obj.email       = value.email
+                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
                         # user_data_obj.password    = encrypt_password(password)
                         user_data_obj.is_active   = False
                         user_data_obj.is_verified = False
@@ -344,6 +346,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.lastname     = value.last_name
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
+                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
                         # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True

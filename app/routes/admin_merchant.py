@@ -266,23 +266,16 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
             except Exception as e:
                 return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
             
-            #Get The Merchant Groups
-            try:
-                group_obj      = await session.execute(select(MerchantGroup))
-                group_obj_data = group_obj.scalars().all()
-                
-            except Exception as e:
-                return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
             
-            user_dict  = {user.id: user for user in user_obj_data}
-            group_dict = {grp.id: grp for grp in group_obj_data}
+            user_dict     = {user.id: user for user in user_obj_data}
+            group_dict    = {grp.id: grp for grp in group_obj_data}
             currency_dict = {cur.id: cur for cur in currency_obj_data}
 
             combined_data = []
         
             for merchant in merchant_obj_data:
                 user_id   = merchant.user
-                user      = user_dict.get(user_id)
+                merchant_user = user_dict.get(user_id)
 
                 group_id   = merchant.group
                 group_data = group_dict.get(group_id)
@@ -291,10 +284,10 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
                 currency_data = currency_dict.get(currency_id)
 
                 user_data = {
-                    'full_name': user.full_name,
-                    'id': user.id
+                    'full_name': merchant_user.full_name,
+                    'id': merchant_user.id
 
-                } if user else None
+                } if merchant_user else None
 
                 combined_data.append(
                     {

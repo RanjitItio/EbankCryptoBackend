@@ -232,58 +232,34 @@ class UserKYCController(APIController):
         except SQLAlchemyError as e:
             return json({"Error": str(e)}, 500)
         
-    
+    @auth('userauth')
     @put()
     async def update_kyc(self, request: Request, update_kyc: UpdateKycSchema):
 
         try:
             async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-                # Authenticate user
+                # check the user is Admin or not
                 try:
-                    header_value = request.get_first_header(b"Authorization")
+                    user_object      = select(Users).where(Users.id == user_id)
+                    save_to_db       = await session.execute(user_object)
 
-                    if not header_value:
-                        return json({'msg': 'Authentication Failed Please provide auth token'}, 401)
+                    user_object_data = save_to_db.scalar()
+
+                    if user_object_data.is_admin == False:
+                        return json({'msg': 'Only Admin can update the Kyc'})
                     
-                    header_value_str = header_value.decode("utf-8")
-
-                    parts = header_value_str.split()
-
-                    if len(parts) == 2 and parts[0] == "Bearer":
-                        token = parts[1]
-                        user_data = decode_token(token)
-
-                        if user_data == 'Token has expired':
-                            return json({'msg': 'Token has expired'}, 400)
-                        elif user_data == 'Invalid token':
-                            return json({'msg': 'Invalid token'}, 400)
-                        else:
-                            user_data = user_data
-                            
-                        user_id = user_data["user_id"]
-
-                        # check the user is Admin or not
-                        try:
-                            user_object      = select(Users).where(Users.id == user_id)
-                            save_to_db       = await session.execute(user_object)
-                            user_object_data = save_to_db.scalar()
-
-                            if user_object_data.is_admin == False:
-                                return json({'msg': 'Only Admin can update the Kyc'})
-                            
-                        except Exception as e:
-                            return json({'msg': f'{str(e)}'})
-                        
                 except Exception as e:
-                   return json({'msg': 'Authentication Failed'}, 400)
-
+                    return json({'msg': f'{str(e)}'})
                 #Authentication ends here
 
                 try:
                     stmt       = select(Kycdetails).where(Kycdetails.id == update_kyc.kyc_id)
                     result     = await session.execute(stmt)
                     kyc_detail = result.scalar()
+                    
                 except Exception as e:
                     return json({'msg': 'Unable to locate kyc'}, 400)
 

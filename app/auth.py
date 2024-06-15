@@ -22,6 +22,7 @@ import base64
 import os
 from itsdangerous import URLSafeTimedSerializer
 from datetime import timedelta
+from decouple import config
 
 
 
@@ -33,10 +34,10 @@ EMAIL_PASSWORD=config('EMAIL_PASSWORD')
 reset_token_secret_key = config('RESET_TOKEN_SECRET_KEY')
 
 
-SECRET_KEY = "your_secret_key"
+SECRET_KEY = config('SECRET_KEY')
 
 # new_salt = base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8')
-PASSWORD_RESET_SALT = '3BcOCacZqcaKOXuCvb7S1g=='
+PASSWORD_RESET_SALT = config('PASSWORD_RESET_SALT')
 
 
 def generate_access_token(user_id):

@@ -1,49 +1,90 @@
-import os
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
-from cryptography.hazmat.backends import default_backend
+from cryptography.fernet import Fernet
 import base64
+from decouple import config
+import json
+import zlib
 
-# Generate a ChaCha20 key (256 bits, 32 bytes)
-encryption_key = os.urandom(32)
 
-def encrypt_api_key(api_key, encryption_key):
-    nonce = os.urandom(12)
+secret_key = config('SECRET_KEY_MERCHANT')
+# secret_key = Fernet.generate_key()
 
-    cipher = ChaCha20Poly1305(encryption_key)
+cipher_suite = Fernet(secret_key)
+hash_map = {}
 
-    api_key_bytes = api_key.encode()
 
-    ciphertext = cipher.encrypt(nonce, api_key_bytes, None)
+def encrypt_and_encode(model_id):
+    model_id_bytes = str(model_id).encode()
 
-    encrypted_data = nonce + ciphertext
+    encrypted_model_id = cipher_suite.encrypt(model_id_bytes)
 
-    encoded_encrypted_api_key = base64.urlsafe_b64encode(encrypted_data).decode()
+    compressed_data = zlib.compress(encrypted_model_id)
+
+    encoded_data = base64.urlsafe_b64encode(compressed_data).decode()
+
+    short_hash = encoded_data[:20] 
+
+    hash_map[short_hash] = encoded_data
+
+    print(short_hash)
+
+    return short_hash
+
+
+def decrypt_and_decode(short_hash):
+    encoded_data = hash_map.get(short_hash, None)
+
+    if not encoded_data:
+        raise ValueError("Invalid hash or hash not found")
+
+    compressed_data = base64.urlsafe_b64decode(encoded_data.encode())
+
+    encrypted_data = zlib.decompress(compressed_data)
+
+    decrypted_model_id = cipher_suite.decrypt(encrypted_data).decode()
+
+    print(decrypted_model_id)
+    return int(decrypted_model_id)
+
+
+# def encrypt_and_encode(model_id):
+#     model_id_bytes = str(model_id).encode()
+
+#     encrypted_model_id = cipher_suite.encrypt(model_id_bytes)
+
+#     encoded_data = base64.urlsafe_b64encode(encrypted_model_id).decode()
+
+#     print(encoded_data)
+
+#     return encoded_data
+
+
+# def decrypt_and_decode(encoded_data):
     
-    return encoded_encrypted_api_key
 
-def decrypt_api_key(encoded_encrypted_api_key, encryption_key):
+#     encrypted_data = base64.urlsafe_b64decode(encoded_data.encode())
 
-    encrypted_data = base64.urlsafe_b64decode(encoded_encrypted_api_key.encode())
+#     decrypted_model_id = cipher_suite.decrypt(encrypted_data).decode()
+
+#     print(decrypted_model_id)
+
+#     return int(decrypted_model_id)
 
 
-    nonce = encrypted_data[:12]
-    ciphertext = encrypted_data[12:]
 
-    cipher = ChaCha20Poly1305(encryption_key)
+# def encrypt_data_value():
+#     data = {}
+#     for i in range(3, 48):
+#         encrypted_key = encrypt_and_encode(i)
+#         data[i] = encrypted_key
+        
+#         with open('encrypted_key', 'w') as file:
+#             json.dump(data, file, indent=4)
 
-    decrypted_api_key = cipher.decrypt(nonce, ciphertext, None).decode()
 
-    return decrypted_api_key
+# encrypt_data_value()
 
-# Example usage
-api_key = "29"
+# encrypt = encrypt_and_encode(10)
 
-# Encrypt the API key
-encrypted_key = encrypt_api_key(api_key, encryption_key)
-print(f"Encrypted API Key: {encrypted_key}")
-print(f"Length of Encrypted API Key: {len(encrypted_key)}")
+hash_value = 'eJxLdwQBp9zksJKgKKeq'
+decrypt_and_decode(hash_value)
 
-# Decrypt the API key
-decrypted_key = decrypt_api_key(encrypted_key, encryption_key)
-print(f"Decrypted API Key: {int(decrypted_key)}")

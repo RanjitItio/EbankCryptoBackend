@@ -21,40 +21,24 @@ class InputForm:
 
 
 
-class PaymentPageRedirectController(APIController):
+# class PaymentPageRedirectController(APIController):
 
-    @classmethod
-    def class_name(cls) -> str:
-        return 'Payment Page Redirect'
+#     @classmethod
+#     def class_name(cls) -> str:
+#         return 'Payment Page Redirect'
     
-    @classmethod
-    def route(cls) -> str | None:
-        return '/api/payment/redirect/'
+#     @classmethod
+#     def route(cls) -> str | None:
+#         return '/api/payment/form/'
     
-    @post()
-    async def payment_redirect(self, request: Request,  query: str = ''):
-        query = query
-        request_form = await request.form()
+#     @post()
+#     async def payment_redirect(self, request: Request):
+#         request_form = await request.form()
 
-        if not request_form:
-            return json({'msg': 'No msg available'})
-        
-        merchant = request_form['merchant']
-        merchant_id = request_form['merchant_id']
-        item_name   = request_form['item_name']
-        order_number   = request_form['order_number']
-        amount   = request_form['amount']
-        custom   = request_form['custom']
-
-        # print(custom)
-        # print(merchant_id)
-
-        if query == 'get_data':
-            return json({'msg': 'merchant_id'})
-        else:
-            response = redirect('http://localhost:5173/payment/form')
-            response.set_cookie(Cookie("item_name", 'merchant_id', domain="localhost"))
-            return response
+#         print(request_form)
+#         response = redirect('http://localhost:5173/payment/form')
+            
+#         return response
         
 
 

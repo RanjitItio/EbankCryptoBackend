@@ -87,9 +87,6 @@ class Wallet(SQLModel, table=True):
         }
         
         self.wallet_id = wallet_id_mapping.get(self.currency, '0000-0000-0000')
-    # wallet_id
-    # user: Optional[Users] = Relationship(back_populates="wallets")
-    # currency: Optional[Cusrrency] = Relationship(back_populates="wallets")
 
 
 
@@ -223,6 +220,7 @@ class MerchantProfile(SQLModel, table=True):
     bsn_url:      str        = Field(default = 'https://example.com')
     currency:     int        = Field(foreign_key ='currency.id')
     merchant_id:  str        = Field(nullable=True)
+    secret_key:   str        = Field(nullable=True)
     bsn_msg:      str        = Field(default ='Empty') 
     logo:         str        = Field(default ='Merchant/default-merchant.png')
     fee:          float      = Field(nullable=True)
@@ -253,15 +251,28 @@ class MerchantProfile(SQLModel, table=True):
 
 
 class MerchantTransactions(SQLModel, table=True):
-    id: int | None  = Field(default = None, primary_key=True)
-    merchant: int   = Field(foreign_key = 'merchantprofile.id')
-    product: str    = Field(default='-')
-    order_id: str   = Field(default='-')
-    amount: int     = Field(default=0)
-    currency: int   = Field(foreign_key = 'currency.id')
-    credit_amt: int = Field(default=0)
-    pay_mode: str   = Field(default='-')
-    status: str     = Field(default='Pending')
+    id: int | None     = Field(default = None, primary_key=True)
+    merchant: int      = Field(foreign_key = 'merchantprofile.id')
+    product: str       = Field(default='-')
+    order_id: str      = Field(default='-')
+    amount: int        = Field(default=0)
+    fee: float         = Field(default=0.0, nullable=True)
+    currency: int      = Field(foreign_key = 'currency.id')
+    credit_amt: int    = Field(default=0)
+    pay_mode: str      = Field(default='-')
+    payer: str         = Field(default='-', nullable=True)
+    status: str        = Field(default='Pending')
+    custome: str       = Field(default='-', nullable=True)
+    created_date: date = Field(default=date.today(), nullable=True)
+    created_time: str  = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True) 
+
+
+    def assign_current_date(self):
+        self.created_date = date.today()
+
+
+    def assign_current_time(self):
+        self.created_time = datetime.now().strftime('%H:%M:%S')
 
 
 
@@ -278,6 +289,21 @@ class MerchantTempTransaction(SQLModel, table=True):
     status: str     = Field(default='Pending')
 
 
+
+class HashValue(SQLModel, table = True):
+    id: int | None  = Field(primary_key=True, default=None)
+    hash_value:str  = Field(default='')
+    encode_data: str = Field(default='')
+
+
+
+class CustomerCardDetail(SQLModel, table=True):
+    id: int | None   = Field(default=None, primary_key=True)
+    transaction: int = Field(foreign_key='merchanttransactions.id')
+    crd_no: str      = Field(default='-')
+    crd_cvc: str     = Field(default='-')
+    crd_expiry: str  = Field(default='-')
+    country: str     = Field(default='-')
 
 
 
@@ -303,6 +329,7 @@ class TestModel(SQLModel, table=True):
 
     def assign_full_name(self):
         self.full_name = self.first_name + " " + self.last_name
+
 
 
 @event.listens_for(TestModel, "before_insert")
@@ -337,9 +364,22 @@ def merchant_profile_time_listener(mapper, connection, target):
 
 
 
+@event.listens_for(MerchantTransactions, 'before_insert')
+def merchant_transaction_date_listener(mapper, connection, target):
+    target.assign_current_date()
+
+
+
+@event.listens_for(MerchantTransactions, 'before_insert')
+def merchant_transaction_time_listener(mapper, connection, target):
+    target.assign_current_time()
+
+
+
 @event.listens_for(MerchantProfile, 'before_insert')
 def merchant_uid_listener(mapper, connection, target):
     target.generate_unique_merchant_id()
+
 
 
     

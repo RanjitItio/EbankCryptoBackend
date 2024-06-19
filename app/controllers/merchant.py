@@ -4,16 +4,20 @@ from blacksheep.server.controllers import APIController
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from blacksheep.exceptions import BadRequest
-from Models.models import MerchantProfile, Currency, MerchantGroup, Users
+from Models.models import MerchantProfile, Currency, MerchantTransactions, Users, Wallet, CustomerCardDetail
 from datetime import datetime
 from pathlib import Path
 import uuid
 from sqlmodel import select, and_
-from Models.Merchant.schema import MerchantDetailSchema
+from Models.Merchant.schema import MerchantWalletPaymentFormSchema, MerchantArrearPaymentMethodSchema
 from decouple import config
 from sqlalchemy import desc
+from app.auth import generate_merchant_secret_key, decrypt_merchant_secret_key, check_password
+from sqlalchemy import desc
 
-is_development = config('IS_DEVELOPMENT')
+
+
+is_development  = config('IS_DEVELOPMENT')
 development_url = config('DEVELOPMENT_URL_MEDIA')
 production_url  = config('PRODUCTION_URL_MEDIA')
 
@@ -150,13 +154,19 @@ class MerchantController(APIController):
 
                 try:
                     merchant = MerchantProfile(
-                        user = user_id,
+                        user     = user_id,
                         bsn_name = business_name,
                         bsn_url  = business_url,
                         currency = currency_id,
                         bsn_msg  = business_msg,
                         logo     = business_logo_path,
                     )
+                    session.add(merchant)
+                    await session.commit()
+                    await session.refresh(merchant)
+
+                    merchant_secret_key = await generate_merchant_secret_key(merchant.id)
+                    merchant.secret_key = merchant_secret_key
 
                     session.add(merchant)
                     await session.commit()
@@ -441,7 +451,8 @@ class UserAvailableMerchantController(APIController):
                         'bsn_msg':      merchants.bsn_msg,
                         'fee':          merchants.fee if merchants.fee else None,
                         'created_date': merchants.created_date,
-                        'status':       merchants.status if merchants.status else None
+                        'status':       merchants.status if merchants.status else None,
+                        'key':          merchants.secret_key if merchants.secret_key else None
                     }
 
                     combined_data.append({
@@ -453,3 +464,397 @@ class UserAvailableMerchantController(APIController):
 
         except Exception as e:
             return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+        
+
+
+#Pay through paymoney
+class WalletPaymentController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Payment through paymoney'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/merchant/wallet/payment/'
+    
+
+    @post()
+    async def Wallet_Payment(self, request: Request, schema: MerchantWalletPaymentFormSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                merch_key    = schema.merchant_key
+                merch_id     = schema.merchant_id
+                product_name = schema.product_name
+                order_no     = schema.order_number
+                amount       = schema.amount
+                currency     = schema.currency
+                custom       = schema.custom
+                email        = schema.email
+                password     = schema.password
+
+                if merch_key:
+                    merchantID = await decrypt_merchant_secret_key(merch_key)
+
+                if merchantID == 'Hash value not found':
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+                
+                if merchantID == 'Invalid hash or hash not found':
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+
+                if not merchantID:
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+                
+                #Get the merchant
+                try:
+                    merchanct_obj     = await session.execute(select(MerchantProfile).where(
+                        and_(MerchantProfile.id == merchantID, MerchantProfile.merchant_id == merch_id)
+                        ))
+                    merchant_obj_data = merchanct_obj.scalar()
+
+                    if not merchant_obj_data:
+                        return json({'msg': 'Requested merchant not found'}, 400)
+                    
+                    if not merchant_obj_data.is_active:
+                        return json({'msg': 'Merchant is not active to make payment'}, 401)
+                    
+                    merchant_fee = merchant_obj_data.fee
+                    
+                except Exception as e:
+                    return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
+                
+                # Get the currency ID
+                try:
+                    currency_obj = await session.execute(select(Currency).where(Currency.name == currency))
+                    currency_obj_data = currency_obj.scalar()
+
+                    if not currency_obj_data:
+                        return json({'msg': 'Requested currency not available'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+                
+                #Get the merchant wallet
+                try:
+                    merchant_wallet_obj = await session.execute(select(Wallet).where(
+                        and_(Wallet.user_id == merchant_obj_data.user, Wallet.currency_id == currency_obj_data.id)
+                        ))
+                    merchant_wallet_obj_data = merchant_wallet_obj.scalar()
+
+                    if not merchant_wallet_obj_data:
+                        return json({'msg': 'Merchant wallet not available'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Merchant wallet error', 'error': f'{str(e)}'}, 400)
+                
+                #Check the payer detail
+                try:
+                    payer_obj      = await session.execute(select(Users).where(Users.email == email))
+                    payer_obj_data = payer_obj.scalar()
+
+                    if not payer_obj_data:
+                        return json({'msg': 'Payer does not exist'}, 404)
+                    
+                    password_validation = check_password(password, payer_obj_data.password)
+
+                    if not password_validation:
+                        return json({'msg': 'Incorrect Password'}, 401)
+                    
+                except Exception as e:
+                    return json({'msg': 'Payer fetch error', 'error': f'{str(e)}'}, 400)
+                
+                #Get the Payer wallet
+                try:
+                    payer_wallet_obj = await session.execute(select(Wallet).where(
+                        and_(Wallet.user_id == payer_obj_data.id, Wallet.currency_id == currency_obj_data.id)
+                        ))
+                    payer_wallet_obj_data = payer_wallet_obj.scalar()
+
+                    if not payer_wallet_obj_data:
+                        return json({'msg': 'Payer donot have wallet'}, 404)
+                    
+                    payer_wallet_balance = payer_wallet_obj_data.balance
+
+                except Exception as e:
+                    return json({'msg': 'Merchant wallet error', 'error': f'{str(e)}'}, 400)
+                
+                #Check payer has sufficient wallet balance to make the transaction or not
+                if payer_wallet_balance < amount:
+
+                    merchant_transaction = MerchantTransactions (
+                        merchant   = merchant_obj_data.id,
+                        product    = product_name,
+                        order_id   = order_no,
+                        amount     = amount,
+                        currency   = currency_obj_data.id,
+                        credit_amt = 0.0,
+                        pay_mode   = 'Paymoney',
+                        status     = 'Cancelled',
+                        fee        = merchant_fee,
+                        custome    = custom,
+                        payer      = payer_obj_data.full_name
+                    )
+
+                    session.add(merchant_transaction)
+                    await session.commit()
+                    await session.refresh(merchant_transaction)
+
+                    return json({'msg': 'Payer donot have sufficient wallet balance'}, 403)
+
+                if payer_wallet_balance >= amount:
+
+                    if merchant_obj_data.user == payer_obj_data.id:
+                        return json({'msg': 'Can not pay to yourself'}, 403)
+                    
+                    merchant_wallet_balance = merchant_wallet_obj_data.balance
+                    credited_amount         = (amount - (amount * merchant_fee))
+
+                    payer_wallet_balance    -= amount
+                    merchant_wallet_balance += credited_amount
+
+                    payer_wallet_obj_data.balance    = payer_wallet_balance
+                    merchant_wallet_obj_data.balance = merchant_wallet_balance
+
+                    merchant_transaction = MerchantTransactions (
+                        merchant = merchant_obj_data.id,
+                        product  = product_name,
+                        order_id = order_no,
+                        amount   = amount,
+                        currency = currency_obj_data.id,
+                        credit_amt = credited_amount,
+                        pay_mode  = 'Paymoney',
+                        status    = 'Success',
+                        fee        = merchant_fee,
+                        custome    = custom,
+                        payer      = payer_obj_data.full_name
+                    )
+
+                    session.add(merchant_transaction)
+                    session.add(merchant_wallet_obj_data)
+                    session.add(payer_wallet_obj_data)
+
+                    await session.commit()
+
+                    await session.refresh(merchant_transaction)
+                    await session.refresh(merchant_wallet_obj_data)
+                    await session.refresh(payer_wallet_obj_data)
+
+                    return json({'msg': 'Transaction Successful'}, 200)
+
+        except Exception as e:
+            return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+        
+
+
+
+
+#Payment through other payment methods other than paymoney
+class ArrearPaymentController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Payment through Arrears'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/merchant/arrear/payment/'
+    
+
+    @post()
+    async def Arrear_Payment(self, request: Request, schema: MerchantArrearPaymentMethodSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                merch_key          = schema.merchant_key
+                merch_id           = schema.merchant_id
+                currency           = schema.currency
+                card_number        = schema.card_number
+                cvc                = schema.cvc
+                card_expiry        = schema.card_expiry
+                country            = schema.country
+                transaction_amount = schema.amount
+                payment_mode       = schema.pay_mode
+                product            = schema.product
+                order_id           = schema.order_id
+                custome_msg        = schema.msg
+
+
+                if merch_key:
+                    merchantID = await decrypt_merchant_secret_key(merch_key)
+
+                if merchantID == 'Hash value not found':
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+                
+                if merchantID == 'Invalid hash or hash not found':
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+
+                if not merchantID:
+                    return json({'msg': 'Invalid Merchant key'}, 401)
+
+                #Get the merchant
+                try:
+                    merchanct_obj     = await session.execute(select(MerchantProfile).where(
+                        and_(MerchantProfile.id == merchantID, MerchantProfile.merchant_id == merch_id)
+                        ))
+                    merchant_obj_data = merchanct_obj.scalar()
+
+                    if not merchant_obj_data:
+                        return json({'msg': 'Requested merchant not found'}, 400)
+                    
+                    if not merchant_obj_data.is_active:
+                        return json({'msg': 'Merchant is not active to make payment'}, 401)
+                    
+                    merchant_fee = merchant_obj_data.fee
+                    
+                except Exception as e:
+                    return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
+                
+                # Get the currency ID
+                try:
+                    currency_obj = await session.execute(select(Currency).where(Currency.name == currency))
+                    currency_obj_data = currency_obj.scalar()
+
+                    if not currency_obj_data:
+                        return json({'msg': 'Requested currency not available'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+                
+                #Get the merchant wallet
+                try:
+                    merchant_wallet_obj = await session.execute(select(Wallet).where(
+                        and_(Wallet.user_id == merchant_obj_data.user, Wallet.currency_id == currency_obj_data.id)
+                        ))
+                    merchant_wallet_obj_data = merchant_wallet_obj.scalar()
+
+                    if not merchant_wallet_obj_data:
+                        return json({'msg': 'Merchant wallet not available'}, 404)
+                    
+                except Exception as e:
+                    return json({'msg': 'Merchant wallet error', 'error': f'{str(e)}'}, 400)
+                
+                #Get merchant available wallet balance
+                merchant_wallet_balance = merchant_wallet_obj_data.balance
+
+                #Deduct the fee from transaction amount
+                deduct_fee = transaction_amount - (transaction_amount * merchant_fee)
+
+                #Create Merchant Transaction
+                merchant_transaction = MerchantTransactions(
+                    merchant   = merchant_obj_data.id,
+                    product    = product,
+                    order_id   = order_id,
+                    amount     = transaction_amount,
+                    fee        = merchant_fee,
+                    currency   = currency_obj_data.id,
+                    credit_amt = deduct_fee,
+                    pay_mode   = payment_mode,
+                    status     = 'Success',
+                    custome    = custome_msg,
+                    payer      = '-'
+                )
+
+                #Increase merchant wallet balance
+                merchant_wallet_balance         += deduct_fee
+                merchant_wallet_obj_data.balance = merchant_wallet_balance
+
+                session.add(merchant_transaction)
+                session.add(merchant_wallet_obj_data)
+                await session.commit()
+                await session.refresh(merchant_transaction)
+                await session.refresh(merchant_wallet_obj_data)
+
+                #Register all the card details
+                card_details = CustomerCardDetail(
+                    transaction = merchant_transaction.id,
+                    crd_no      = card_number,
+                    crd_cvc     = cvc,
+                    crd_expiry  = card_expiry,
+                    country     = country
+                )
+
+                session.add(card_details)
+                await session.commit()
+                await session.refresh(card_details)
+
+                return json({'msg': 'Transaction Successful'}, 200)
+
+        except Exception as e:
+            return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+
+
+
+
+#Get all business transactions of User
+class UserBusinessTransactionController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'User Business Transactions'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v4/merchant/business/transactions/'
+    
+    @auth('userauth')
+    @get()
+    async def get_user_business_transactions(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+                if not user_id:
+                    return json({'msg': 'Authentication Failed'}, 401)
+                
+                #Get Merchant
+                try:
+                    merchant_profiles = await session.execute(select(MerchantProfile).where(
+                        MerchantProfile.user == user_id
+                    )) 
+                    merchant_profiles_data = merchant_profiles.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
+                
+                
+                combined_data = []
+                #Get the transaction related to every business
+                for merchant_profile in merchant_profiles_data:
+                    business_transactions = await session.execute(select(MerchantTransactions).where(
+                        MerchantTransactions.merchant == merchant_profile.id
+                    ))
+
+                    business_transactions_data = business_transactions.scalars().all()
+
+                    if business_transactions_data:
+
+                        for business_transaction in business_transactions_data:
+                            #Get Currency
+                            try:
+                                currency_obj = await session.execute(select(Currency).where(
+                                    Currency.id == business_transaction.currency
+                                ))
+                                currency_data = currency_obj.scalar()
+                            except Exception as e:
+                                return json({'msg': 'Currency error', 'error': f'{str(e)}'}, 400)
+                            
+                            combined_data.append({
+                                'business_transaction': {
+                                    'id': business_transaction.id,
+                                    'date': business_transaction.created_date,
+                                    'pay_mode': business_transaction.pay_mode,
+                                    'order_id': business_transaction.order_id,
+                                    'total_amount': business_transaction.amount,
+                                    'fee': business_transaction.fee,
+                                    'amount': business_transaction.credit_amt,
+                                    'status': business_transaction.status,
+                                    'merchant': merchant_profile.bsn_name,
+                                    'currency': currency_data.name,
+                                    'payer': business_transaction.payer if business_transaction.payer else '-'
+                                }
+                            })
+
+                return json({'msg': 'Business Transactions data fetched successfully', 'data': combined_data}, 200)
+
+        except Exception as e:
+            return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)

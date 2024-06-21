@@ -592,7 +592,8 @@ class WalletPaymentController(APIController):
                         status     = 'Cancelled',
                         fee        = merchant_fee,
                         custome    = custom,
-                        payer      = payer_obj_data.full_name
+                        payer      = payer_obj_data.full_name,
+                        is_completed = False
                     )
 
                     session.add(merchant_transaction)
@@ -606,38 +607,39 @@ class WalletPaymentController(APIController):
                     if merchant_obj_data.user == payer_obj_data.id:
                         return json({'msg': 'Can not pay to yourself'}, 403)
                     
-                    merchant_wallet_balance = merchant_wallet_obj_data.balance
+                    # merchant_wallet_balance = merchant_wallet_obj_data.balance
                     credited_amount         = (amount - (amount * merchant_fee))
 
-                    payer_wallet_balance    -= amount
-                    merchant_wallet_balance += credited_amount
+                    # payer_wallet_balance    -= amount
+                    # merchant_wallet_balance += credited_amount
 
-                    payer_wallet_obj_data.balance    = payer_wallet_balance
-                    merchant_wallet_obj_data.balance = merchant_wallet_balance
+                    # payer_wallet_obj_data.balance    = payer_wallet_balance
+                    # merchant_wallet_obj_data.balance = merchant_wallet_balance
 
                     merchant_transaction = MerchantTransactions (
-                        merchant = merchant_obj_data.id,
-                        product  = product_name,
-                        order_id = order_no,
-                        amount   = amount,
-                        currency = currency_obj_data.id,
-                        credit_amt = credited_amount,
-                        pay_mode  = 'Paymoney',
-                        status    = 'Success',
-                        fee        = merchant_fee,
-                        custome    = custom,
-                        payer      = payer_obj_data.full_name
+                        merchant     = merchant_obj_data.id,
+                        product      = product_name,
+                        order_id     = order_no,
+                        amount       = amount,
+                        currency     = currency_obj_data.id,
+                        credit_amt   = credited_amount,
+                        pay_mode     = 'Paymoney',
+                        status       = 'Pending',
+                        fee          = merchant_fee,
+                        custome      = custom,
+                        payer        = payer_obj_data.full_name,
+                        is_completed = False
                     )
 
                     session.add(merchant_transaction)
-                    session.add(merchant_wallet_obj_data)
-                    session.add(payer_wallet_obj_data)
+                    # session.add(merchant_wallet_obj_data)
+                    # session.add(payer_wallet_obj_data)
 
                     await session.commit()
 
                     await session.refresh(merchant_transaction)
-                    await session.refresh(merchant_wallet_obj_data)
-                    await session.refresh(payer_wallet_obj_data)
+                    # await session.refresh(merchant_wallet_obj_data)
+                    # await session.refresh(payer_wallet_obj_data)
 
                     return json({'msg': 'Transaction Successful'}, 200)
 
@@ -733,35 +735,36 @@ class ArrearPaymentController(APIController):
                     return json({'msg': 'Merchant wallet error', 'error': f'{str(e)}'}, 400)
                 
                 #Get merchant available wallet balance
-                merchant_wallet_balance = merchant_wallet_obj_data.balance
+                # merchant_wallet_balance = merchant_wallet_obj_data.balance
 
                 #Deduct the fee from transaction amount
                 deduct_fee = transaction_amount - (transaction_amount * merchant_fee)
 
                 #Create Merchant Transaction
                 merchant_transaction = MerchantTransactions(
-                    merchant   = merchant_obj_data.id,
-                    product    = product,
-                    order_id   = order_id,
-                    amount     = transaction_amount,
-                    fee        = merchant_fee,
-                    currency   = currency_obj_data.id,
-                    credit_amt = deduct_fee,
-                    pay_mode   = payment_mode,
-                    status     = 'Success',
-                    custome    = custome_msg,
-                    payer      = '-'
+                    merchant     = merchant_obj_data.id,
+                    product      = product,
+                    order_id     = order_id,
+                    amount       = transaction_amount,
+                    fee          = merchant_fee,
+                    currency     = currency_obj_data.id,
+                    credit_amt   = deduct_fee,
+                    pay_mode     = payment_mode,
+                    status       = 'Pending',
+                    custome      = custome_msg,
+                    payer        = '',
+                    is_completed = False
                 )
 
                 #Increase merchant wallet balance
-                merchant_wallet_balance         += deduct_fee
-                merchant_wallet_obj_data.balance = merchant_wallet_balance
+                # merchant_wallet_balance         += deduct_fee
+                # merchant_wallet_obj_data.balance = merchant_wallet_balance
 
                 session.add(merchant_transaction)
-                session.add(merchant_wallet_obj_data)
+                # session.add(merchant_wallet_obj_data)
                 await session.commit()
                 await session.refresh(merchant_transaction)
-                await session.refresh(merchant_wallet_obj_data)
+                # await session.refresh(merchant_wallet_obj_data)
 
                 #Register all the card details
                 card_details = CustomerCardDetail(

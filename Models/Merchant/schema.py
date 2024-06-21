@@ -47,3 +47,10 @@ class MerchantArrearPaymentMethodSchema:
     order_id: str
     msg: Optional[str] = field(default='')
 
+
+
+@dataclass
+class AdminMerchantPaymentUpdateSchema:
+    id: int
+    status: str
+

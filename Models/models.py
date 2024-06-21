@@ -262,6 +262,7 @@ class MerchantTransactions(SQLModel, table=True):
     pay_mode: str      = Field(default='-')
     payer: str         = Field(default='-', nullable=True)
     status: str        = Field(default='Pending')
+    is_completed: bool = Field(default=False, nullable=True)
     custome: str       = Field(default='-', nullable=True)
     created_date: date = Field(default=date.today(), nullable=True)
     created_time: str  = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True) 

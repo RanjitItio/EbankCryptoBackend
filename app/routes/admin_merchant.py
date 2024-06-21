@@ -11,6 +11,7 @@ from decouple import config
 from sqlalchemy import desc
 import re
 
+
 is_development  = config('IS_DEVELOPMENT')
 development_url = config('DEVELOPMENT_URL_MEDIA')
 production_url  = config('PRODUCTION_URL_MEDIA')

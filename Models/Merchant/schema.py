@@ -54,3 +54,52 @@ class AdminMerchantPaymentUpdateSchema:
     id: int
     status: str
 
+
+
+@dataclass
+class MerchantCreateBankAccountSchema:
+    hldr_name: str
+    hldr_add: str
+    acc_no: str
+    srt_code: str
+    ifsc_code: str
+    bnk_name: str
+    bnk_add: str
+    curr: str
+    add_info: Optional[str] = field(default='')
+    doc: Optional[bytes] = field(default=None)
+
+
+@dataclass
+class MerchantUpdateBankAccountSchema:
+    mrc_bnk_id: int
+    hldr_name: str
+    hldr_add: str
+    acc_no: str
+    srt_code: str
+    ifsc_code: str
+    bnk_name: str
+    bnk_add: str
+    curr: str
+    add_info: Optional[str] = field(default='')
+    doc: Optional[bytes] = field(default=None)
+
+
+@dataclass
+class MerchantDeleteBankAccountSchema:
+    mrc_bnk_id: int
+
+
+@dataclass
+class AdminMerchantBankApproveSchema:
+    mrc_bnk_id: int
+    user_id   : int
+    status    : str
+
+
+@dataclass
+class AdminMerchantBanksSchema:
+    mrc_bnk_id: int
+
+
+

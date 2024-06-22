@@ -19,9 +19,7 @@ from guardpost.authorization import AuthorizationContext
 from guardpost.authorization import Requirement
 from blacksheep.server.authorization import Policy
 import base64
-import os
 from itsdangerous import URLSafeTimedSerializer
-from datetime import timedelta
 from decouple import config
 from cryptography.fernet import Fernet
 import zlib

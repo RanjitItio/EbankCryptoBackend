@@ -1,11 +1,9 @@
-from sqlmodel import SQLModel, Field, Column, String, Integer
+from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime, date
-from sqlalchemy.orm import selectinload, Relationship
 from sqlalchemy import event
 import time
 import random
-import uuid
 import string
 
 
@@ -15,6 +13,7 @@ class Group(SQLModel, table=True):
     name: str          = Field(default='None')
 
 
+#User Model
 class Users(SQLModel, table=True):
     id: int | None                 = Field(default=None, primary_key=True)
     first_name: str                = Field(default='NA')
@@ -305,6 +304,24 @@ class CustomerCardDetail(SQLModel, table=True):
     crd_cvc: str     = Field(default='-')
     crd_expiry: str  = Field(default='-')
     country: str     = Field(default='-')
+
+
+
+class MerchantBankAccount(SQLModel, table=True):
+    id: int | None     = Field(default=None, primary_key=True)
+    user: int          = Field(foreign_key='users.id', nullable=True, default=None)
+    acc_hold_name: str = Field(default='')
+    acc_hold_add: str  = Field(default='')
+    acc_no: str        = Field(default='')
+    short_code:str     = Field(default='', nullable=True)
+    ifsc_code: str     = Field(default='')
+    bank_name:str      = Field(default='')
+    bank_add: str      = Field(default='', nullable=True)
+    add_info: str      = Field(default='', nullable=True)
+    currency: int      = Field(foreign_key='currency.id')
+    doc: str           = Field(default='')
+    is_active: bool    = Field(default=False)
+
 
 
 

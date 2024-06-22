@@ -13,6 +13,7 @@ from blacksheep.server.authorization import Policy
 from guardpost.common import AuthenticatedRequirement
 from app.auth import AdminsPolicy
 from app.controllers.controllers import controller_router
+from app.req_stream import configure_upload_file
 
 
 
@@ -38,6 +39,7 @@ def configure_application(
 
 
     app.controllers_router = controller_router
+
     
     
     # docs.bind_app(app)

@@ -7,8 +7,9 @@ from blacksheep import Request, json
 from sqlalchemy.exc import SQLAlchemyError
 from app.auth import generate_access_token, generate_refresh_token, decode_token ,check_password ,encrypt_password
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.controllers.controllers import get, post, put, delete
+from blacksheep.cookies import Cookie, CookieSameSiteMode
 
 
 
@@ -49,12 +50,32 @@ class UserLoginController(APIController):
                             
                         except Exception as e:
                             return json({'msg': 'Login time error', 'error': f'{str(e)}'}, 400)
-
-                        return json({
+                        
+                        response = json({
                             'is_merchant': first_user.is_merchent,
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
                         },200)
+
+                        response.set_cookies([
+                            Cookie(
+                                'access_token', generate_access_token(first_user.id),
+                                http_only=True,
+                                same_site=CookieSameSiteMode.NONE,
+                                secure=False,
+                                domain='http://localhost:5173/'
+                                   ),
+
+                            Cookie(
+                                'refresh_token',  generate_refresh_token(first_user.id),
+                                http_only=True,
+                                same_site=CookieSameSiteMode.NONE,
+                                secure=False,
+                                domain='http://localhost:5173/'
+                                )
+                        ])
+
+                        return response
                     
                     else:
                         return json({'msg': 'Your account is not active. Please contact the administrator.'}, 403)

@@ -4,13 +4,14 @@ from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.Merchant.schema import (
-    MerchantCreateBankAccountSchema, MerchantUpdateBankAccountSchema, 
-    MerchantDeleteBankAccountSchema
+    MerchantCreateBankAccountSchema, MerchantUpdateBankAccountSchema
     )
 from app.req_stream import save_merchant_bank_doc, delete_old_file
 from sqlmodel import select, and_
 from Models.models import Users, MerchantBankAccount, Currency
 from pathlib import Path
+from .environment import media_url
+
 
 
 #Creeat, Update, Delete Bank account by Merchant
@@ -25,6 +26,7 @@ class MerchantBankAccountController(APIController):
         return '/api/v4/merchant/bank/'
     
     
+    #Create New bank Account by Merchant
     @auth('userauth')
     @post()
     async def create_merchantAccount(self, request: Request, schema: FromForm[MerchantCreateBankAccountSchema], file: FromFiles):
@@ -111,7 +113,7 @@ class MerchantBankAccountController(APIController):
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
         
 
-
+    #Update the bank Account details by Merchant
     @auth('userauth')
     @put()
     async def update_merchantAccount(self, request: Request, schema: FromForm[MerchantUpdateBankAccountSchema], file: FromFiles):
@@ -214,18 +216,19 @@ class MerchantBankAccountController(APIController):
         except Exception as e:
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
         
-
+    
+    #Delete bank account by Merchant
     @auth('userauth')
     @delete()
-    async def delete_merchantAccount(self, request: Request, schema: FromJSON[MerchantDeleteBankAccountSchema]):
+    async def delete_merchantAccount(self, request: Request,  query: int):
 
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-                value            = schema.value
-                merchant_bank_id = value.mrc_bnk_id
+                # value            = schema.value
+                merchant_bank_id = query
 
                 #Get the user
                 try:
@@ -261,6 +264,7 @@ class MerchantBankAccountController(APIController):
                     old_doc = Path('Static') / merchant_bank_account.doc
                     delete_old_file(old_doc)
 
+                #Delete Merchant Bank Account
                 await session.delete(merchant_bank_account)
                 await session.commit()
 
@@ -270,7 +274,7 @@ class MerchantBankAccountController(APIController):
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
         
     
-    #Get all available banks of a user
+    #Get all available banks of a user by Merchant
     @auth('userauth')
     @get()
     async def GetMerchantBank(self, request: Request):
@@ -278,6 +282,8 @@ class MerchantBankAccountController(APIController):
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id')
+
+                combined_data = []
                 
                 #Get the Merchant Bank Account
                 try:
@@ -287,14 +293,44 @@ class MerchantBankAccountController(APIController):
                     merchant_bank_accounts = merchant_bank_account_obj.scalars().all()
 
                     if not merchant_bank_accounts:
-                        return json({'msg': 'Requested Account not found'}, 404)
+                        return json({'msg': 'Account not found'}, 404)
 
                 except Exception as e:
                     return json({'msg': 'Merchant bank account error', 'error': f'{str(e)}'}, 400)
                 
+
                 
-                return json({'msg': 'Merchant bank accounts fetched successfully', 'data': merchant_bank_accounts})
+                for merchant_bank in merchant_bank_accounts:
+
+                    try: 
+                        currency_obj = await session.execute(select(Currency).where(
+                            Currency.id == merchant_bank.currency
+                        ))
+                        currency = currency_obj.scalar()
+
+                    except Exception as e:
+                        return json({'msg': 'Currency error', 'error': f'{str(e)}'}, 400)
+  
+                    combined_data.append({
+                            "user":          merchant_bank.user,
+                            "acc_no":        merchant_bank.acc_no,
+                            "id":            merchant_bank.id,
+                            "acc_hold_name": merchant_bank.acc_hold_name,
+                            "ifsc_code":     merchant_bank.ifsc_code,
+                            "bank_name":     merchant_bank.bank_name,
+                            "add_info":      merchant_bank.add_info,
+                            "doc":           f'{media_url}{merchant_bank.doc}' if merchant_bank.doc else None,
+                            "acc_hold_add":  merchant_bank.acc_hold_add,
+                            "short_code":    merchant_bank.short_code,
+                            "bank_add":      merchant_bank.bank_add,
+                            "currency": {
+                                'name':      currency.name
+                            },
+                            "is_active":     merchant_bank.is_active
+                    })
                 
+                return json({'msg': 'Merchant bank accounts fetched successfully', 'data': combined_data})
+
         except Exception as e:
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
 

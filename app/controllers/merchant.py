@@ -63,7 +63,7 @@ class MerchantController(APIController):
     
 
 
-    #Create new Merchant by Merchant user
+    #Create new Businesss by Merchant user
     @auth('userauth')
     @post()
     async def create_merchant(self, request: Request):
@@ -183,7 +183,7 @@ class MerchantController(APIController):
         
 
 
-    # Update Merchant by Merchant user
+    # Update Business by Merchant user
     @auth('userauth')
     @put()
     async def update_merchant(self, request: Request):

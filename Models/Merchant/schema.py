@@ -85,10 +85,6 @@ class MerchantUpdateBankAccountSchema:
     doc: Optional[bytes] = field(default=None)
 
 
-@dataclass
-class MerchantDeleteBankAccountSchema:
-    mrc_bnk_id: int
-
 
 @dataclass
 class AdminMerchantBankApproveSchema:

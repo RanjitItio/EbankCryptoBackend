@@ -211,7 +211,7 @@ class MerchantGroup(SQLModel, table=True):
     name: str       = Field(default = '')
 
 
-
+#Business Profile Table
 class MerchantProfile(SQLModel, table=True):
     id:           int | None = Field(default = None, primary_key=True)
     user:         int        = Field(foreign_key = 'users.id')
@@ -248,7 +248,7 @@ class MerchantProfile(SQLModel, table=True):
 
 
 
-
+#Business Transaction Table
 class MerchantTransactions(SQLModel, table=True):
     id: int | None     = Field(default = None, primary_key=True)
     merchant: int      = Field(foreign_key = 'merchantprofile.id')
@@ -309,7 +309,7 @@ class CustomerCardDetail(SQLModel, table=True):
 
 class MerchantBankAccount(SQLModel, table=True):
     id: int | None     = Field(default=None, primary_key=True)
-    user: int          = Field(foreign_key='users.id', nullable=True, default=None)
+    user: int          = Field(foreign_key='users.id', nullable=True, default=None, index=True)
     acc_hold_name: str = Field(default='')
     acc_hold_add: str  = Field(default='')
     acc_no: str        = Field(default='')

@@ -45,6 +45,7 @@ class MerchantArrearPaymentMethodSchema:
     pay_mode: str
     product: str
     order_id: str
+    url: str
     msg: Optional[str] = field(default='')
 
 

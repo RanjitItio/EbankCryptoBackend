@@ -13,7 +13,6 @@ from blacksheep.server.authorization import Policy
 from guardpost.common import AuthenticatedRequirement
 from app.auth import AdminsPolicy
 from app.controllers.controllers import controller_router
-from app.req_stream import configure_upload_file
 
 
 
@@ -28,7 +27,9 @@ def configure_application(
     )
 
     configure_error_handlers(app)
+
     configure_authentication(app, settings)
+    
     configure_docs(app, settings)
 
     app.use_authentication().add(UserAuthHandler())
@@ -41,7 +42,6 @@ def configure_application(
     app.controllers_router = controller_router
 
     
-    
     # docs.bind_app(app)
 
     app.use_cors(
@@ -49,7 +49,7 @@ def configure_application(
     allow_origins="*",
     allow_headers="*",
     allow_credentials=True,
-    max_age=600,
+    max_age=900,
     )
   
 

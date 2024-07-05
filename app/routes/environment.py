@@ -8,3 +8,4 @@ if is_development == 'True':
     media_url = development_url
 else:
     media_url = production_url
+

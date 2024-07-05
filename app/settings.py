@@ -21,7 +21,7 @@ CRYPTO_CONFIG = {
 SECURITIES_CODE ='AEB8E42FA8E59592'
 
 class APIInfo(BaseModel):
-    title: str = "FinanceAPI API"
+    title: str = "Itio FinanceAPI API"
     version: str = "0.0.1"
 
 

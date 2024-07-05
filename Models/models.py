@@ -15,7 +15,7 @@ class Group(SQLModel, table=True):
 
 #User Model
 class Users(SQLModel, table=True):
-    id: int | None                 = Field(default=None, primary_key=True)
+    id: int | None                 = Field(default=None, primary_key=True, index=True)
     first_name: str                = Field(default='NA')
     lastname: str                  = Field(default='NA')
     full_name: str | None          = None
@@ -265,6 +265,7 @@ class MerchantTransactions(SQLModel, table=True):
     custome: str       = Field(default='-', nullable=True)
     created_date: date = Field(default=date.today(), nullable=True)
     created_time: str  = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True) 
+    ipg_trans_id: int  = Field(default='', nullable=True)      
 
 
     def assign_current_date(self):

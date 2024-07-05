@@ -60,18 +60,18 @@ class UserLoginController(APIController):
                         response.set_cookies([
                             Cookie(
                                 'access_token', generate_access_token(first_user.id),
-                                http_only=True,
-                                same_site=CookieSameSiteMode.NONE,
+                                http_only=False,
+                                same_site=CookieSameSiteMode.LAX,
                                 secure=False,
-                                domain='http://localhost:5173/'
+                                # domain='http://localhost:5173/'
                                    ),
 
                             Cookie(
                                 'refresh_token',  generate_refresh_token(first_user.id),
-                                http_only=True,
-                                same_site=CookieSameSiteMode.NONE,
+                                http_only=False,
+                                same_site=CookieSameSiteMode.LAX,
                                 secure=False,
-                                domain='http://localhost:5173/'
+                                # domain='http://localhost:5173/'
                                 )
                         ])
 

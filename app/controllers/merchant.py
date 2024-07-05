@@ -14,6 +14,7 @@ from decouple import config
 from sqlalchemy import desc
 from app.auth import generate_merchant_secret_key, decrypt_merchant_secret_key, check_password
 from sqlalchemy import desc
+from .send_pg_request import send_request_ipg15
 
 
 
@@ -23,13 +24,15 @@ production_url  = config('PRODUCTION_URL_MEDIA')
 
 
 
-
+# Create New Business, Update the Business and get the business Details
 class MerchantController(APIController):
-
+    
+    # Path Name
     @classmethod
     def route(cls) -> str | None:
         return '/api/v4/user/merchant/'
-    
+
+    # Controller Name
     @classmethod
     def class_name(cls) -> str:
         return 'Merchant Controller'
@@ -385,7 +388,7 @@ class MerchantController(APIController):
 
 
 
-# #Get all Created merchant by Merchant user
+# #Get all Created Businesses by Merchant user
 class UserAvailableMerchantController(APIController):
 
     @classmethod
@@ -651,7 +654,7 @@ class WalletPaymentController(APIController):
 
 
 #Payment through other payment methods other than paymoney
-class ArrearPaymentController(APIController):
+class AcquirerPaymentController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
@@ -678,7 +681,7 @@ class ArrearPaymentController(APIController):
                 product            = schema.product
                 order_id           = schema.order_id
                 custome_msg        = schema.msg
-
+                url                = schema.url
 
                 if merch_key:
                     merchantID = await decrypt_merchant_secret_key(merch_key)
@@ -740,46 +743,98 @@ class ArrearPaymentController(APIController):
                 #Deduct the fee from transaction amount
                 deduct_fee = transaction_amount - (transaction_amount * merchant_fee)
 
-                #Create Merchant Transaction
-                merchant_transaction = MerchantTransactions(
-                    merchant     = merchant_obj_data.id,
-                    product      = product,
-                    order_id     = order_id,
-                    amount       = transaction_amount,
-                    fee          = merchant_fee,
-                    currency     = currency_obj_data.id,
-                    credit_amt   = deduct_fee,
-                    pay_mode     = payment_mode,
-                    status       = 'Pending',
-                    custome      = custome_msg,
-                    payer        = '',
-                    is_completed = False
-                )
+                send_request = await send_request_ipg15(card_number, cvc, url)
 
-                #Increase merchant wallet balance
-                # merchant_wallet_balance         += deduct_fee
-                # merchant_wallet_obj_data.balance = merchant_wallet_balance
+                if send_request:
+                    error        = send_request.get('Error', False)
+                    redirect_url = send_request.get('authurl', False)
 
-                session.add(merchant_transaction)
-                # session.add(merchant_wallet_obj_data)
-                await session.commit()
-                await session.refresh(merchant_transaction)
-                # await session.refresh(merchant_wallet_obj_data)
+                    # print(error)
+                    if error:
+                        error_msg = send_request['Message']
+                        return json({'msg': 'Transaction Error', 'error': error_msg})
+                    
+                    elif redirect_url:
+                        ipg15_transaction_id = send_request.get('transID', '')
 
-                #Register all the card details
-                card_details = CustomerCardDetail(
-                    transaction = merchant_transaction.id,
-                    crd_no      = card_number,
-                    crd_cvc     = cvc,
-                    crd_expiry  = card_expiry,
-                    country     = country
-                )
+                        merchant_transaction = MerchantTransactions(
+                        merchant     = merchant_obj_data.id,
+                        product      = product,
+                        order_id     = order_id,
+                        amount       = transaction_amount,
+                        fee          = merchant_fee,
+                        currency     = currency_obj_data.id,
+                        credit_amt   = deduct_fee,
+                        pay_mode     = payment_mode,
+                        status       = 'Pending',
+                        custome      = custome_msg,
+                        payer        = '',
+                        is_completed = False,
+                        ipg_trans_id = ipg15_transaction_id
+                    )
 
-                session.add(card_details)
-                await session.commit()
-                await session.refresh(card_details)
+                        session.add(merchant_transaction)
+                        # session.add(merchant_wallet_obj_data)
+                        await session.commit()
+                        await session.refresh(merchant_transaction)
+                        # await session.refresh(merchant_wallet_obj_data)
 
-                return json({'msg': 'Transaction Successful'}, 200)
+                        #Register all the card details
+                        card_details = CustomerCardDetail(
+                            transaction = merchant_transaction.id,
+                            crd_no      = card_number,
+                            crd_cvc     = cvc,
+                            crd_expiry  = card_expiry,
+                            country     = country
+                        )
+
+                        session.add(card_details)
+                        await session.commit()
+                        await session.refresh(card_details)
+
+                        return json({'msg': 'Transaction Successful', 'redirect_url': redirect_url}, 200)
+                    
+                else:
+                    #Create Merchant Transaction
+                    merchant_transaction = MerchantTransactions(
+                        merchant     = merchant_obj_data.id,
+                        product      = product,
+                        order_id     = order_id,
+                        amount       = transaction_amount,
+                        fee          = merchant_fee,
+                        currency     = currency_obj_data.id,
+                        credit_amt   = deduct_fee,
+                        pay_mode     = payment_mode,
+                        status       = 'Pending',
+                        custome      = custome_msg,
+                        payer        = '',
+                        is_completed = False
+                    )
+
+                    #Increase merchant wallet balance
+                    # merchant_wallet_balance         += deduct_fee
+                    # merchant_wallet_obj_data.balance = merchant_wallet_balance
+
+                    session.add(merchant_transaction)
+                    # session.add(merchant_wallet_obj_data)
+                    await session.commit()
+                    await session.refresh(merchant_transaction)
+                    # await session.refresh(merchant_wallet_obj_data)
+
+                    #Register all the card details
+                    card_details = CustomerCardDetail(
+                        transaction = merchant_transaction.id,
+                        crd_no      = card_number,
+                        crd_cvc     = cvc,
+                        crd_expiry  = card_expiry,
+                        country     = country
+                    )
+
+                    session.add(card_details)
+                    await session.commit()
+                    await session.refresh(card_details)
+
+                    return json({'msg': 'Transaction Successful', 'redirect_url': redirect_url}, 200)
 
         except Exception as e:
             return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

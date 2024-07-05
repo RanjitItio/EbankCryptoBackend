@@ -46,45 +46,6 @@ def decrypt_and_decode(short_hash):
     return int(decrypted_model_id)
 
 
-# def encrypt_and_encode(model_id):
-#     model_id_bytes = str(model_id).encode()
-
-#     encrypted_model_id = cipher_suite.encrypt(model_id_bytes)
-
-#     encoded_data = base64.urlsafe_b64encode(encrypted_model_id).decode()
-
-#     print(encoded_data)
-
-#     return encoded_data
 
 
-# def decrypt_and_decode(encoded_data):
-    
-
-#     encrypted_data = base64.urlsafe_b64decode(encoded_data.encode())
-
-#     decrypted_model_id = cipher_suite.decrypt(encrypted_data).decode()
-
-#     print(decrypted_model_id)
-
-#     return int(decrypted_model_id)
-
-
-
-# def encrypt_data_value():
-#     data = {}
-#     for i in range(3, 48):
-#         encrypted_key = encrypt_and_encode(i)
-#         data[i] = encrypted_key
-        
-#         with open('encrypted_key', 'w') as file:
-#             json.dump(data, file, indent=4)
-
-
-# encrypt_data_value()
-
-# encrypt = encrypt_and_encode(10)
-
-hash_value = 'eJxLdwQBp9zksJKgKKeq'
-decrypt_and_decode(hash_value)
 

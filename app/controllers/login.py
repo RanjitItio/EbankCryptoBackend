@@ -38,12 +38,24 @@ class UserLoginController(APIController):
                     if first_user.is_active:
 
                         current_time = datetime.now()
+                        login_count  = first_user.login_count
+                       
+                        if login_count == None:
+                            login_count = 0
+                            
                         # formattedtime = current_time.strftime("%H:%M %p")
                         # ip = request.original_client_ip
 
                         try:
                             first_user.lastlogin = current_time
-                            # first_user.ipaddress = ip
+
+                            if login_count == 0:
+                                count = login_count + 1
+                                first_user.login_count = count
+
+                            elif login_count > 0:
+                                count = login_count + 1
+                                first_user.login_count = count
 
                             await session.commit()
                             await session.refresh(first_user)
@@ -53,6 +65,7 @@ class UserLoginController(APIController):
                         
                         response = json({
                             'is_merchant': first_user.is_merchent,
+                            'user_name': first_user.full_name,
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
                         },200)

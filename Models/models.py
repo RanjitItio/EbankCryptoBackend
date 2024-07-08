@@ -39,6 +39,7 @@ class Users(SQLModel, table=True):
     is_suspended: bool             = Field(default=False, nullable=True)
     lastlogin: datetime            = Field(nullable=True)
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
+    login_count: int               = Field(default=0, nullable=True)
     group: int                     = Field(foreign_key='group.id', nullable=True)
 
 

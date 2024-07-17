@@ -69,7 +69,7 @@ class MerchantController(APIController):
     #Create new Businesss by Merchant user
     @auth('userauth')
     @post()
-    async def create_merchant(self, request: Request):
+    async def create_merchant_business(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -164,13 +164,6 @@ class MerchantController(APIController):
                         bsn_msg  = business_msg,
                         logo     = business_logo_path,
                     )
-                    session.add(merchant)
-                    await session.commit()
-                    await session.refresh(merchant)
-
-                    merchant_secret_key = await generate_merchant_secret_key(merchant.id)
-                    merchant.secret_key = merchant_secret_key
-
                     session.add(merchant)
                     await session.commit()
                     await session.refresh(merchant)

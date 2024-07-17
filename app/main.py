@@ -13,7 +13,7 @@ from blacksheep.server.authorization import Policy
 from guardpost.common import AuthenticatedRequirement
 from app.auth import AdminsPolicy
 from app.controllers.controllers import controller_router
-
+from blacksheep.server.remotes.forwarding import XForwardedHeadersMiddleware
 
 
 
@@ -40,7 +40,7 @@ def configure_application(
 
 
     app.controllers_router = controller_router
-
+    
     
     # docs.bind_app(app)
 

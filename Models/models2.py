@@ -1,8 +1,10 @@
-from sqlmodel import SQLModel, Field, Relationship
-from Models.models import Currency
+from sqlmodel import SQLModel, Field, Column, JSON
 from datetime import date
 from sqlalchemy import event
 from typing import List, Optional
+from datetime import datetime
+import json
+
 
 
 
@@ -22,7 +24,7 @@ class PIPEConnectionMode(SQLModel, table=True):
 #Countries
 class Country(SQLModel, table=True):
     id: int | None  = Field(primary_key=True, default=None)
-    name: str       = Field(default='')
+    name: str       = Field(default='', index=True)
 
 
 #Credit card, Debit Card, UPI etc.
@@ -32,13 +34,14 @@ class PIPEType(SQLModel, table=True):
 
 
 
-
+# Acquirer Model
 class PIPE(SQLModel, table=True):
     id: int | None          = Field(primary_key=True, default=None, index=True)
     name: str               = Field(default='')
     created_at: date        = Field(default=date.today(), nullable=True)
     status: str             = Field(default='Inactive')
     is_active: bool         = Field(default=False)
+    payment_medium: str     = Field(default='', nullable=True) # Card, UPI, Net Banking, Wallet
 
     connection_mode: str    = Field(default='', nullable=True)  # Redirect(Get), POST, Curl, Whitelisting
 
@@ -70,7 +73,7 @@ class PIPE(SQLModel, table=True):
     #Processing Mode
     process_mode: str       = Field(default='') #Test or live
     process_curr: int       = Field(foreign_key='currency.id')
-   
+
     settlement_period: str  = Field(default='', nullable=True)  # Settlement period
     
 
@@ -103,7 +106,7 @@ class PIPETypeAssociation(SQLModel, table=True):
 
 
 
-#Merchant Fee Connector wise
+#Merchant Assigned pipe table
 class MerchantPIPE(SQLModel, table=True):
     id: int | None    = Field(primary_key=True, default=None)
     merchant: int     = Field(foreign_key='users.id', index=True)
@@ -116,17 +119,93 @@ class MerchantPIPE(SQLModel, table=True):
         self.assigned_on = date.today()
 
 
+# All the transaction related to Sandbox
+class MerchantSandBoxTransaction(SQLModel, table=True):
+    id: int | None            = Field(primary_key=True, default=None)
+    merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
+    transaction_id: str       = Field(default='', nullable=True)
+    status: str               = Field(default='')
+    amount: int               = Field(default=0)
+    ceatedDate: date          = Field(default=date.today())
+    createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    merchantOrderId: str     = Field(default='')
+    merchantRedirectURl: str  = Field(default='', nullable=True)
+    merchantRedirectMode: str = Field(default='', nullable=True)
+    merchantCallBackURL: str  = Field(default='', nullable=True)
+    merchantMobileNumber: str = Field(default='', nullable=True)
+    merchantPaymentType: str  = Field(default='', nullable=True)
+    is_completd: bool         = Field(default=False)
+
+    def assignTransactionCreatedDate(self):
+        self.ceatedDate = date.today()
+
+    def assignTransactionCreatedTime(self):
+        self.createdTime = datetime.now().strftime('%H:%M:%S')
 
 
+# All the transaction related to Production
+class MerchantProdTransaction(SQLModel, table=True):
+    id: int | None            = Field(primary_key=True, default=None)
+    merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
+    gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
+    payment_mode: str | None  = Field(default='', nullable=True)
+    transaction_id: str       = Field(default='', nullable=True, max_length=40)
+    currency: str             = Field(default='', nullable=True)
+    status: str               = Field(default='')
+    amount: int               = Field(default=0)
+    ceatedDate: date          = Field(default=date.today())
+    createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    merchantOrderId: str      = Field(default='')
+    merchantRedirectURl: str  = Field(default='', nullable=True)
+    merchantRedirectMode: str = Field(default='', nullable=True)
+    merchantCallBackURL: str  = Field(default='', nullable=True)
+    merchantMobileNumber: str = Field(default='', nullable=True)
+    merchantPaymentType: str  = Field(default='', nullable=True)
+    is_completd: bool         = Field(default=False)
+
+    def assignTransactionCreatedDate(self):
+        self.ceatedDate = date.today()
+
+    def assignTransactionCreatedTime(self):
+        self.createdTime = datetime.now().strftime('%H:%M:%S')
+
+
+
+# Auto assign created date when row gets inserted into the table
 @event.listens_for(PIPE, 'before_insert')
 def pipe_created_date_listener(mapper, connection, target):
     target.assign_current_date()
 
 
-
+# Auto assign created date when row gets inserted into the table
 @event.listens_for(MerchantPIPE, 'before_insert')
 def Merchant_pipe_assigned_date_listener(mapper, connection, target):
     target.assign_current_date()
+
+
+
+# Auto assign created date when row gets inserted into the table
+@event.listens_for(MerchantSandBoxTransaction, 'after_insert')
+def Merchant_sandBox_transaction_date(mapper, connection, target):
+    target.assignTransactionCreatedDate()
+
+
+# Auto assign created time when row gets inserted into the table
+@event.listens_for(MerchantSandBoxTransaction, 'after_insert')
+def Merchant_sandBox_transaction_time(mapper, connection, target):
+    target.assignTransactionCreatedTime()
+
+
+# Auto assign created date when row gets inserted into the table
+@event.listens_for(MerchantProdTransaction, 'after_insert')
+def Merchant_sandBox_transaction_date(mapper, connection, target):
+    target.assignTransactionCreatedDate()
+
+
+# Auto assign created time when row gets inserted into the table
+@event.listens_for(MerchantProdTransaction, 'after_insert')
+def Merchant_sandBox_transaction_time(mapper, connection, target):
+    target.assignTransactionCreatedTime()
     
 
 

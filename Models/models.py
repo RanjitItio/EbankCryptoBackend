@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, select, Session
+# from database.db import AsyncSession, async_engine
 from typing import Optional
 from datetime import datetime, date
 from sqlalchemy import event
@@ -29,9 +30,6 @@ class Users(SQLModel, table=True):
     state: str                     = Field(default='State')
     country: str                   = Field(default='Country')
     picture: str                   = Field(default='Picture')
-    dogecoin_address: str          = Field(default='Doge Coin Address')
-    bitcoin_address: str           = Field(default='Bitcoin Address')
-    litcoin_address: str           = Field(default='Litcoin Address')
     is_merchent: bool              = Field(default=False)
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)
@@ -41,12 +39,22 @@ class Users(SQLModel, table=True):
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
     login_count: int               = Field(default=0, nullable=True)
     group: int                     = Field(foreign_key='group.id', nullable=True)
+    # dogecoin_address: str          = Field(default='Doge Coin Address')
+    # bitcoin_address: str           = Field(default='Bitcoin Address')
+    # litcoin_address: str           = Field(default='Litcoin Address')
 
 
     def assign_full_name(self):
         self.full_name = self.first_name + " " + self.lastname
 
-    
+
+# Users public and secret key table
+class UserKeys(SQLModel, table=True):
+    id: int | None  = Field(default=None, primary_key=True)
+    user_id: int    = Field(foreign_key='users.id', index=True)
+    public_key: str = Field(default='', index=True, unique=True)
+    secret_key: str = Field(default='', unique=True)
+
 
 
 class Admin(SQLModel, table=True):
@@ -238,14 +246,7 @@ class MerchantProfile(SQLModel, table=True):
 
     def assign_current_time(self):
         self.created_time = datetime.now().strftime('%H:%M:%S')
-
-
-    def generate_unique_merchant_id(self):
-        timestamp    = str(int(time.time()))
-        random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
-        custom_id    =  f"{timestamp}-{random_chars}"
-
-        self.merchant_id = custom_id
+        
 
 
 
@@ -396,20 +397,5 @@ def merchant_transaction_time_listener(mapper, connection, target):
 
 
 
-@event.listens_for(MerchantProfile, 'before_insert')
-def merchant_uid_listener(mapper, connection, target):
-    target.generate_unique_merchant_id()
 
-
-
-    
-
-
-
-# class TokenTable(SQLModel, table=True):
-#     __tablename__ = "token"
-#     # user_id = Column(Integer)
-#     user_id = Column(Integer)
-#     access_toke = Column(String(500), primary_key=True)
-#     refresh_toke = Column(String(500),nullable=False)
     

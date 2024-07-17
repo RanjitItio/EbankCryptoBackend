@@ -74,17 +74,19 @@ class UserLoginController(APIController):
                             Cookie(
                                 'access_token', generate_access_token(first_user.id),
                                 http_only=False,
-                                same_site=CookieSameSiteMode.LAX,
+                                same_site=CookieSameSiteMode.NONE,
                                 secure=False,
-                                # domain='http://localhost:5173/'
+                                path='/',
+                                domain='http://localhost:5173/'
                                    ),
 
                             Cookie(
                                 'refresh_token',  generate_refresh_token(first_user.id),
-                                http_only=False,
-                                same_site=CookieSameSiteMode.LAX,
+                                http_only=True,
+                                same_site=CookieSameSiteMode.NONE,
                                 secure=False,
-                                # domain='http://localhost:5173/'
+                                path='/',
+                                domain='http://localhost:5173/'
                                 )
                         ])
 

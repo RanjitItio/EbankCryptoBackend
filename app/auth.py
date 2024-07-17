@@ -1,7 +1,7 @@
 from blacksheep import Application
 from app.settings import Settings
 from Models.models import Users
-from sqlmodel import select
+from sqlmodel import select, and_
 import jwt
 import datetime
 from database.db import async_engine, AsyncSession
@@ -23,7 +23,10 @@ from itsdangerous import URLSafeTimedSerializer
 from decouple import config
 from cryptography.fernet import Fernet
 import zlib
-from Models.models import HashValue
+from Models.models import HashValue, UserKeys
+import time
+import random
+import string
 
 
 
@@ -201,30 +204,52 @@ def verify_password_reset_token(token: str, max_age: int = 900):
     except Exception as e:
         raise ValueError("Invalid or expired token") from e
 
+# Generate Unique Merchant Public Key
+async def generate_merchant_unique_public_key():
+    while True:
+        async with AsyncSession(async_engine) as session:
+            timestamp    = str(int(time.time()))
+            random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+            unique_key   =  f"{timestamp}-{random_chars}"
 
+            statement = select(UserKeys).where(UserKeys.public_key == unique_key)
+            result    = (await session.execute(statement)).scalar()
 
-#Encrypt Merchant Secret Key
+            if not result:
+                return unique_key
+                   
+                
+
+#Generate Merchant Secret Key
 async def generate_merchant_secret_key(merchant_id):
     try:
         async with AsyncSession(async_engine) as session:
+            while True:
+                model_id_bytes       = str(merchant_id).encode()
+                encrypted_model_id   = cipher_suite.encrypt(model_id_bytes)
+                compressed_data      = zlib.compress(encrypted_model_id)
+                encoded_data         = base64.urlsafe_b64encode(compressed_data).decode()
+                short_hash           = encoded_data[:20]
+                # hash_map[short_hash] = encoded_data
 
-            model_id_bytes       = str(merchant_id).encode()
-            encrypted_model_id   = cipher_suite.encrypt(model_id_bytes)
-            compressed_data      = zlib.compress(encrypted_model_id)
-            encoded_data         = base64.urlsafe_b64encode(compressed_data).decode()
-            short_hash           = encoded_data[:20]
-            # hash_map[short_hash] = encoded_data
+                # Check hashvalue exists or Not 
+                exist_hash_obj = await session.execute(select(HashValue).where(
+                    and_(HashValue.hash_value == short_hash, HashValue.encode_data == encoded_data)
+                ))
+                exist_hash = exist_hash_obj.scalar()
 
-            hash_value = HashValue(
-                hash_value  = short_hash,
-                encode_data = encoded_data
-            )
+                if not exist_hash:
 
-            session.add(hash_value)
-            await session.commit()
-            await session.refresh(hash_value)
+                    hash_value = HashValue(
+                        hash_value  = short_hash,
+                        encode_data = encoded_data
+                    )
 
-            return short_hash
+                    session.add(hash_value)
+                    await session.commit()
+                    await session.refresh(hash_value)
+
+                    return short_hash
         
     except Exception as e:
         return f'Secret key generation error {str(e)}'

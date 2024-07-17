@@ -1,24 +1,20 @@
-from http.client import HTTPException
 from blacksheep.server.controllers import APIController
-from Models.schemas import UserCreateSchema ,ConfirmMail, AdminUserCreateSchema, UserDeleteSchema, AdminUpdateUserSchema
-from sqlmodel import Session, select
-from Models.models import Users ,Currency ,Wallet, Transection, Kycdetails, Group
+from Models.schemas import UserCreateSchema ,ConfirmMail
+from sqlmodel import select
+from Models.models import Users ,Currency ,Wallet, Kycdetails, Group, UserKeys
 from blacksheep import Request, json
 from database.db import async_engine, AsyncSession
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
-from app.auth import encrypt_password , encrypt_password_reset_token,send_password_reset_email ,decrypt_password_reset_token, decode_token, send_welcome_email
-from app.module import createcurrencywallet
-from blacksheep import FromJSON, FromQuery
-from typing import List
-from app.docs import docs
+from app.auth import (
+    encrypt_password ,decrypt_password_reset_token, 
+    send_welcome_email, generate_merchant_secret_key, generate_merchant_unique_public_key
+    )
 from decouple import config
 from app.controllers.controllers import get, post
 from blacksheep.server.authorization import auth
 # from app.controllers.media import save_user_image
-from pathlib import Path
-from blacksheep.exceptions import BadRequest
-from datetime import datetime
-import uuid
+
+
 
 
 signup_mail_sent_url = config('SIGNUP_MAIL_URL')
@@ -55,7 +51,8 @@ class UserController(APIController):
         except Exception as e:
             return json({'error': f'{str(e)}'}, 400)
     
-
+    
+    #Register New uer
     @post()
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
@@ -104,16 +101,6 @@ class UserController(APIController):
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"}, status=403)   
                 
-                # # dogeaddress=Dogecoin(CRYPTO_CONFIG["dogecoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # # bitaddress=Dogecoin(CRYPTO_CONFIG["bitcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # # litaddress=Dogecoin(CRYPTO_CONFIG["litcoin_api_key"],SECURITIES_CODE).create_new_address(user.email)
-                # dogeaddress = bitaddress = litaddress = "nahi hai"
-
-                # try:
-                #     user_image_path = await self.save_user_image(request)
-
-                # except Exception as e:
-                #     return json({'msg': f'Image upload error {str(e)}'}, 400)
 
                 try:
                     user_instance = Users(
@@ -130,6 +117,19 @@ class UserController(APIController):
                     session.add(user_instance)
                     await session.commit()
                     await session.refresh(user_instance)
+
+                    # If user is a Merchant then assign Public and secret key
+                    if user.is_merchent:
+                        _secret_key = await generate_merchant_secret_key(user_instance.id)
+                        public_key_ = await generate_merchant_unique_public_key()
+
+                        merchant_secret_key = UserKeys(
+                            user_id    = user_instance.id,
+                            secret_key = _secret_key,
+                            public_key = public_key_
+                        )
+
+                        session.add(merchant_secret_key)
 
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'})
@@ -158,7 +158,8 @@ class UserController(APIController):
 
                         await session.commit()
                         await session.refresh(wallet)
-                        
+                        await session.refresh(merchant_secret_key)
+
                         link=f"{signup_mail_sent_url}/signin/"
 
                         body = f"""

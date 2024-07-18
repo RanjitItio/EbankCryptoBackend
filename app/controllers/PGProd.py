@@ -28,7 +28,7 @@ if is_development == 'True':
     url         = 'http://localhost:5173'
     redirectURL = 'http://localhost:5173/mastercard/payment/status'
 else:
-    url = 'https://react-payment.oyefin.com/merchant/payment/checkout'
+    url = 'https://react-payment.oyefin.com'
     redirectURL = 'https://react-payment.oyefin.com/mastercard/payment/status'
 
 

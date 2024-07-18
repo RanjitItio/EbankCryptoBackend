@@ -88,18 +88,6 @@ class MerchantPipes(APIController):
                             ))
                             currency = currency_obj.scalar()
 
-                            # Get all the Associated payment methods
-                            # payment_mode_obj = await session.execute(select(PIPETypeAssociation).where(
-                            #     PIPETypeAssociation.pipe_id == pipe_data.id  # Correct reference here
-                            # ))
-                            # payment_modes = payment_mode_obj.scalars().all()
-
-                            # for mode in payment_modes:
-                            #     pipe_type_obj = await session.execute(select(PIPEType).where(
-                            #         PIPEType.id == mode.pipe_type_id
-                            #     ))
-                            #     pipe_types = pipe_type_obj.scalars().all()
-
                             # for type in pipe_types:
                             combined_data.append({
                                 'pipe_name': pipe_data.name,
@@ -111,36 +99,6 @@ class MerchantPipes(APIController):
                 except Exception as e:
                     return pretty_json({'msg': 'Merchant data fetch error', 'error': f'{str(e)}'}, 400)
                 
-                 # Fetch all necessary data with a join query
-                # query = (
-                #     select(
-                #         PIPE.name.label('pipe_name'),
-                #         PIPE.payment_medium,
-                #         Currency.name.label('payment_currency'),
-                #         PIPEType.name.label('pipe_type')
-                #     )
-                #     .join(MerchantPIPE, MerchantPIPE.pipe == PIPE.id)
-                #     .join(Currency, PIPE.process_curr == Currency.id)
-                #     .join(PIPETypeAssociation, PIPETypeAssociation.pipe_id == PIPE.id)
-                #     .join(PIPEType, PIPETypeAssociation.pipe_type_id == PIPEType.id)
-                #     .where(
-                #         MerchantPIPE.merchant == merchant_id,
-                #         MerchantPIPE.is_active == True,
-                #         PIPE.is_active == True
-                #     )
-                # )
-
-                # result = await session.execute(query)
-                # combined_data = [
-                #     {
-                #         'pipe_name': row.pipe_name,
-                #         'payment_medium': row.payment_medium,
-                #         'payment_currency': row.payment_currency,
-                #         'pipe_type': row.pipe_type
-                #     }
-                #     for row in result
-                # ]
-
                 return pretty_json({'msg': 'Success', 'data': combined_data}, 200)
 
         except Exception as e:

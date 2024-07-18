@@ -132,7 +132,7 @@ class UserController(APIController):
                         session.add(merchant_secret_key)
 
                 except Exception as e:
-                    return json({'msg': f'user create error {str(e)}'})
+                    return json({'msg': f'user create error {str(e)}'}, 400)
             
                 try:
                     initial_balance = 0.0
@@ -144,7 +144,7 @@ class UserController(APIController):
                         all_currency = await session.execute(select(Currency))
                         currency_list = all_currency.scalars().all()
                     except Exception as e:
-                        return json({'error': f'Currency error {str(e)}'})
+                        return json({'error': f'Currency error {str(e)}'}, 400)
 
                     if currency_list:
                         for currency_obj in currency_list:

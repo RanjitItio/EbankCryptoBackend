@@ -146,9 +146,9 @@ class PaymentGatewayProductionAPI(APIController):
 
                 # Encode the merchant ID
                 encoded_merchant_public_key = generate_base64_encode(merchant_public_key)
-                encoded_amount           = generate_base64_encode(exact_amount)
-                encodedMerchantOrderID   = generate_base64_encode(merchant_order_id)
-                encodedCurrency          = generate_base64_encode(currency)
+                encoded_amount              = generate_base64_encode(exact_amount)
+                encodedMerchantOrderID      = generate_base64_encode(merchant_order_id)
+                encodedCurrency             = generate_base64_encode(currency)
 
                 
                 merchant_prod_transaction = MerchantProdTransaction(
@@ -158,7 +158,7 @@ class PaymentGatewayProductionAPI(APIController):
                     amount               = exact_amount,
                     merchantOrderId      = merchant_order_id,
                     merchantRedirectURl  = redirect_url,
-                    # merchantRedirectMode = redirect_mode,
+                    merchantRedirectMode = "REDIRECT",
                     merchantCallBackURL  = callback_url,
                     merchantMobileNumber = mobile_number,
                     merchantPaymentType  = payment_type,
@@ -178,6 +178,7 @@ class PaymentGatewayProductionAPI(APIController):
                         "data": {
                             "merchantPublicKey": merchant_public_key,
                             "merchantOrderId": merchant_order_id,
+                            "transactionID":  merchant_prod_transaction.transaction_id,
                             "amount": exact_amount,
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",

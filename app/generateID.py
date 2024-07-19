@@ -3,6 +3,8 @@ import time
 import json
 import base64
 import hashlib
+import random
+import string
 
 
 # Generate unique ID
@@ -34,4 +36,37 @@ def calculate_sha256_string(data):
     sha256_hash = hashlib.sha256()
     sha256_hash.update(data.encode('utf-8'))
     return sha256_hash.hexdigest()
+
+
+
+
+def generate_random_capital_word():
+    letters = list(string.ascii_uppercase)
+
+    random.shuffle(letters)
+    word = letters.copy()
+
+    while len(word) < 30:
+        word.append(random.choice(string.ascii_uppercase))
+
+    random.shuffle(word)
+
+    return ''.join(word)
+
+
+def generate_random_word(length=30):
+
+    upper = string.ascii_uppercase
+    lower = string.ascii_lowercase
+    digits = string.digits
+    special = string.punctuation
+
+    characters = [random.choice(upper), random.choice(lower), random.choice(digits), random.choice(special)]
+
+    all_characters = upper + lower + digits + special
+    characters += random.choices(all_characters, k=length - len(characters))
+
+    random.shuffle(characters)
+
+    return ''.join(characters)
 

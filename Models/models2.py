@@ -122,10 +122,12 @@ class MerchantPIPE(SQLModel, table=True):
 # All the transaction related to Sandbox
 class MerchantSandBoxTransaction(SQLModel, table=True):
     id: int | None            = Field(primary_key=True, default=None)
-    merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
+    # merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
     transaction_id: str       = Field(default='', nullable=True)
     status: str               = Field(default='')
     amount: int               = Field(default=0)
+    currency: str             = Field(default='', nullable=True)
+    payment_mode: str         = Field(default='', nullable=True)
     ceatedDate: date          = Field(default=date.today())
     createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
     merchantOrderId: str     = Field(default='')

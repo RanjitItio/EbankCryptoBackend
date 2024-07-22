@@ -1,7 +1,8 @@
-from sqlmodel import SQLModel, Field, select, Session
+from sqlmodel import SQLModel, Field, Column
+from sqlalchemy.sql.sqltypes import Time
 # from database.db import AsyncSession, async_engine
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, time
 from sqlalchemy import event
 import time
 import random
@@ -48,12 +49,15 @@ class Users(SQLModel, table=True):
         self.full_name = self.first_name + " " + self.lastname
 
 
+
 # Users public and secret key table
 class UserKeys(SQLModel, table=True):
-    id: int | None  = Field(default=None, primary_key=True)
-    user_id: int    = Field(foreign_key='users.id', index=True)
-    public_key: str = Field(default='', index=True, unique=True)
-    secret_key: str = Field(default='', unique=True)
+    id: int | None       = Field(default=None, primary_key=True)
+    user_id: int         = Field(foreign_key='users.id', index=True)
+    public_key: str      = Field(default='', index=True, unique=True)
+    secret_key: str      = Field(default='', unique=True)
+    created_at: datetime = Field(default=datetime.now(), nullable=True)
+    is_active: bool      = Field(default=False, nullable=True)
 
 
 
@@ -331,12 +335,12 @@ class MerchantBankAccount(SQLModel, table=True):
 class TestModel(SQLModel, table=True):
     id: int | None         = Field(default=None, primary_key=True)
     created_date: date     = Field(default=date.today())
-    created_time: str      = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    created_time: datetime = Field(sa_column=Column(Time(timezone=False)), default= datetime.now())
     currency:  str         = Field(nullable=True)
-    test_id: str | None = None
+    test_id: str | None    = None
     first_name: str | None = None
-    last_name: str | None = None
-    full_name: str | None = None
+    last_name: str | None  = None
+    full_name: str | None  = None
 
 
     def assign_test_id(self):
@@ -351,6 +355,14 @@ class TestModel(SQLModel, table=True):
     def assign_full_name(self):
         self.full_name = self.first_name + " " + self.last_name
 
+    def assignMicroTime(self):
+        current_time   = datetime.now()
+        formatted_time = current_time.strftime("%H:%M:%S:%f")
+
+        time_obj = datetime.strptime(formatted_time, '%H:%M:%S:%f').time()
+
+        self.created_time = time_obj
+
 
 
 @event.listens_for(TestModel, "before_insert")
@@ -360,7 +372,7 @@ def before_insert_listener(mapper, connection, target):
 
 @event.listens_for(TestModel, "before_insert")
 def before_insert_listener(mapper, connection, target):
-    target.assign_full_name()
+    target.assignMicroTime()
 
 
 @event.listens_for(Users, "before_insert")

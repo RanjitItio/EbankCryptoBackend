@@ -34,7 +34,7 @@ else:
 
 
 
-# Sand box payment
+# Production Payment
 class PaymentGatewayProductionAPI(APIController):
 
     @classmethod
@@ -78,7 +78,6 @@ class PaymentGatewayProductionAPI(APIController):
                 currency            = payload_dict.get('currency')
                 amount              = payload_dict.get('amount')
                 redirect_url        = payload_dict.get('redirectUrl')
-                # redirect_mode       = payload_dict.get('redirectMode')
                 callback_url        = payload_dict.get('callbackUrl')
                 mobile_number       = payload_dict.get('mobileNumber')
                 payment_type        = payload_dict['paymentInstrument']['type']
@@ -102,12 +101,18 @@ class PaymentGatewayProductionAPI(APIController):
                 ))
                 merchant_key = merchant_key_obj.scalar()
 
+                if not merchant_key:
+                    return pretty_json({'error': 'Invalid merchantId'}, 400)
+                
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
                 merchant_id         = merchant_key.user_id
 
-                if not merchant_key:
-                    return pretty_json({'error': 'Invalid merchantId'}, 400)
+                merchant_key_status = merchant_key.is_active
+
+                if merchant_key_status == False:
+                    return pretty_json({'error': 'Inactive key, Please contact administrations'}, 400)
+                
                 
                 # Verify header X-AUTH
                 sha256   = calculate_sha256_string(payload + '/api/pg/prod/v1/pay/' + merchant_key.secret_key)
@@ -401,8 +406,7 @@ class MasterCardTransaction(APIController):
                                     "type": "PAY_PAGE",
                                         "redirectInfo": {
                                         "url": merchantRedirectURL,
-                                    # "method": merchantRedirectMode
-                                }
+                                    }
                                 }
                             }
                         }
@@ -419,14 +423,14 @@ class MasterCardTransaction(APIController):
                     # Update the merchant transaction status
                     merchant_prod_transaction.status       = 'PAYMENT_FAILED'
                     merchant_prod_transaction.payment_mode = 'Card'
-                    
+
                     session.add(merchant_prod_transaction)
                     await session.commit()
                     await session.refresh(merchant_prod_transaction)
 
                     # Response for the page
                     return pretty_json({
-                        'status': 'PAYMENT_FAILED',
+                        'status':  'PAYMENT_FAILED',
                         'message': 'To be Updated',
                         'transactionID': transaction_id,
                         'merchantRedirectURL': merchantRedirectURL
@@ -448,7 +452,6 @@ class MasterCardTransaction(APIController):
 # print('\n')
 # print('response',      json_data['response'])
 # print('\n')
-
 class ReceiveMasterCardWebhook(APIController):
 
     @classmethod
@@ -730,27 +733,27 @@ class MerchantTransactionStatus(APIController):
 
                 if payment_status == 'PAYMENT_INITIATE':
                     message = 'Payment Initiated remained to complete the transaction'
-                    state   = 'STARTED'
+                    status   = 'STARTED'
                     responseCode = 'INITIATED'
                     success = False
 
                 elif payment_status == 'PAYMENT_SUCCESS':
                     message      = 'Payment Successfull'
                     responseCode = 'SUCCESS'
-                    state        = 'COMPLETED'
+                    status        = 'COMPLETED'
                     success      = True
                     
 
                 elif payment_status == 'PAYMENT_PENDING':
                     message      = 'Payment Pending'
                     responseCode = 'PENDING'
-                    state        = 'PENDING'
+                    status        = 'PENDING'
                     success      = False
 
                 elif payment_status == 'PAYMENT_FAILED':
                     message      = 'Payment Failed'
                     responseCode = 'FAILED'
-                    state        = 'FAILED'
+                    status        = 'FAILED'
                     success      = False
 
                 if merchant_transaction:
@@ -765,7 +768,7 @@ class MerchantTransactionStatus(APIController):
                                     "transactionId": transaction_id,
                                     "amount": amount,
                                     'currency': currency,
-                                    "state": state,
+                                    "status": status,
                                     "responseCode": responseCode,
                                     "paymentInstrument": {
                                         "type": payment_mode,

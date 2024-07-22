@@ -317,7 +317,7 @@ class CountAvailableUser(APIController):
         
         except Exception as e:
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
-        
+  
 
 
 class ConfirmMail(APIController):

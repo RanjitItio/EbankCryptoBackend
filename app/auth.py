@@ -253,6 +253,48 @@ async def generate_merchant_secret_key(merchant_id):
         
     except Exception as e:
         return f'Secret key generation error {str(e)}'
+    
+
+#Update a new Merchant Secret Key
+async def update_merchant_secret_key(merchant_id):
+    try:
+        async with AsyncSession(async_engine) as session:
+            
+            model_id_bytes       = str(merchant_id).encode()
+            encrypted_model_id   = cipher_suite.encrypt(model_id_bytes)
+            compressed_data      = zlib.compress(encrypted_model_id)
+            encoded_data         = base64.urlsafe_b64encode(compressed_data).decode()
+            short_hash           = encoded_data[:20]
+
+            # Check hashvalue exists or Not 
+            exist_hash_obj = await session.execute(select(HashValue).where(
+                and_(HashValue.hash_value == short_hash, HashValue.encode_data == encoded_data)
+            ))
+            exist_hash = exist_hash_obj.scalar()
+
+            if exist_hash:
+                exist_hash.hash_value  = short_hash
+                exist_hash.encode_data = encoded_data
+
+                session.add(exist_hash)
+                await session.commit()
+                await session.refresh(exist_hash)
+
+                return short_hash
+            else:
+                hsah_value = HashValue(
+                    hash_value = short_hash,
+                    encode_data = encoded_data
+                )
+
+                session.add(hsah_value)
+                await session.commit()
+                await session.refresh(hsah_value)
+
+                return short_hash
+        
+    except Exception as e:
+        return f'Secret key generation error {str(e)}'
 
 
 #Decrypt Merchant Secret Key

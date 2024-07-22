@@ -3,7 +3,8 @@ from datetime import date
 from sqlalchemy import event
 from typing import List, Optional
 from datetime import datetime
-import json
+from sqlalchemy.sql.sqltypes import Time, DATETIME
+
 
 
 
@@ -122,7 +123,7 @@ class MerchantPIPE(SQLModel, table=True):
 # All the transaction related to Sandbox
 class MerchantSandBoxTransaction(SQLModel, table=True):
     id: int | None            = Field(primary_key=True, default=None)
-    # merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
+    merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
     transaction_id: str       = Field(default='', nullable=True)
     status: str               = Field(default='')
     amount: int               = Field(default=0)
@@ -155,8 +156,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     currency: str             = Field(default='', nullable=True)
     status: str               = Field(default='')
     amount: int               = Field(default=0)
-    ceatedDate: date          = Field(default=date.today())
-    createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    createdAt: datetime       = Field(default=datetime.now(), nullable=True)
     merchantOrderId: str      = Field(default='')
     merchantRedirectURl: str  = Field(default='', nullable=True)
     merchantRedirectMode: str = Field(default='', nullable=True)
@@ -164,12 +164,15 @@ class MerchantProdTransaction(SQLModel, table=True):
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
-
-    def assignTransactionCreatedDate(self):
-        self.ceatedDate = date.today()
+    # createdAt: datetime       = Field(sa_column=Column(DATETIME(timezone=False)), default=datetime.now())
+    # ceatedDate: date          = Field(default=date.today())
 
     def assignTransactionCreatedTime(self):
-        self.createdTime = datetime.now().strftime('%H:%M:%S')
+        current_time   = datetime.now()
+        # formatted_time = current_time.strftime("%H:%M:%S:%f")
+        # time_obj       = datetime.strptime(formatted_time, '%H:%M:%S:%f').time()
+        self.createdAt = current_time
+
 
 
 
@@ -199,9 +202,9 @@ def Merchant_sandBox_transaction_time(mapper, connection, target):
 
 
 # Auto assign created date when row gets inserted into the table
-@event.listens_for(MerchantProdTransaction, 'after_insert')
-def Merchant_sandBox_transaction_date(mapper, connection, target):
-    target.assignTransactionCreatedDate()
+# @event.listens_for(MerchantProdTransaction, 'after_insert')
+# def Merchant_sandBox_transaction_date(mapper, connection, target):
+#     target.assignTransactionCreatedDate()
 
 
 # Auto assign created time when row gets inserted into the table

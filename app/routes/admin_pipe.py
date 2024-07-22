@@ -78,6 +78,7 @@ async def Admin_pipe_create(request: Request, schema: AdminPipeCreateSchema):
 
                 # connect_mode       = pipe_conn_mode.id,
                 connection_mode    = schema.connect_mode,
+                payment_medium     = schema.payment_medium,
 
                 prod_url           = schema.prod_url,
                 test_url           = schema.test_url,
@@ -222,6 +223,7 @@ async def Admin_pipe_update(request: Request, schema: AdminPipeUpdateSchema):
             pipe.status             = schema.status
             pipe.is_active          = is_pipe_active
             pipe.connection_mode    = schema.connect_mode
+            pipe.payment_medium     = schema.payment_medium
 
             pipe.prod_url           = schema.prod_url
             pipe.test_url           = schema.test_url
@@ -490,6 +492,8 @@ async def Admin_pipe(request: Request):
                     'bank_max_fail_trans_allowed': pipe.bank_max_fail_trans_allowed,
                     'bank_scrub_period': pipe.bank_scrub_period,
                     'connection_mode': pipe.connection_mode,
+                    'payment_medium':    pipe.payment_medium,
+
                     'webhook_url': pipe.webhook_url,
                     'redirect_msg': pipe.redirect_msg,
                     'bank_down_period': pipe.bank_down_period,

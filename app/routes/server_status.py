@@ -1,6 +1,8 @@
 from blacksheep import json, get, post, Request, FromForm, FromFiles
 from blacksheep.exceptions import BadRequest, HTTPException
 from pathlib import Path
+from blacksheep.cookies import Cookie, CookieSameSiteMode
+from app.auth import generate_access_token, generate_refresh_token
 
 
 
@@ -9,6 +11,39 @@ from pathlib import Path
 @get('/api/server/status/')
 async def server_status(self):
     return json({'msg': 'Success'}, 200)
+
+
+@get('/api/set-cookie/')
+async def Set_Cookie(request: Request):
+    user_identity = request.identity
+    user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+
+    if not user_identity:
+        return json({'error': 'Unauthorized'}, 401)
+    
+    response = json({'msg': 'Success'}, 200)
+
+    response.set_cookies([
+        Cookie(
+            'access_token', generate_access_token(user_id),
+            http_only=False,
+            same_site=CookieSameSiteMode.NONE,
+            secure=True,
+            path='/',
+            domain='localhost'
+        ),
+        Cookie(
+            'refresh_token',  generate_refresh_token(user_id),
+            http_only=False,
+            same_site=CookieSameSiteMode.NONE,
+            secure=True,
+            path='/',
+            domain='localhost'
+            )
+    ])
+
+    return response
 
 
 @post('/api/upload-file/')

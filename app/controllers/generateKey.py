@@ -2,7 +2,7 @@ from blacksheep import json, Request, FromJSON
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
-from app.auth import generate_merchant_secret_key
+from app.auth import update_merchant_secret_key, generate_merchant_unique_public_key
 from app.controllers.controllers import get
 from sqlmodel import select, and_
 from Models.models import MerchantProfile, HashValue, UserKeys
@@ -18,21 +18,19 @@ class GenerateMerchantSecretKey(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Generate Merchant Secret Key'
+        return 'Generate Merchant Keys'
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/merchant/secret/key/'
+        return '/api/merchant/genearte/keys/'
     
     @auth('userauth')
     @get()
-    async def Generate_Secret_Key(self, request: Request, query: int):
+    async def Generate_merchnant_Keys(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
-
-                business_id = query
 
                 #Get The Business profile related to the user
                 try:
@@ -42,7 +40,7 @@ class GenerateMerchantSecretKey(APIController):
                     merchant_key = merchant_key_obj.scalar()
                     
                     if not merchant_key:
-                        return json({'msg': 'Key not found'}, 404)
+                        return json({'error': 'Key not found'}, 404)
                     
                 except Exception as e:
                     return json({'msg': 'User Key fetch error', 'error': f'{str(e)}'}, 400)
@@ -55,10 +53,12 @@ class GenerateMerchantSecretKey(APIController):
                     hash_key_obj = await session.execute(select(HashValue).where(HashValue.hash_value == secret_key))
                     hash_key     = hash_key_obj.scalar()
 
-                #Generate new secret key
-                new_secret_key = await generate_merchant_secret_key(merchant_key.user_id)
+                #Generate new public and secret key
+                new_secret_key = await update_merchant_secret_key(merchant_key.user_id)
+                new_public_key = await generate_merchant_unique_public_key()
 
                 merchant_key.secret_key = new_secret_key
+                merchant_key.public_key = new_public_key
 
                 if hash_key:
                     await session.delete(hash_key)

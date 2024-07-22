@@ -22,10 +22,14 @@ class PGProdMasterCardSchema:
     request: str
     
 
+# To receive payment details
 @dataclass
 class PGSandboxTransactionProcessSchema:
     request: str
 
+
+
 @dataclass
 class PGMerchantPipeCheckoutSchema:
     merchant_public_key: str
+

@@ -13,6 +13,7 @@ class AdminPipeCreateSchema:
     status_url: str
     process_mod: str
     process_cur: int
+    payment_medium: str
 
     #Processing Credentials
     headers: str
@@ -66,6 +67,7 @@ class AdminPipeUpdateSchema:
     status_url: str
     process_mod: str
     process_cur: int
+    payment_medium: str
 
     #Processing Credentials
     headers: str

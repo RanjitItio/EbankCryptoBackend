@@ -1,42 +1,30 @@
-# """
-# Example API implemented using a controller.
-# """
-# from typing import List, Optional
-# from blacksheep import json
-
-# from blacksheep.server.controllers import get, post, put, delete, APIController
+from blacksheep import post, Request, json
+from database.db import AsyncSession, async_engine
+from Models.models import TestModel
+import time
 
 
-# class Example:
-#     examples = str
 
+@post('/api/test/date/')
+async def test_api(self, request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
 
-# class ExampleUserController(APIController):
-#     @classmethod
-#     def route(cls) -> Optional[str]:
-#         return "/api/examples"
+            request_body = await request.json()
+            first_name = request_body['first_name']
+            last_name = request_body['last_name']
+
+            
+            test_model = TestModel(
+                first_name = first_name,
+                last_name = last_name
+            )
+
+            session.add(test_model)
+            await session.commit()
+            await session.refresh(test_model)
+            
+    except Exception as e:
+        return json({'msg': f'{str(e)}'}, 500)
     
-#     @classmethod
-#     def class_name(cls) -> str:
-#         return "Examples"
-    
-#     @get()
-#     async def get_example(self) -> List[str]:
-#         """
-#         Gets a list of examples.
-#         """
-#         return list(f"example {i}" for i in range(3))
-
-#     @post()
-#     async def add_example(self, example: str):
-#         return json({'example': example})
-    
-#     @put()
-#     async def update_example(self, example: str):
-#         return json({'example': example})
-    
-#     @delete()
-#     async def delete_example(self, example: str):
-#         return json({'example': example})
-    
-
+    return json({'msg': 'Success'})

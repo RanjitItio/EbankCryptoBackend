@@ -690,27 +690,3 @@ async def get_groups(self, request: Request):
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
 
-
-@post('/api/test/date/')
-async def test_api(self, request: Request):
-    try:
-        async with AsyncSession(async_engine) as session:
-            # create_test_model = TestModel()
-            request_body = await request.json()
-            first_name = request_body['first_name']
-            last_name = request_body['last_name']
-            print(first_name)
-            
-            test_model = TestModel(
-                first_name = first_name,
-                last_name = last_name
-            )
-
-            session.add(test_model)
-            await session.commit()
-            await session.refresh(test_model)
-            
-    except Exception as e:
-        return json({'msg': f'{str(e)}'}, 500)
-    
-    return json({'msg': 'Success'})

@@ -9,10 +9,10 @@ from app.auth import generate_access_token, generate_refresh_token, decode_token
 import time
 from datetime import datetime, timedelta
 from app.controllers.controllers import get, post, put, delete
-from blacksheep.cookies import Cookie, CookieSameSiteMode
 
 
 
+# Login user
 class UserLoginController(APIController):
 
     @classmethod
@@ -69,26 +69,6 @@ class UserLoginController(APIController):
                             'access_token': generate_access_token(first_user.id),
                             'refresh_token': generate_refresh_token(first_user.id)
                         },200)
-
-                        response.set_cookies([
-                            Cookie(
-                                'access_token', generate_access_token(first_user.id),
-                                http_only=False,
-                                same_site=CookieSameSiteMode.LAX,
-                                secure=False,
-                                path='/',
-                                domain='localhost'
-                                   ),
-
-                            Cookie(
-                                'refresh_token',  generate_refresh_token(first_user.id),
-                                http_only=False,
-                                same_site=CookieSameSiteMode.LAX,
-                                secure=False,
-                                path='/',
-                                domain='localhost'
-                                )
-                        ])
 
                         return response
                     

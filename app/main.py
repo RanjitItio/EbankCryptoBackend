@@ -1,6 +1,3 @@
-"""
-This module configures the BlackSheep application before it starts.
-"""
 from blacksheep import Application
 from rodi import Container
 from app.docs import configure_docs
@@ -13,7 +10,9 @@ from blacksheep.server.authorization import Policy
 from guardpost.common import AuthenticatedRequirement
 from app.auth import AdminsPolicy
 from app.controllers.controllers import controller_router
-from blacksheep.server.remotes.forwarding import XForwardedHeadersMiddleware
+from blacksheep.server.env import is_development
+from blacksheep.server.security.hsts import HSTSMiddleware
+from blacksheep.server.compression import use_gzip_compression
 
 
 
@@ -38,8 +37,12 @@ def configure_application(
 
     app.serve_files('Static', root_path='media', cache_time=90000)
 
-
     app.controllers_router = controller_router
+
+    use_gzip_compression(app)
+
+    if not is_development:
+        app.middlewares.append(HSTSMiddleware())
     
     
     # docs.bind_app(app)

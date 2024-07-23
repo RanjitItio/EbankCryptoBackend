@@ -256,7 +256,7 @@ async def generate_merchant_secret_key(merchant_id):
     
 
 #Update a new Merchant Secret Key
-async def update_merchant_secret_key(merchant_id):
+async def update_merchant_secret_key(merchant_id, secret_key):
     try:
         async with AsyncSession(async_engine) as session:
             
@@ -268,7 +268,7 @@ async def update_merchant_secret_key(merchant_id):
 
             # Check hashvalue exists or Not 
             exist_hash_obj = await session.execute(select(HashValue).where(
-                and_(HashValue.hash_value == short_hash, HashValue.encode_data == encoded_data)
+                HashValue.hash_value == secret_key
             ))
             exist_hash = exist_hash_obj.scalar()
 

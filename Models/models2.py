@@ -153,7 +153,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
     payment_mode: str | None  = Field(default='', nullable=True)
     transaction_id: str       = Field(default='', nullable=True, max_length=40)
-    currency: str             = Field(default='', nullable=True)
+    currency: str             = Field(default='', nullable=True, index=True)
     status: str               = Field(default='')
     amount: int               = Field(default=0)
     createdAt: datetime       = Field(default=datetime.now(), nullable=True)
@@ -169,9 +169,19 @@ class MerchantProdTransaction(SQLModel, table=True):
 
     def assignTransactionCreatedTime(self):
         current_time   = datetime.now()
-        # formatted_time = current_time.strftime("%H:%M:%S:%f")
-        # time_obj       = datetime.strptime(formatted_time, '%H:%M:%S:%f').time()
         self.createdAt = current_time
+
+
+
+# Steps for Sandbox
+class MerchantSandBoxSteps(SQLModel, table=True):
+    id: int | None      = Field(primary_key=True, default=None)
+    merchantId: int     = Field(foreign_key='users.id', index=True)
+    stepsRemained: int  = Field(default=2)
+    isBusiness: bool    = Field(default=False)
+    isBank: bool        = Field(default=False)
+    is_completed: bool  = Field(default=False)
+
 
 
 
@@ -182,10 +192,12 @@ def pipe_created_date_listener(mapper, connection, target):
     target.assign_current_date()
 
 
+
 # Auto assign created date when row gets inserted into the table
 @event.listens_for(MerchantPIPE, 'before_insert')
 def Merchant_pipe_assigned_date_listener(mapper, connection, target):
     target.assign_current_date()
+
 
 
 
@@ -195,16 +207,12 @@ def Merchant_sandBox_transaction_date(mapper, connection, target):
     target.assignTransactionCreatedDate()
 
 
+
 # Auto assign created time when row gets inserted into the table
 @event.listens_for(MerchantSandBoxTransaction, 'after_insert')
 def Merchant_sandBox_transaction_time(mapper, connection, target):
     target.assignTransactionCreatedTime()
 
-
-# Auto assign created date when row gets inserted into the table
-# @event.listens_for(MerchantProdTransaction, 'after_insert')
-# def Merchant_sandBox_transaction_date(mapper, connection, target):
-#     target.assignTransactionCreatedDate()
 
 
 # Auto assign created time when row gets inserted into the table

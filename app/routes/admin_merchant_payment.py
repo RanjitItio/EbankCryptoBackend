@@ -1,7 +1,7 @@
 from blacksheep import json, Request, get, post, put
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
-from Models.models import MerchantProfile, MerchantTransactions, Currency, Users, Wallet
+from Models.models import BusinessProfile, MerchantTransactions, Currency, Users, Wallet
 from sqlmodel import select, join, and_
 from Models.Merchant.schema import AdminMerchantPaymentUpdateSchema
 
@@ -37,7 +37,7 @@ async def admin_merchant_payments(request: Request, limit: int = 25, offset: int
             #Get Merchant
             try:
                 merchant_profiles = await session.execute(select(
-                    MerchantProfile).offset(offset).limit(limit)
+                    BusinessProfile).offset(offset).limit(limit)
                     ) 
                 merchant_profiles_data = merchant_profiles.scalars().all()
 
@@ -135,8 +135,8 @@ async def adminMerchantPaymentUpdate(self, request: Request, schema: AdminMercha
             
             #Get the merchant profile to get the user
             try:
-                merchant_profile_obj = await session.execute(select(MerchantProfile).where(
-                    MerchantProfile.id == merchant_transaction.merchant
+                merchant_profile_obj = await session.execute(select(BusinessProfile).where(
+                    BusinessProfile.id == merchant_transaction.merchant
                 ))
                 merchant_profile = merchant_profile_obj.scalar()
             except Exception as e:

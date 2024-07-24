@@ -5,7 +5,7 @@ from database.db import AsyncSession, async_engine
 from app.auth import update_merchant_secret_key, generate_merchant_unique_public_key
 from app.controllers.controllers import get
 from sqlmodel import select, and_
-from Models.models import MerchantProfile, HashValue, UserKeys, Users
+from Models.models import HashValue, UserKeys, Users
 from datetime import datetime
 
 

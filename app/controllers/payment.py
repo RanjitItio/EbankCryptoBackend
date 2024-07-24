@@ -5,7 +5,7 @@ from blacksheep.cookies import Cookie
 from dataclasses import dataclass
 from database.db import AsyncSession, async_engine
 from Models.Merchant.schema import MerchantFormTransaction
-from Models.models import MerchantProfile, MerchantTransactions, Currency
+from Models.models import BusinessProfile, MerchantTransactions, Currency
 from sqlmodel import select
 
 
@@ -66,8 +66,8 @@ class MerchantPaymentController(APIController):
                 currency    = data.currency
                 #Get the merchant 
                 try:
-                    merchant_obj = await session.execute(select(MerchantProfile).where(
-                        MerchantProfile.id == merchant_id
+                    merchant_obj = await session.execute(select(BusinessProfile).where(
+                        BusinessProfile.id == merchant_id
                     ))
                     merchant_obj_data = merchant_obj.scalar()
 

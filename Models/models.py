@@ -224,16 +224,15 @@ class MerchantGroup(SQLModel, table=True):
     name: str       = Field(default = '')
 
 
+# BusinessProfile
 #Business Profile Table
-class MerchantProfile(SQLModel, table=True):
+class BusinessProfile(SQLModel, table=True):
     id:           int | None = Field(default = None, primary_key=True)
     user:         int        = Field(foreign_key = 'users.id')
     bsn_name:     str        = Field(default = "")
     bsn_url:      str        = Field(default = 'https://example.com')
     currency:     int        = Field(foreign_key ='currency.id')
-    merchant_id:  str        = Field(nullable=True)
-    secret_key:   str        = Field(nullable=True)
-    bsn_msg:      str        = Field(default ='Empty') 
+    bsn_msg:      str        = Field(default ='Empty')
     logo:         str        = Field(default ='Merchant/default-merchant.png')
     fee:          float      = Field(nullable=True)
     group:        int        = Field(foreign_key='merchantgroup.id', nullable=True)
@@ -257,7 +256,7 @@ class MerchantProfile(SQLModel, table=True):
 #Business Transaction Table
 class MerchantTransactions(SQLModel, table=True):
     id: int | None     = Field(default = None, primary_key=True)
-    merchant: int      = Field(foreign_key = 'merchantprofile.id')
+    # merchant: int | None = Field(foreign_key = 'businessprofile.id')
     product: str       = Field(default='-')
     order_id: str      = Field(default='-')
     amount: int        = Field(default=0)
@@ -385,13 +384,13 @@ def before_insert_listener(mapper, connection, target):
     target.assign_wallet_id()
 
 
-@event.listens_for(MerchantProfile, 'before_insert')
+@event.listens_for(BusinessProfile, 'before_insert')
 def merchant_profile_date_listener(mapper, connection, target):
     target.assign_current_date()
 
 
 
-@event.listens_for(MerchantProfile, 'before_insert')
+@event.listens_for(BusinessProfile, 'before_insert')
 def merchant_profile_time_listener(mapper, connection, target):
     target.assign_current_time()
 

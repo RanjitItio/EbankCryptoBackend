@@ -4,7 +4,7 @@ from blacksheep.server.controllers import APIController
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from blacksheep.exceptions import BadRequest
-from Models.models import MerchantProfile, Currency, MerchantTransactions, Users, Wallet, CustomerCardDetail
+from Models.models import BusinessProfile, Currency, MerchantTransactions, Users, Wallet, CustomerCardDetail
 from datetime import datetime
 from pathlib import Path
 import uuid
@@ -12,7 +12,7 @@ from sqlmodel import select, and_
 from Models.Merchant.schema import MerchantWalletPaymentFormSchema, MerchantArrearPaymentMethodSchema
 from decouple import config
 from sqlalchemy import desc
-from app.auth import generate_merchant_secret_key, decrypt_merchant_secret_key, check_password
+from app.auth import decrypt_merchant_secret_key, check_password
 from sqlalchemy import desc
 from .send_pg_request import send_request_ipg15
 
@@ -27,12 +27,10 @@ production_url  = config('PRODUCTION_URL_MEDIA')
 # Create New Business, Update the Business and get the business Details
 class MerchantController(APIController):
     
-    # Path Name
     @classmethod
     def route(cls) -> str | None:
         return '/api/v4/user/merchant/'
 
-    # Controller Name
     @classmethod
     def class_name(cls) -> str:
         return 'Merchant Controller'
@@ -66,7 +64,7 @@ class MerchantController(APIController):
     
 
 
-    #Create new Businesss by Merchant user
+    #Create new Businesss by Merchant
     @auth('userauth')
     @post()
     async def create_merchant_business(self, request: Request):
@@ -114,7 +112,7 @@ class MerchantController(APIController):
                 
                 #Check the Business name is Exists or not
                 try:
-                    business_obj  = await session.execute(select(MerchantProfile).where(MerchantProfile.bsn_name == business_name))
+                    business_obj  = await session.execute(select(BusinessProfile).where(BusinessProfile.bsn_name == business_name))
                     business_data = business_obj.scalar()
 
                     if business_data:
@@ -125,7 +123,7 @@ class MerchantController(APIController):
                 
                 #Check the Business URL is Exists or not
                 try:
-                    business_url_obj  = await session.execute(select(MerchantProfile).where(MerchantProfile.bsn_url == business_url))
+                    business_url_obj  = await session.execute(select(BusinessProfile).where(BusinessProfile.bsn_url == business_url))
                     business_url_data = business_url_obj.scalar()
 
                     if business_url_data:
@@ -154,9 +152,8 @@ class MerchantController(APIController):
                 except Exception as e:
                     return json({'msg': 'Currency error', 'error': f"{str(e)}"}, 400)
                 
-
                 try:
-                    merchant = MerchantProfile(
+                    merchant = BusinessProfile(
                         user     = user_id,
                         bsn_name = business_name,
                         bsn_url  = business_url,
@@ -228,8 +225,8 @@ class MerchantController(APIController):
                 
                 #Check merchant belongs to the requested user or Not
                 try:
-                    merchant_check_obj      = await session.execute(select(MerchantProfile).where
-                                                                    (and_(MerchantProfile.id == merchant_id, MerchantProfile.user == user_id)))
+                    merchant_check_obj      = await session.execute(select(BusinessProfile).where
+                                                                    (and_(BusinessProfile.id == merchant_id, BusinessProfile.user == user_id)))
                     merchant_check_obj_data = merchant_check_obj.scalar()
 
                     if not merchant_check_obj_data:
@@ -241,7 +238,7 @@ class MerchantController(APIController):
                 #Check the Business name is Exists for other merchant or Not
                 if business_name != merchant_check_obj_data.bsn_name:
                     try:
-                        business_obj  = await session.execute(select(MerchantProfile).where(MerchantProfile.bsn_name == business_name))
+                        business_obj  = await session.execute(select(BusinessProfile).where(BusinessProfile.bsn_name == business_name))
                         business_data = business_obj.scalar()
 
                         if business_data:
@@ -253,7 +250,7 @@ class MerchantController(APIController):
                 #Check the Business URL is Exists for other merchant or not
                 if business_url != merchant_check_obj_data.bsn_url:
                     try:
-                        business_url_obj  = await session.execute(select(MerchantProfile).where(MerchantProfile.bsn_url == business_url))
+                        business_url_obj  = await session.execute(select(BusinessProfile).where(BusinessProfile.bsn_url == business_url))
                         business_url_data = business_url_obj.scalar()
 
                         if business_url_data:
@@ -345,8 +342,8 @@ class MerchantController(APIController):
 
                 #Check the requested merchant id is of requested user or not
                 try:
-                    merchant_obj      = await session.execute(select(MerchantProfile).where
-                                                         (and_(MerchantProfile.id == merchant_id, MerchantProfile.user ==  user_id)))
+                    merchant_obj      = await session.execute(select(BusinessProfile).where
+                                                         (and_(BusinessProfile.id == merchant_id, BusinessProfile.user ==  user_id)))
                     merchant_obj_data = merchant_obj.scalar()
 
                     if not merchant_obj_data:
@@ -407,9 +404,9 @@ class UserAvailableMerchantController(APIController):
 
                 #Get the available merchant of the user
                 try:
-                    merchants_obj     = await session.execute(select(MerchantProfile).
-                                                              where(MerchantProfile.user == user_id).
-                                                              order_by(desc(MerchantProfile.id)))
+                    merchants_obj     = await session.execute(select(BusinessProfile).
+                                                              where(BusinessProfile.user == user_id).
+                                                              order_by(desc(BusinessProfile.id)))
                     
                     all_merchants_obj = merchants_obj.scalars().all()
 
@@ -437,7 +434,6 @@ class UserAvailableMerchantController(APIController):
                     merchant_data = {
                         'bsn_url':     merchants.bsn_url,
                         'id':          merchants.id,
-                        'merchant_id': merchants.merchant_id,
                         'logo':        f'{self.url}{merchants.logo}',
                         'created_time': merchants.created_time,
                         'is_active':    merchants.is_active,
@@ -448,7 +444,6 @@ class UserAvailableMerchantController(APIController):
                         'fee':          merchants.fee if merchants.fee else None,
                         'created_date': merchants.created_date,
                         'status':       merchants.status if merchants.status else None,
-                        'key':          merchants.secret_key if merchants.secret_key else None
                     }
 
                     combined_data.append({
@@ -503,8 +498,8 @@ class WalletPaymentController(APIController):
                 
                 #Get the merchant
                 try:
-                    merchanct_obj     = await session.execute(select(MerchantProfile).where(
-                        and_(MerchantProfile.id == merchantID, MerchantProfile.merchant_id == merch_id)
+                    merchanct_obj     = await session.execute(select(BusinessProfile).where(
+                        and_(BusinessProfile.id == merchantID, BusinessProfile.merchant_id == merch_id)
                         ))
                     merchant_obj_data = merchanct_obj.scalar()
 
@@ -690,8 +685,8 @@ class AcquirerPaymentController(APIController):
 
                 #Get the merchant
                 try:
-                    merchanct_obj     = await session.execute(select(MerchantProfile).where(
-                        and_(MerchantProfile.id == merchantID, MerchantProfile.merchant_id == merch_id)
+                    merchanct_obj     = await session.execute(select(BusinessProfile).where(
+                        and_(BusinessProfile.id == merchantID, BusinessProfile.merchant_id == merch_id)
                         ))
                     merchant_obj_data = merchanct_obj.scalar()
 
@@ -859,8 +854,8 @@ class UserBusinessTransactionController(APIController):
                 
                 #Get Merchant
                 try:
-                    merchant_profiles = await session.execute(select(MerchantProfile).where(
-                        MerchantProfile.user == user_id
+                    merchant_profiles = await session.execute(select(BusinessProfile).where(
+                        BusinessProfile.user == user_id
                     )) 
                     merchant_profiles_data = merchant_profiles.scalars().all()
 

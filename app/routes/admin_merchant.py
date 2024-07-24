@@ -2,7 +2,7 @@ from blacksheep import json, Request, get, put
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from sqlmodel import select
-from Models.models import Users, MerchantGroup, MerchantProfile, Currency
+from Models.models import Users, MerchantGroup, BusinessProfile, Currency
 from datetime import datetime, date
 import uuid
 from blacksheep.exceptions import BadRequest
@@ -103,7 +103,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 
             #Get the merchant with requested merchant ID
             try:
-                merchant_obj      = await session.execute(select(MerchantProfile).where(MerchantProfile.id == merchant_id))
+                merchant_obj      = await session.execute(select(BusinessProfile).where(BusinessProfile.id == merchant_id))
                 merchant_obj_data = merchant_obj.scalar()
 
             except Exception as e:
@@ -233,7 +233,7 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
             #Admin Verification Complete
 
             try:
-                merchant_obj = await session.execute(select(MerchantProfile).order_by(desc(MerchantProfile.id)).limit(limit).offset(offset))
+                merchant_obj = await session.execute(select(BusinessProfile).order_by(desc(BusinessProfile.id)).limit(limit).offset(offset))
                 merchant_obj_data = merchant_obj.scalars().all()
 
                 if not merchant_obj_data:
@@ -381,7 +381,7 @@ async def search_merchant(self, request: Request, query: str):
             
             if parsed_value == ' ':
                 try:
-                    merchant_profile_obj = select(MerchantProfile).order_by((MerchantProfile.id).desc)
+                    merchant_profile_obj = select(BusinessProfile).order_by((BusinessProfile.id).desc)
                     
                     searched_profile = await session.execute(merchant_profile_obj)
 
@@ -392,8 +392,8 @@ async def search_merchant(self, request: Request, query: str):
                 
             elif isinstance(parsed_value, date):
                 try:
-                    merchant_profile_obj = select(MerchantProfile).where(
-                        MerchantProfile.created_date == parsed_value).order_by((MerchantProfile.id).desc())
+                    merchant_profile_obj = select(BusinessProfile).where(
+                        BusinessProfile.created_date == parsed_value).order_by((BusinessProfile.id).desc())
                     
                     searched_profile = await session.execute(merchant_profile_obj)
 
@@ -417,33 +417,33 @@ async def search_merchant(self, request: Request, query: str):
                         merchant_grp_id = grp.id
 
                 if user_search_id:
-                    merchant_profile_obj = select(MerchantProfile).where(
-                        MerchantProfile.user == user_search_id).order_by((MerchantProfile.id).desc())
+                    merchant_profile_obj = select(BusinessProfile).where(
+                        BusinessProfile.user == user_search_id).order_by((BusinessProfile.id).desc())
                     
                     searched_profile = await session.execute(merchant_profile_obj)
                     merchant_list = searched_profile.scalars().all()
 
                 elif currency_id:
-                    merchant_profile_obj = select(MerchantProfile).where(
-                        MerchantProfile.currency == currency_id).order_by((MerchantProfile.id).desc())
+                    merchant_profile_obj = select(BusinessProfile).where(
+                        BusinessProfile.currency == currency_id).order_by((BusinessProfile.id).desc())
                     
                     searched_profile = await session.execute(merchant_profile_obj)
                     merchant_list    = searched_profile.scalars().all()
                 
                 elif merchant_grp_id:
-                    merchant_profile_obj = select(MerchantProfile).where(
-                        MerchantProfile.group == merchant_grp_id).order_by((MerchantProfile.id).desc())
+                    merchant_profile_obj = select(BusinessProfile).where(
+                        BusinessProfile.group == merchant_grp_id).order_by((BusinessProfile.id).desc())
                     
                     searched_profile = await session.execute(merchant_profile_obj)
                     merchant_list    = searched_profile.scalars().all()
 
                 else:
                     try:
-                        merchant_profile_obj = select(MerchantProfile).where(
-                            (MerchantProfile.merchant_id.ilike(parsed_value))  |
-                            (MerchantProfile.bsn_name.ilike(parsed_value))  |
-                            (MerchantProfile.bsn_url.ilike(parsed_value))  |
-                            (MerchantProfile.status.ilike(parsed_value))  
+                        merchant_profile_obj = select(BusinessProfile).where(
+                            (BusinessProfile.merchant_id.ilike(parsed_value))  |
+                            (BusinessProfile.bsn_name.ilike(parsed_value))  |
+                            (BusinessProfile.bsn_url.ilike(parsed_value))  |
+                            (BusinessProfile.status.ilike(parsed_value))  
                         )
 
                         searched_profile = await session.execute(merchant_profile_obj)

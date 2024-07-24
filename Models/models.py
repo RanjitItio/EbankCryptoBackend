@@ -256,7 +256,7 @@ class BusinessProfile(SQLModel, table=True):
 #Business Transaction Table
 class MerchantTransactions(SQLModel, table=True):
     id: int | None     = Field(default = None, primary_key=True)
-    # merchant: int | None = Field(foreign_key = 'businessprofile.id')
+    merchant: int | None = Field(foreign_key = 'businessprofile.id')
     product: str       = Field(default='-')
     order_id: str      = Field(default='-')
     amount: int        = Field(default=0)

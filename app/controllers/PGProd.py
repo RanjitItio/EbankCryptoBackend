@@ -102,7 +102,7 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_key = merchant_key_obj.scalar()
 
                 if not merchant_key:
-                    return pretty_json({'error': 'Invalid merchantId'}, 400)
+                    return pretty_json({'error': 'Invalid merchantPublicKey'}, 400)
                 
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
@@ -342,7 +342,7 @@ class MasterCardTransaction(APIController):
                             # Response to the page
                             return pretty_json({
                                 'status': 'PAYMENT_FAILED',
-                                'message': initiate_auth['error']['error']['cause'],
+                                'message': initiate_auth['error']['error']['explanation'],
                                 'transactionID': transaction_id,
                                 'merchantRedirectURL': merchantRedirectURL
                             }, 400)
@@ -471,7 +471,6 @@ class ReceiveMasterCardWebhook(APIController):
                 response_data = json_data.get('response', {})
                 gateway_code  = response_data.get('gatewayCode')
 
-                # print('response',response_data)
                 # print('\n')
                 # print('gateway code', gateway_code)
                 # print('\n')

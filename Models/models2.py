@@ -177,7 +177,6 @@ class MerchantProdTransaction(SQLModel, table=True):
 class MerchantSandBoxSteps(SQLModel, table=True):
     id: int | None      = Field(primary_key=True, default=None)
     merchantId: int     = Field(foreign_key='users.id', index=True)
-    stepsRemained: int  = Field(default=2)
     isBusiness: bool    = Field(default=False)
     isBank: bool        = Field(default=False)
     is_completed: bool  = Field(default=False)

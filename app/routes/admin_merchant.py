@@ -299,7 +299,7 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
                             'id':           merchant.id,
                             'bsn_url':      merchant.bsn_url,
                             'user':         merchant.user,
-                            'merchant_id':  merchant.merchant_id,
+                            # 'merchant_id':  merchant.merchant_id,
                             'logo':         f"{url}{merchant.logo}",
                             'group':        merchant.group,
                             'created_time': merchant.created_time,

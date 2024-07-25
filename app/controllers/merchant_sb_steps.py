@@ -4,7 +4,7 @@ from blacksheep.server.authorization import auth
 from app.controllers.controllers import get
 from database.db import AsyncSession, async_engine
 from Models.models2 import MerchantSandBoxSteps
-from Models.models import BusinessProfile, MerchantBankAccount
+from Models.models import BusinessProfile, MerchantBankAccount, UserKeys
 from sqlmodel import select
 
 
@@ -27,19 +27,22 @@ class MerchantSandBoxCompletionSteps(APIController):
     async def get_merchant_sb_steps(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
+                # Authenticate the user
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
 
+                # Check for merchant sandbox steps
                 merchant_steps_obj = await session.execute(select(MerchantSandBoxSteps).where(
                     MerchantSandBoxSteps.merchantId == user_id
                 ))
                 merchant_steps = merchant_steps_obj.scalars().first()
 
+                # If no steps exists
                 if not merchant_steps:
 
+                    # Merchant Sandbox step acount
                     merchant_sb_step = MerchantSandBoxSteps(
-                        merchantId=user_id,
-                        stepsRemained=2,  
+                        merchantId=user_id,  
                         isBusiness=False,
                         isBank=False
                     )
@@ -50,26 +53,39 @@ class MerchantSandBoxCompletionSteps(APIController):
                     ))
                     merchant_business = merchant_business_obj.scalars().first()
 
+                    # If merchant have any business
                     if merchant_business:
                         merchant_sb_step.isBusiness = True
-                        merchant_sb_step.stepsRemained -= 1
-
 
                     # Check Bank account exists or not
                     merchant_bank_obj = await session.execute(select(MerchantBankAccount).where(
                         MerchantBankAccount.user == user_id
                     ))
                     merchant_bank = merchant_bank_obj.scalars().first()
-
+                    
+                    # If has bank details
                     if merchant_bank:
                         merchant_sb_step.isBank = True
-                        merchant_sb_step.stepsRemained -= 1
 
                     # If both steps are completed
                     if merchant_business and merchant_bank:
                         merchant_sb_step.is_completed = True
 
+                        # Activate the user keys
+                        user_keys_obj = await session.execute(select(UserKeys).where(
+                            UserKeys.user_id == user_id
+                        ))
+                        user_keys = user_keys_obj.scalar()
+
+                        if user_keys:
+                            user_keys.is_active = True
+
+                            session.add(user_keys)
+                            await session.commit()
+                            await session.refresh(user_keys)
+
                         
+                    # Save into DB
                     session.add(merchant_sb_step)
                     await session.commit()
                     await session.refresh(merchant_sb_step)
@@ -81,34 +97,58 @@ class MerchantSandBoxCompletionSteps(APIController):
                         'bankStep': merchant_sb_step.isBank
                     }, 200)
                 
+                # For any available steps
                 else:
                     businessStep = merchant_steps.isBusiness
                     bankStep     = merchant_steps.isBank
 
-                    if businessStep == False:
-                        # Check Business exists or not
-                        merchant_business_obj = await session.execute(select(BusinessProfile).where(
-                            BusinessProfile.user == user_id
-                        ))
-                        merchant_business = merchant_business_obj.scalars().first()
+                    # Business available check
+                    merchant_business_obj = await session.execute(select(BusinessProfile).where(
+                        BusinessProfile.user == user_id
+                    ))
+                    merchant_business = merchant_business_obj.scalars().first()
 
-                        if merchant_business:
-                            merchant_steps.isBusiness = True
+                    # If business available
+                    if merchant_business:
+                        merchant_steps.isBusiness = True
+                    else:
+                        merchant_steps.isBusiness = False
 
+                    # Check Bank account exists or not
+                    merchant_bank_obj = await session.execute(select(MerchantBankAccount).where(
+                        MerchantBankAccount.user == user_id
+                    ))
+                    merchant_bank = merchant_bank_obj.scalars().first()
 
-                    elif bankStep == False:
-                        # Check Bank account exists or not
-                        merchant_bank_obj = await session.execute(select(MerchantBankAccount).where(
-                            MerchantBankAccount.user == user_id
-                        ))
-                        merchant_bank = merchant_bank_obj.scalars().first()
+                    # If bank account exists
+                    if merchant_bank:
+                        merchant_steps.isBank = True
+                    else:
+                        merchant_steps.isBank = False
 
-                        if merchant_bank:
-                            merchant_steps.isBank = True
-
+                    # If both the steps are completed
                     if businessStep and bankStep:
                         merchant_steps.is_completed = True
 
+                        # Activate the User keys
+                        # Get the User keys
+                        user_keys_obj = await session.execute(select(UserKeys).where(
+                            UserKeys.user_id == user_id
+                        ))
+                        user_keys = user_keys_obj.scalar()
+
+                        # If keys exists
+                        if user_keys:
+                            user_keys.is_active = True
+
+                            session.add(user_keys)
+                            await session.commit()
+                            await session.refresh(user_keys)
+                    else: 
+                        merchant_steps.is_completed = False
+
+
+                    # Save into DB
                     session.add(merchant_steps)
                     await session.commit()
                     await session.refresh(merchant_steps)

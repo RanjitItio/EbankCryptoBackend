@@ -13,7 +13,7 @@ is_development = config('IS_DEVELOPMENT')
 
 # Webhook url according to the environment
 if is_development == 'True':
-    notification_url = 'https://cb4f-2401-4900-8098-c96c-21f6-7870-2edd-5626.ngrok-free.app'
+    notification_url = 'https://efee-122-176-92-114.ngrok-free.app'
 else:
     notification_url = 'https://python-uat.oyefin.com'
 

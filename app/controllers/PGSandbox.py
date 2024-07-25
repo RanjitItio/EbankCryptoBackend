@@ -101,14 +101,14 @@ class PaymentGatewaySandboxAPI(APIController):
                 merchant_key = merchant_key_obj.scalar()
 
                 if not merchant_key:
-                    return pretty_json({'error': 'Invalid merchantId'}, 400)
+                    return pretty_json({'error': 'Invalid merchantPublicKey'}, 400)
                 
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
                 merchant_id         = merchant_key.user_id
 
                 # Verify header X-AUTH
-                sha256   = calculate_sha256_string(payload + '/api/pg/prod/v1/pay/' + merchant_key.secret_key)
+                sha256   = calculate_sha256_string(payload + '/api/pg/sandbox/v1/pay/' + merchant_key.secret_key)
                 checksum = sha256 + '****' + INDEX
 
                  # Validate header value
@@ -171,7 +171,7 @@ class PaymentGatewaySandboxAPI(APIController):
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
-                                    "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedMerchantOrderID},{encodedCurrency}",
+                                    "url": f"{checkout_url}/merchant/payment/sb/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedMerchantOrderID},{encodedCurrency}",
                                 "method": "GET"
                                 }
                             }
@@ -195,7 +195,7 @@ class MerchantProcessTransactionController(APIController):
     def route(cls) -> str | None:
         return '/api/v1/pg/sandbox/merchant/process/transactions/'
     
-
+    @post()
     async def process_merchant_transaction(request: Request, schema: PGSandboxTransactionProcessSchema):
         try:
             async with AsyncSession(async_engine) as session:
@@ -211,6 +211,7 @@ class MerchantProcessTransactionController(APIController):
                 card_cvv          = decoded_dict.get('cardCvv')
                 card_name         = decoded_dict.get('cardHolderName')
                 merchant_order_id = decoded_dict.get('MerchantOrderId')
+
 
                 # Get the merchant production Transaction
                 merchant_sandbox_transaction_obj = await session.execute(select(MerchantSandBoxTransaction).where(
@@ -244,7 +245,7 @@ class MerchantProcessTransactionController(APIController):
 
                 if merchantCallBackURL:
                     webhook_payload_dict = {
-                        "success": False,
+                        "success": True,
                         "status": "PAYMENT_SUCCESS",
                         "message": 'SUCCESS',
                         "data": {
@@ -258,7 +259,7 @@ class MerchantProcessTransactionController(APIController):
                             }
                         }
                     }
-                    
+
                     webhook_payload = WebhookPayload(
                         success = webhook_payload_dict['success'],
                         status  = webhook_payload_dict["status"],
@@ -283,7 +284,7 @@ class MerchantProcessTransactionController(APIController):
                     'message': 'SUCCESS',
                     'transactionID': transaction_id,
                     'merchantRedirectURL': merchantRedirectURL
-                }, 400)
+                }, 200)
 
         except Exception as e:
             return pretty_json({'error': 'Server Error'}, 500)
@@ -379,6 +380,7 @@ class MerchantSandboxTransactionStatus(APIController):
                 
         except Exception as e:
             return pretty_json({'error': 'Server Error'}, 500)
+
 
 
 

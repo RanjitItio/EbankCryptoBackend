@@ -155,6 +155,7 @@ class PaymentGatewaySandboxAPI(APIController):
                     gateway_res          = ''    
                 )
                 
+                # Save the transaction into database
                 session.add(merchant_sandbox_transaction)
                 await session.commit()
                 await session.refresh(merchant_sandbox_transaction)
@@ -179,7 +180,7 @@ class PaymentGatewaySandboxAPI(APIController):
                     }, 200)
 
         except Exception as e:
-            return pretty_json({'error': 'Unknown Error Occured'}, 500)
+            return pretty_json({'error': 'Unknown Error Occured', 'msg':f'{str(e)}'}, 500)
         
 
 
@@ -200,7 +201,6 @@ class MerchantProcessTransactionController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 request_payload = schema.request
-                redirect_url    = redirectURL
 
                 # Decode the card details
                 decode_payload = base64_decode(request_payload)
@@ -211,6 +211,7 @@ class MerchantProcessTransactionController(APIController):
                 card_cvv          = decoded_dict.get('cardCvv')
                 card_name         = decoded_dict.get('cardHolderName')
                 merchant_order_id = decoded_dict.get('MerchantOrderId')
+                payment_mode      = decoded_dict.get('paymentMode')
 
 
                 # Get the merchant production Transaction
@@ -221,6 +222,13 @@ class MerchantProcessTransactionController(APIController):
 
                 if not merchant_sandbox_transaction:
                     return pretty_json({'error': 'Please initiate transaction'}, 400)
+                
+                # Check transaction status
+                trasnaction_status = merchant_sandbox_transaction.is_completd
+
+                # If the transaction has been completed
+                if trasnaction_status:
+                    return pretty_json({'error': 'Transaction has been closed'}, 400)
                 
                 # Get The Merchant Public key
                 merchant_key_obj = await session.execute(select(UserKeys).where(
@@ -239,10 +247,16 @@ class MerchantProcessTransactionController(APIController):
                 # Merchant Public Key
                 merchantPublicKey = merchant_key_.public_key
 
+                # Merchant Redirect url given during transaction
                 merchantRedirectURL  = merchant_sandbox_transaction.merchantRedirectURl
 
+                # Merchant callback URL given during transaction
                 merchantCallBackURL  = merchant_sandbox_transaction.merchantCallBackURL
 
+                #Transaction Time
+                transactionTime = merchant_sandbox_transaction.createdAt.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+                # Send Webhook to merchant webhook url
                 if merchantCallBackURL:
                     webhook_payload_dict = {
                         "success": True,
@@ -251,6 +265,8 @@ class MerchantProcessTransactionController(APIController):
                         "data": {
                             "merchantPublicKey": merchantPublicKey,
                             "merchantOrderId": merchant_order_id,
+                            'transactionID': transaction_id,
+                            'time': transactionTime,
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -271,7 +287,7 @@ class MerchantProcessTransactionController(APIController):
 
                 # Update the merchant transaction status
                 merchant_sandbox_transaction.status       = 'PAYMENT_SUCCESS'
-                merchant_sandbox_transaction.payment_mode = 'Card'
+                merchant_sandbox_transaction.payment_mode = payment_mode
                 merchant_sandbox_transaction.is_completd  = True
 
                 session.add(merchant_sandbox_transaction)

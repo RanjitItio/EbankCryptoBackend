@@ -27,7 +27,6 @@ async def send_pg_webhook(url: str, payload: WebhookPayload):
 
 # @post('/api/send-webhook/')
 async def send_webhook_response(payload: WebhookPayload, url: str):
-    # url = 'https://webhook.site/01b830ad-aa36-4594-9659-84684507ca0d'
 
     try:
         response = await send_pg_webhook(url, payload)

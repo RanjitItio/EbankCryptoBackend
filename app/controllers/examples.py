@@ -1,4 +1,4 @@
-from blacksheep import post, Request, json
+from blacksheep import post, Request, json, get, redirect
 from database.db import AsyncSession, async_engine
 from Models.models import TestModel
 import time
@@ -28,3 +28,8 @@ async def test_api(self, request: Request):
         return json({'msg': f'{str(e)}'}, 500)
     
     return json({'msg': 'Success'})
+
+
+@get('/api/example/redirect/')
+async def test_redirection(self, request: Request):
+    return redirect('http://localhost:5173/merchant/payment/success/')

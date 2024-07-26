@@ -129,8 +129,7 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
     amount: int               = Field(default=0)
     currency: str             = Field(default='', nullable=True)
     payment_mode: str         = Field(default='', nullable=True)
-    ceatedDate: date          = Field(default=date.today())
-    createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+    createdAt: datetime       = Field(default=datetime.now(), nullable=True)
     merchantOrderId: str     = Field(default='')
     merchantRedirectURl: str  = Field(default='', nullable=True)
     merchantRedirectMode: str = Field(default='', nullable=True)
@@ -138,12 +137,13 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
+    # ceatedDate: date          = Field(default=date.today())
+    # createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
 
     def assignTransactionCreatedDate(self):
-        self.ceatedDate = date.today()
+        self.createdAt = datetime.now()
 
-    def assignTransactionCreatedTime(self):
-        self.createdTime = datetime.now().strftime('%H:%M:%S')
+
 
 
 # All the transaction related to Production
@@ -208,16 +208,13 @@ def Merchant_sandBox_transaction_date(mapper, connection, target):
 
 
 # Auto assign created time when row gets inserted into the table
-@event.listens_for(MerchantSandBoxTransaction, 'after_insert')
-def Merchant_sandBox_transaction_time(mapper, connection, target):
-    target.assignTransactionCreatedTime()
-
-
-
-# Auto assign created time when row gets inserted into the table
 @event.listens_for(MerchantProdTransaction, 'after_insert')
 def Merchant_sandBox_transaction_time(mapper, connection, target):
     target.assignTransactionCreatedTime()
     
 
+# Auto assign created time when row gets inserted into the table
+# @event.listens_for(MerchantSandBoxTransaction, 'after_insert')
+# def Merchant_sandBox_transaction_time(mapper, connection, target):
+#     target.assignTransactionCreatedTime()
 

@@ -818,6 +818,8 @@ class MasterCardRedirectResponse(APIController):
                 transaction_id = form_data['transaction.id']
                 result = form_data['result']
 
+                successFailURL = url
+
                 # get The merchant Transaction
                 merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
                     MerchantProdTransaction.transaction_id == transaction_id
@@ -835,7 +837,7 @@ class MasterCardRedirectResponse(APIController):
                     else:
                         redirect_url = ''
 
-                        return redirect(f'http://localhost:5173/merchant/payment/fail/?transaction={transaction_id}&url={redirect_url}')
+                        return redirect(f'{successFailURL}/merchant/payment/fail/?transaction={transaction_id}&url={redirect_url}')
                 
                 # If The response success
                 if result == 'SUCCESS':
@@ -848,7 +850,7 @@ class MasterCardRedirectResponse(APIController):
                     else:
                         redirect_url = ''
 
-                    return redirect(f'http://localhost:5173/merchant/payment/success/?transaction={transaction_id}&url={redirect_url}')
+                    return redirect(f'{successFailURL}/merchant/payment/success/?transaction={transaction_id}&url={redirect_url}')
                 
         except Exception as e:
             return pretty_json({'error': 'Server Error' }, 500)

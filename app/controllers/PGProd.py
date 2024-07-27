@@ -1,6 +1,6 @@
 from decouple import config
 from blacksheep.server.controllers import APIController
-from blacksheep import pretty_json, Request, Response
+from blacksheep import pretty_json, Request, Response, redirect
 from database.db import AsyncSession, async_engine
 from app.controllers.controllers import post, get
 from Models.PG.schema import PGProdSchema, PGProdMasterCardSchema
@@ -26,10 +26,11 @@ is_development = config('IS_DEVELOPMENT')
 
 if is_development == 'True':
     url         = 'http://localhost:5173'
-    redirectURL = 'http://localhost:5173/mastercard/payment/status'
+    redirectURL = 'https://6709-122-176-92-114.ngrok-free.app/api/mastercard/redirect/response/url'
+
 else:
     url = 'https://react-payment.oyefin.com'
-    redirectURL = 'https://react-payment.oyefin.com/mastercard/payment/status'
+    redirectURL = 'https://python-uat.oyefin.com/api/mastercard/redirect/response/url'
 
 
 
@@ -245,6 +246,13 @@ class MasterCardTransaction(APIController):
                 if not merchant_prod_transaction:
                     return pretty_json({'error': 'Please initiate transaction'}, 400)
                 
+                # Check transaction status
+                trasnaction_status = merchant_prod_transaction.is_completd
+
+                # If the transaction has been completed
+                if trasnaction_status:
+                    return pretty_json({'error': 'Transaction has been closed'}, 400)
+
                 # Get The Merchant Public key
                 merchant_key_obj = await session.execute(select(UserKeys).where(
                     UserKeys.user_id == merchant_prod_transaction.merchant_id
@@ -334,6 +342,7 @@ class MasterCardTransaction(APIController):
                             # Update the merchant transaction status
                             merchant_prod_transaction.status       = 'PAYMENT_FAILED'
                             merchant_prod_transaction.payment_mode = 'Card'
+                            
 
                             session.add(merchant_prod_transaction)
                             await session.commit()
@@ -526,7 +535,9 @@ class ReceiveMasterCardWebhook(APIController):
 
                             merchant_webhook_url  = merchant_transaction.merchantCallBackURL   # Merchant webhook url
                             merchant_redirect_url = merchant_transaction.merchantRedirectURl   # Merchant Redirect url
-                            merchant_order_id     = merchant_transaction.merchantOrderId  # Merchant Order ID
+                            merchant_order_id     = merchant_transaction.merchantOrderId   # Merchant Order ID
+                            transactionId         = merchant_transaction.transaction_id
+                            transactionTime       = merchant_transaction.createdAt
 
                             if merchant_webhook_url:
                                 webhook_payload_dict = {
@@ -536,6 +547,8 @@ class ReceiveMasterCardWebhook(APIController):
                                         "data": {
                                             "merchantPublicKey": merchantPublicKey,
                                             "merchantOrderId": merchant_order_id,
+                                            'transactionID': transactionId,
+                                            'time': transactionTime,
                                             "instrumentResponse": {
                                                 "type": "PAY_PAGE",
                                                     "redirectInfo": {
@@ -585,12 +598,16 @@ class ReceiveMasterCardWebhook(APIController):
                             merchant_webhook_url  = merchant_transaction.merchantCallBackURL   # Merchant webhook url
                             merchant_redirect_url = merchant_transaction.merchantRedirectURl   # Merchant Redirect url
                             merchant_order_id     = merchant_transaction.merchantOrderId  # Merchant Order ID
+                            transactionId         = merchant_transaction.transaction_id
+                            transactionTime       = merchant_transaction.createdAt
 
                             if merchant_webhook_url:
                                 webhook_payload_dict = {
                                         "success": False,
                                         "status": "PAYMENT_FAILED",
                                         "message": 'Transaction Failed',
+                                        'transactionID': transactionId,
+                                        'time': transactionTime,
                                         "data": {
                                             "merchantPublicKey": merchantPublicKey,
                                             "merchantOrderId": merchant_order_id,
@@ -598,8 +615,7 @@ class ReceiveMasterCardWebhook(APIController):
                                                 "type": "PAY_PAGE",
                                                     "redirectInfo": {
                                                     "url": merchant_redirect_url,
-                                                # "method": merchantRedirectMode
-                                            }
+                                                }
                                             }
                                         }
                                     }
@@ -615,6 +631,7 @@ class ReceiveMasterCardWebhook(APIController):
 
                             
                             merchant_transaction.status = 'PAYMENT_FAILED'
+                            merchant_transaction.is_completd = True
 
                             session.add(merchant_transaction)
                             await session.commit()
@@ -778,5 +795,62 @@ class MerchantTransactionStatus(APIController):
         except Exception as e:
             return pretty_json({'error': 'Server Error'}, 500)
         
+
+
+
+class MasterCardRedirectResponse(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Mastercard Redirect API'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/mastercard/redirect/response/url/'
+    
+
+    @post()
+    async def receieve_mastercard_response(request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                form_data = await request.form()
+
+                transaction_id = form_data['transaction.id']
+                result = form_data['result']
+
+                # get The merchant Transaction
+                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    MerchantProdTransaction.transaction_id == transaction_id
+                ))
+                merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
+
+                # If the response failed
+                if result == 'FAILURE':
+                    if merchant_prod_transaction:
+                        # Get merchant redirect url
+                        redirect_url = merchant_prod_transaction.merchantRedirectURl
+
+                        merchant_prod_transaction.status = 'PAYMENT_FAILED'
+                        merchant_prod_transaction.is_completd = True
+                    else:
+                        redirect_url = ''
+
+                        return redirect(f'http://localhost:5173/merchant/payment/fail/?transaction={transaction_id}&url={redirect_url}')
+                
+                # If The response success
+                if result == 'SUCCESS':
+                    if merchant_prod_transaction:
+                        # Get merchant redirect url
+                        redirect_url = merchant_prod_transaction.merchantRedirectURl
+
+                        merchant_prod_transaction.status = 'PAYMENT_SUCCESS'
+                        merchant_prod_transaction.is_completd = True
+                    else:
+                        redirect_url = ''
+
+                    return redirect(f'http://localhost:5173/merchant/payment/success/?transaction={transaction_id}&url={redirect_url}')
+                
+        except Exception as e:
+            return pretty_json({'error': 'Server Error' }, 500)
 
 

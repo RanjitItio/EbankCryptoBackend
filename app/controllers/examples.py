@@ -30,6 +30,7 @@ async def test_api(self, request: Request):
     return json({'msg': 'Success'})
 
 
-@get('/api/example/redirect/')
+
+@post('/api/example/redirect/')
 async def test_redirection(self, request: Request):
     return redirect('http://localhost:5173/merchant/payment/success/')

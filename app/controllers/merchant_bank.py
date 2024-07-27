@@ -65,7 +65,7 @@ class MerchantBankAccountController(APIController):
                     return json({'msg': 'Requested merchant not found'}, 404)
                 
                 if not merchant.is_merchent:
-                    return json({'msg': 'Only Accessible by merchant'}, 401)
+                    return json({'msg': 'Only Accessible by merchant'}, 400)
                 
                 try:
                     currency_obj = await session.execute(select(Currency).where(

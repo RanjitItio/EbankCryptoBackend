@@ -73,6 +73,7 @@ class MerchantController(APIController):
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id')
 
+                # Get the request bosy
                 request_body = await request.form()
 
                 if not request_body:
@@ -82,6 +83,7 @@ class MerchantController(APIController):
 
                 missing_fields = [field for field in required_fields if field not in request_body]
 
+                # Validate missign fields in payload
                 if missing_fields:
                     return json({'msg': f'Missing fields: {", ".join(missing_fields)}'}, 400)
 

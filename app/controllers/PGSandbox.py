@@ -86,7 +86,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                'transactionID': '',
+                                'time': '',
+                                "amount": amount,
+                                'currency': currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -108,7 +111,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                "transactionID": '',
+                                'time': '',
+                                "amount": amount,
+                                "currency": currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -129,7 +135,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                'transactionID':  'not created',
+                                'time': 'not created',
+                                "amount": amount,
+                                "currency": currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -157,7 +166,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                "transactionID": 'not created',
+                                'time': 'not created',
+                                "amount": amount,
+                                "currency": currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -185,7 +197,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                'transactionID': 'not created',
+                                'time': 'not created',
+                                "amount": amount,
+                                "currency": currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -204,7 +219,10 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                "transactionID": 'not created',
+                                "time": 'not created',
+                                "amount": amount,
+                                "currency": currency,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -229,7 +247,9 @@ class PaymentGatewaySandboxAPI(APIController):
                             "data": {
                                 "merchantPublicKey": merchant_public_key,
                                 "merchantOrderId": merchant_order_id,
-                                "amount": exact_amount,
+                                "transactionID": 'not created',
+                                'time': 'not created',
+                                "amount": amount,
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                     "redirectInfo": {
@@ -264,7 +284,7 @@ class PaymentGatewaySandboxAPI(APIController):
                     merchantPaymentType  = payment_type,
                     transaction_id       = unique_transaction_id,
                     is_completd          = False,
-                    gateway_res          = ''    
+                    gateway_res          = '' ,  
                 )
                 
                 # Save the transaction into database
@@ -280,8 +300,8 @@ class PaymentGatewaySandboxAPI(APIController):
                             "merchantPublicKey": merchant_public_key,
                             "merchantOrderId": merchant_order_id,
                             "transactionID":  merchant_sandbox_transaction.transaction_id,
-                            "time": '',
-                            'currency': '',
+                            "time": merchant_sandbox_transaction.createdAt,
+                            'currency': currency,
                             "amount": exact_amount,
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",

@@ -26,7 +26,7 @@ is_development = config('IS_DEVELOPMENT')
 
 if is_development == 'True':
     url         = 'http://localhost:5173'
-    redirectURL = 'https://6709-122-176-92-114.ngrok-free.app/api/mastercard/redirect/response/url'
+    redirectURL = 'http://127.0.0.1:8000/api/mastercard/redirect/response/url'
 
 else:
     url = 'https://react-payment.oyefin.com'

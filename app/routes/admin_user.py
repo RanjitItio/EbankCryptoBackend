@@ -169,13 +169,28 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
     """
     try:
         async with AsyncSession(async_engine) as session:
-            user_identity    = request.identity
+            # Authenticate user as Admin
+            user_identity    = request.identity  
             adminID          = user_identity.claims.get("user_id") if user_identity else None
 
+            # Get the payload values
             value = user_update_schema.value
 
+            # Get the datetime value and convert into datetime format
             dob_str  = value.dob
             dob_date = datetime.strptime(dob_str, '%Y-%m-%d').date()
+
+            user_group = value.group
+
+            # Assign user is merchant or not according to the group
+            if user_group:
+                if user_group == 1:
+                    merchant = False
+                elif user_group == 2:
+                    merchant = True
+            else:
+                merchant = False
+
         
             #Check the user is admin or Not
             try:
@@ -214,29 +229,16 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             except Exception as e:
                 return json({'msg': 'Mail fetch error', 'error': f'{str(e)}'}, 400)
             
+            # If the same mobile number exists for another user
             if existing_mail_obj:
                 if existing_mail_obj.email != user_data_obj.email:
                     return json({'msg': 'Provided mail ID already exists'}, 200)
-                
+            
+            # If the same Email ID exists for another user
             if existing_mobile_number_obj:
                 if existing_mobile_number_obj.phoneno != user_data_obj.phoneno:
                     return json({'msg': 'Provided Mobile No already exists'}, 200)
             
-            # if value.password:
-            #     password = value.password
-            # else:
-            #     password = user_data_obj.password
-
-            # if  value.confirm_password:
-            #     confirm_password = value.confirm_password
-            # else:
-            #     confirm_password = user_data_obj.password
-
-            # print(password)
-
-            #Check the given password matching or not
-            # if password != confirm_password:
-            #     return json({'msg': 'Password did not match'}, 400)
 
             #Get the Kyc details of the user
             try:
@@ -257,11 +259,11 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
                         user_data_obj.full_name    = value.first_name + ' ' + value.last_name
-                        # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True
                         user_data_obj.is_suspended = False
                         user_data_obj.group        = value.group
+                        user_data_obj.is_merchent  = merchant
 
                         session.add(user_data_obj)
                         await session.commit()
@@ -275,7 +277,6 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         date_of_birth = datetime.strptime(value.dob, date_format).date()
 
                         try:
-
                             kyc_detail.status      = 'Approved'
                             kyc_detail.dateofbirth = dob_date
                             kyc_detail.gander      = value.gender
@@ -297,6 +298,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
     
                 #If the status is inactive
                 elif value.status == 'Inactive':
+
                     #Update user data according to Inactive status
                     try:
                         user_data_obj.first_name  = value.first_name
@@ -304,10 +306,10 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.phoneno     = value.phoneno
                         user_data_obj.email       = value.email
                         user_data_obj.full_name    = value.first_name + ' ' + value.last_name
-                        # user_data_obj.password    = encrypt_password(password)
                         user_data_obj.is_active   = False
                         user_data_obj.is_verified = False
                         user_data_obj.group       = value.group
+                        user_data_obj.is_merchent  = merchant
 
                         session.add(user_data_obj)
                         await session.commit()
@@ -321,7 +323,6 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         date_of_birth = datetime.strptime(value.dob, date_format).date()
 
                         try:
-
                             kyc_detail.dateofbirth = dob_date
                             kyc_detail.gander      = value.gender
                             kyc_detail.state       = value.state
@@ -347,11 +348,11 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         user_data_obj.phoneno      = value.phoneno
                         user_data_obj.email        = value.email
                         user_data_obj.full_name    = value.first_name + ' ' + value.last_name
-                        # user_data_obj.password     = encrypt_password(password)
                         user_data_obj.is_active    = True
                         user_data_obj.is_verified  = True
                         user_data_obj.is_suspended = True
                         user_data_obj.group        = value.group
+                        user_data_obj.is_merchent  = merchant
 
                         session.add(user_data_obj)
                         await session.commit()
@@ -385,18 +386,16 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                             return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
                         
                 else:
+                    # In any condition if No status or any Invalid status provided in payload
                     return json({'msg': 'Please provide valid user status'}, 400)
-                
-                #If the user group is Merchant
-                # elif value.group == 'Merchant Regular':
-                #     return json({'msg': 'Work in progress'}, 200)
 
             except Exception as e:
                 return json({'msg': 'User update error', 'error': f'{str(e)}'}, 400)
 
-
+            # SUccess Response
             return json({'msg': 'User data updated successfully'}, 200)
         
+    # For any internal error response
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
     

@@ -152,7 +152,7 @@ class MerchantBankAccountController(APIController):
                     return json({'msg': 'Requested merchant not found'}, 404)
                 
                 if not merchant.is_merchent:
-                    return json({'msg': 'Only Accessible by merchant'}, 401)
+                    return json({'msg': 'Only Accessible by merchant'}, 400)
                 
                 #Get the Merchant Bank Account
                 try:
@@ -243,8 +243,8 @@ class MerchantBankAccountController(APIController):
                 if not merchant:
                     return json({'msg': 'Requested merchant not found'}, 404)
                 
-                if not merchant.is_merchent:
-                    return json({'msg': 'Only Accessible by merchant'}, 401)
+                # if not merchant.is_merchent:
+                #     return json({'msg': 'Only Accessible by merchant'}, 400)
                 
                 #Get the Merchant Bank Account
                 try:

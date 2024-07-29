@@ -465,6 +465,12 @@ class MerchantSandboxTransactionStatus(APIController):
                 ))
                 user_key = user_key_obj.scalar()
 
+                if not user_key:
+                    return pretty_json({'error': {
+                        'success': False,
+                        'message': 'Invalid merchantPublicKey'
+                    }}, 400)
+                
                 merchant_id = user_key.user_id
 
                 # Get The transaction of the Merchant
@@ -475,12 +481,19 @@ class MerchantSandboxTransactionStatus(APIController):
                     ))
                 merchant_transaction = merchant_transaction_obj.scalar()
 
+                if not merchant_transaction:
+                    return pretty_json({'error': {
+                        'success': False,
+                        'message': 'Transactio not found'
+                    }}, 404)
+                
                 payment_status    = merchant_transaction.status
                 merchant_order_id = merchant_transaction.merchantOrderId
                 transaction_id    = merchant_transaction.transaction_id
                 amount            = merchant_transaction.amount
                 currency          = merchant_transaction.currency
                 payment_mode      = merchant_transaction.payment_mode
+                time              = merchant_transaction.createdAt
 
 
                 if payment_status == 'PAYMENT_INITIATE':
@@ -518,18 +531,18 @@ class MerchantSandboxTransactionStatus(APIController):
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
                                     "transactionId": transaction_id,
+                                    'time': time,
                                     "amount": amount,
                                     'currency': currency,
-                                    "status": status,
                                     "responseCode": responseCode,
                                     "paymentInstrument": {
                                         "type": payment_mode,
                                     }
                                 }
-                            })
+                            }, 200)
                 
         except Exception as e:
-            return pretty_json({'error': 'Server Error'}, 500)
+            return pretty_json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)
 
 
 

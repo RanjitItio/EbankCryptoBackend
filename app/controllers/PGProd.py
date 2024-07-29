@@ -870,6 +870,12 @@ class MerchantTransactionStatus(APIController):
                 ))
                 user_key = user_key_obj.scalar()
 
+                if not user_key:
+                    return pretty_json({"error": {
+                            "success": False,
+                            "message": "Invalid merchantPublicKey"
+                        }}, 400)
+                
                 merchant_id = user_key.user_id
 
                 # Get The transaction of the Merchant
@@ -880,6 +886,12 @@ class MerchantTransactionStatus(APIController):
                     ))
                 merchant_transaction = merchant_transaction_obj.scalar()
 
+                if not merchant_transaction:
+                    return pretty_json({"error": {
+                            "success": False,
+                            "message": "Invalid merchantOrderID"
+                        }}, 400)
+                
                 payment_status    = merchant_transaction.status
                 merchant_order_id = merchant_transaction.merchantOrderId
                 transaction_id    = merchant_transaction.transaction_id
@@ -931,7 +943,7 @@ class MerchantTransactionStatus(APIController):
                                         "type": payment_mode,
                                     }
                                 }
-                            })
+                            }, 200)
                 
         except Exception as e:
             return pretty_json({'error': 'Server Error'}, 500)

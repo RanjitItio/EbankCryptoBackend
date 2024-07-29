@@ -180,18 +180,24 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             dob_str  = value.dob
             dob_date = datetime.strptime(dob_str, '%Y-%m-%d').date()
 
-            user_group = value.group
+            # Get the group
+            group_obj = await session.execute(select(Group).where(
+                Group.id == value.group
+            ))
+            user_group = group_obj.scalar()
 
             # Assign user is merchant or not according to the group
             if user_group:
-                if user_group == 1:
+                if user_group.name == 'Default User':
                     merchant = False
-                elif user_group == 2:
+                elif user_group.name == 'Merchant Regular':
                     merchant = True
+                else:
+                    merchant = False
             else:
                 merchant = False
 
-        
+
             #Check the user is admin or Not
             try:
                 user_obj      = await session.execute(select(Users).where(Users.id == adminID))

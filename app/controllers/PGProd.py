@@ -322,6 +322,8 @@ class PaymentGatewayProductionAPI(APIController):
                             "merchantOrderId": merchant_order_id,
                             "transactionID":  merchant_prod_transaction.transaction_id,
                             "amount": exact_amount,
+                            'time': '',
+                            'currency': '',
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
@@ -338,7 +340,7 @@ class PaymentGatewayProductionAPI(APIController):
 
 
 # Card Transaction Process
-class MasterCarSdTransaction(APIController):
+class MasterCardTransaction(APIController):
 
     @classmethod
     def class_name(cls) -> str:
@@ -455,6 +457,8 @@ class MasterCarSdTransaction(APIController):
                                     "data": {
                                         "merchantPublicKey": merchantPublicKey,
                                         "merchantOrderId": merchant_order_id,
+                                        "transactionId":'',
+                                        "time": '',
                                         "instrumentResponse": {
                                             "type": "PAY_PAGE",
                                                 "redirectInfo": {
@@ -500,6 +504,8 @@ class MasterCarSdTransaction(APIController):
                                 "data": {
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
+                                    "transactionId":'',
+                                    "time": '',
                                     "instrumentResponse": {
                                         "type": "PAY_PAGE",
                                             "redirectInfo": {
@@ -544,6 +550,8 @@ class MasterCarSdTransaction(APIController):
                             "data": {
                                 "merchantPublicKey": merchantPublicKey,
                                 "merchantOrderId": merchant_order_id,
+                                "transactionID":'',
+                                "time": '',
                                 "instrumentResponse": {
                                     "type": "PAY_PAGE",
                                         "redirectInfo": {

@@ -62,10 +62,6 @@ class PaymentGatewaySandboxAPI(APIController):
                 INDEX = '1'
                 payload = schema.request
 
-                # If Header value is not present
-                if not header_value:
-                    return pretty_json({'error': 'Missing Header: X-AUTH'}, 400)
-                
                 # Decode the payload
                 decoded_payload = base64_decode(payload)
                 payload_dict    = json.loads(decoded_payload)
@@ -81,15 +77,68 @@ class PaymentGatewaySandboxAPI(APIController):
                 mobile_number       = payload_dict.get('mobileNumber')
                 payment_type        = payload_dict['paymentInstrument']['type']
 
+                # If Header value is not present
+                if not header_value:
+                    return pretty_json({ 'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": "Missing Header: X-AUTH",
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
+
                 # Validate required fields
                 required_fields = ['merchantPublicKey', 'merchantSecretKey', 'merchantOrderId', 'amount', 'redirectUrl', 'currency']
                 for field in required_fields:
                     if not payload_dict.get(field):
-                        return pretty_json({'error': f'Missing Parameter: {field}'}, 400)
+                        return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": f'Missing Parameter: {field}',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
 
                 # If Payment type is not present in payload
                 if not payment_type:
-                    return pretty_json({'error': 'Missing Parameter: paymentInstrument.type'}, 400)
+                    # return pretty_json({'error': 'Missing Parameter: paymentInstrument.type'}, 400)
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": 'Missing Parameter: paymentInstrument.type',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
                 
                 # Decrypt Merchant secret key
                 merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
@@ -101,7 +150,23 @@ class PaymentGatewaySandboxAPI(APIController):
                 merchant_key = merchant_key_obj.scalar()
 
                 if not merchant_key:
-                    return pretty_json({'error': 'Invalid merchantPublicKey'}, 400)
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": 'Invalid merchantPublicKey',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
                 
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
@@ -113,11 +178,42 @@ class PaymentGatewaySandboxAPI(APIController):
 
                  # Validate header value
                 if checksum != header_value:
-                    return pretty_json({'error': 'Incorrect X-AUTH header'}, 400)
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": 'Incorrect X-AUTH header',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
                 
                 if currency != 'USD':
-                    return pretty_json({'error': 'Invalid Currency: Only USD Accepted'}, 400)
-                
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": 'Invalid Currency: Only USD Accepted',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
 
                 # Merchant order ID unique check
                 merchant_order_id_validation_obj = await session.execute(select(MerchantSandBoxTransaction).where(
@@ -126,7 +222,23 @@ class PaymentGatewaySandboxAPI(APIController):
                 merchant_order_id_validation_ = merchant_order_id_validation_obj.scalar()
 
                 if merchant_order_id_validation_:
-                    return pretty_json({'error': 'Please provide unique order ID'}, 400)
+                    return pretty_json({ 'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message": 'Please provide unique order ID',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key,
+                                "merchantOrderId": merchant_order_id,
+                                "amount": exact_amount,
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": '',
+                                    }
+                                }
+                            }
+                        }
+                    }, 400)
                 
                 # Save the Merchant Sandbox Transaction details
                 exact_amount = amount/100
@@ -168,6 +280,8 @@ class PaymentGatewaySandboxAPI(APIController):
                             "merchantPublicKey": merchant_public_key,
                             "merchantOrderId": merchant_order_id,
                             "transactionID":  merchant_sandbox_transaction.transaction_id,
+                            "time": '',
+                            'currency': '',
                             "amount": exact_amount,
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",

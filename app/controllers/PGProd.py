@@ -63,10 +63,6 @@ class PaymentGatewayProductionAPI(APIController):
 
                 INDEX = '1'
                 payload = schema.request
-
-                # If Header value is not present
-                if not header_value:
-                    return pretty_json({'error': 'Missing Header: X-AUTH'}, 400)
                 
                 # Decode the payload
                 decoded_payload = base64_decode(payload)
@@ -83,15 +79,65 @@ class PaymentGatewayProductionAPI(APIController):
                 mobile_number       = payload_dict.get('mobileNumber')
                 payment_type        = payload_dict['paymentInstrument']['type']
 
+                # If Header value is not present
+                if not header_value:
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message": "Missing Header: X-AUTH",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
+
                 # Validate required fields
                 required_fields = ['merchantPublicKey', 'merchantSecretKey', 'merchantOrderId', 'amount', 'redirectUrl', 'currency']
+                
                 for field in required_fields:
                     if not payload_dict.get(field):
-                        return pretty_json({'error': f'Missing Parameter: {field}'}, 400)
+                        return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  f'Missing Parameter: {field}',
+                            "data": {
+                                "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                                "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                                "amount": amount if amount else '',
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": ''
+                                    }
+                                }
+                            }
+                        }}, 400)
 
                 # If Payment type is not present in payload
                 if not payment_type:
-                    return pretty_json({'error': 'Missing Parameter: paymentInstrument.type'}, 400)
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  "Missing Parameter: paymentInstrument.type",
+                            "data": {
+                                "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                                "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                                "amount": amount if amount else '',
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": ''
+                                    }
+                                }
+                            }
+                        }}, 400)
                 
                 # Decrypt Merchant secret key
                 merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
@@ -103,7 +149,22 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_key = merchant_key_obj.scalar()
 
                 if not merchant_key:
-                    return pretty_json({'error': 'Invalid merchantPublicKey'}, 400)
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message":  "Invalid merchantPublicKey",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
                 
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
@@ -112,7 +173,22 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_key_status = merchant_key.is_active
 
                 if merchant_key_status == False:
-                    return pretty_json({'error': 'Inactive key, Please contact administrations'}, 400)
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message":  "Inactive key, Please contact administrations",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
                 
                 
                 # Verify header X-AUTH
@@ -121,10 +197,40 @@ class PaymentGatewayProductionAPI(APIController):
 
                  # Validate header value
                 if checksum != header_value:
-                    return pretty_json({'error': 'Incorrect X-AUTH header'}, 400)
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message":  "Incorrect X-AUTH header",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
                 
                 if currency != 'USD':
-                    return pretty_json({'error': 'Invalid Currency: Only USD Accepted'}, 400)
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message":  "Invalid Currency: Only USD Accepted",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
                 
                 # Check Merchant pipe
                 merchant_pipe_assigned_obj = await session.execute(select(MerchantPIPE).where(
@@ -133,7 +239,22 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_pipe_assigned = merchant_pipe_assigned_obj.scalars().all()
 
                 if not merchant_pipe_assigned:
-                    return pretty_json({'error': 'No Active Acquirer available, Please contact administration'}, 400)
+                    return pretty_json({'error': {
+                        "success": False,
+                        "status": "PAYMENT_PROCESSING",
+                        "message":  "No Active Acquirer available, Please contact administration",
+                        "data": {
+                            "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                            "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                            "amount": amount if amount else '',
+                            "instrumentResponse": {
+                                "type": "PAY_PAGE",
+                                "redirectInfo": {
+                                    "url": ''
+                                }
+                            }
+                        }
+                    }}, 400)
                 
 
                 # Merchant order ID unique check
@@ -143,9 +264,24 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_order_id_validation_ = merchant_order_id_validation_obj.scalar()
 
                 if merchant_order_id_validation_:
-                    return pretty_json({'error': 'Please provide unique order ID'}, 400)
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  "Please provide unique order ID",
+                            "data": {
+                                "merchantPublicKey": merchant_public_key if merchant_public_key else '',
+                                "merchantOrderId": merchant_order_id if merchant_order_id else '',
+                                "amount": amount if amount else '',
+                                "instrumentResponse": {
+                                    "type": "PAY_PAGE",
+                                    "redirectInfo": {
+                                        "url": ''
+                                    }
+                                }
+                            }
+                        }}, 400)
 
-                
+
                 # Save the Merchant Sandbox Transaction details
                 exact_amount = amount/100
                 unique_transaction_id = generate_unique_id()
@@ -190,7 +326,6 @@ class PaymentGatewayProductionAPI(APIController):
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
                                     "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedMerchantOrderID},{encodedCurrency}",
-                                "method": "GET"
                                 }
                             }
                         }
@@ -203,11 +338,11 @@ class PaymentGatewayProductionAPI(APIController):
 
 
 # Card Transaction Process
-class MasterCardTransaction(APIController):
+class MasterCarSdTransaction(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Mastercard Transactions'
+        return 'Mastercard Transactions' 
     
     @classmethod
     def route(cls) -> str | None:
@@ -324,7 +459,6 @@ class MasterCardTransaction(APIController):
                                             "type": "PAY_PAGE",
                                                 "redirectInfo": {
                                                 "url": merchantRedirectURL,
-                                            # "method": merchantRedirectMode
                                         }
                                         }
                                     }
@@ -370,7 +504,6 @@ class MasterCardTransaction(APIController):
                                         "type": "PAY_PAGE",
                                             "redirectInfo": {
                                             "url": merchantRedirectURL,
-                                        # "method": merchantRedirectMode
                                     }
                                     }
                                 }
@@ -797,7 +930,7 @@ class MerchantTransactionStatus(APIController):
         
 
 
-
+# Mastercard redirect url after payment
 class MasterCardRedirectResponse(APIController):
 
     @classmethod

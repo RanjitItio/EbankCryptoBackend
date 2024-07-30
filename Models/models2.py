@@ -137,8 +137,7 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
-    # ceatedDate: date          = Field(default=date.today())
-    # createdTime: str          = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True)
+
 
     def assignTransactionCreatedDate(self):
         self.createdAt = datetime.now()
@@ -164,8 +163,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
-    # createdAt: datetime       = Field(sa_column=Column(DATETIME(timezone=False)), default=datetime.now())
-    # ceatedDate: date          = Field(default=date.today())
+    
 
     def assignTransactionCreatedTime(self):
         current_time   = datetime.now()

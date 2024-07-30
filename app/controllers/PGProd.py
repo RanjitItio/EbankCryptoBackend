@@ -480,7 +480,6 @@ class MasterCardTransaction(APIController):
                             # Update the merchant transaction status
                             merchant_prod_transaction.status       = 'PAYMENT_FAILED'
                             merchant_prod_transaction.payment_mode = 'Card'
-                            
 
                             session.add(merchant_prod_transaction)
                             await session.commit()
@@ -620,6 +619,10 @@ class ReceiveMasterCardWebhook(APIController):
 
                 response_data = json_data.get('response', {})
                 gateway_code  = response_data.get('gatewayCode')
+                order_data    = json_data.get('order')
+                result        = json_data.get('result')
+                authentication_status = order_data.get('status')
+
 
                 # print('\n')
                 # print('gateway code', gateway_code)
@@ -628,8 +631,8 @@ class ReceiveMasterCardWebhook(APIController):
 
                 transaction_id = json_data['order']['id']
 
-                # IF webhook response is Approved
-                if gateway_code == 'APPROVED':
+                # Webhook response after successful(OTP Page) authentication
+                if gateway_code == 'APPROVED' and authentication_status == 'AUTHENTICATION_SUCCESSFUL' and result == 'SUCCESS':
                     
                     if transaction_id:
                         merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
@@ -647,16 +650,38 @@ class ReceiveMasterCardWebhook(APIController):
                             response = deduct.get('response', {})
                             gateway_code = response.get('gatewayCode')
 
-                            if deduct.get('result') == 'SUCCESS' and gateway_code == 'APPROVED':
+                            if deduct.get('result') == 'SUCCESS' and gateway_code == 'APPROVED' and response_data['acquirerMessage'] == 'Approved' and response_data['acquirerCode'] == '00':
                                 merchant_transaction.status = 'PAYMENT_SUCCESS'
                                 merchant_transaction.is_completd = True
 
+                                session.add(merchant_transaction)
+                                await session.commit()
+                                await session.refresh(merchant_transaction)
+
                                 return pretty_json({'msg': 'success'}, 200)
-                            else:
-                                pass
+                            
+                            elif deduct.get('result') == 'FAILURE':
+                                merchant_transaction.status = 'PAYMENT_FAILED'
+                                merchant_transaction.is_completd = True
+
+                                session.add(merchant_transaction)
+                                await session.commit()
+                                await session.refresh(merchant_transaction)
+
+                                return pretty_json({'msg': 'success'}, 200)
+                            
+                            elif deduct.get('result') == 'PENDING':
+                                merchant_transaction.status = 'PAYMENT_PENDING'
+                                merchant_transaction.is_completd = True
+
+                                session.add(merchant_transaction)
+                                await session.commit()
+                                await session.refresh(merchant_transaction)
+
+                                return pretty_json({'msg': 'success'}, 200)
                 
-                # If Webhook response is Pending
-                elif gateway_code == 'PENDING':
+                # If Webhook response is Pending after authentication
+                elif gateway_code == 'PENDING' and authentication_status == 'AUTHENTICATION_INITIATED' and result == 'PENDING':
 
                     if transaction_id:
                         # Get The merchant transactions
@@ -694,8 +719,7 @@ class ReceiveMasterCardWebhook(APIController):
                                                 "type": "PAY_PAGE",
                                                     "redirectInfo": {
                                                     "url": merchant_redirect_url,
-                                                # "method": merchantRedirectMode
-                                            }
+                                                }
                                             }
                                         }
                                     }
@@ -717,8 +741,8 @@ class ReceiveMasterCardWebhook(APIController):
 
                             return pretty_json({'msg': 'success'}, 200)
 
-                # If webhook response is declined
-                elif gateway_code == 'DECLINED':
+                # If webhook response is declined after authentication
+                elif gateway_code == 'DECLINED' and authentication_status == 'AUTHENTICATION_UNSUCCESSFUL' and result == 'FAILURE':
 
                     if transaction_id:
                         merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
@@ -779,6 +803,68 @@ class ReceiveMasterCardWebhook(APIController):
                             await session.refresh(merchant_transaction)
 
                             return pretty_json({'msg': 'success'}, 200)
+                        
+                elif response_data['acquirerMessage'] == 'Approved' and response_data['acquirerCode'] == '00' and gateway_code == 'APPROVED' and result == 'SUCCESS':
+                    # send webhook response to merchant about successful transaction 
+
+                    if transaction_id:
+                        # Get The merchant transactions
+                        merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                            MerchantProdTransaction.transaction_id == transaction_id
+                        ))
+                        merchant_transaction = merchant_transaction_obj.scalar()
+
+                        if merchant_transaction:
+                             # Get merchant Public key and secret keys
+                            merchant_key_obj = await session.execute(select(UserKeys).where(
+                                UserKeys.user_id == merchant_transaction.merchant_id
+                            ))
+                            merchant_key_ = merchant_key_obj.scalar()
+
+                            # Merchant Public Key
+                            merchantPublicKey = merchant_key_.public_key
+
+                            merchant_webhook_url  = merchant_transaction.merchantCallBackURL   # Merchant webhook url
+                            merchant_redirect_url = merchant_transaction.merchantRedirectURl   # Merchant Redirect url
+                            merchant_order_id     = merchant_transaction.merchantOrderId   # Merchant Order ID
+                            transactionId         = merchant_transaction.transaction_id  # Transaction ID
+                            transactionTime       = merchant_transaction.createdAt   # Transaction Time
+
+                            if merchant_webhook_url:
+                                webhook_payload_dict = {
+                                        "success": False,
+                                        "status": "PAYMENT_SUCCESS",
+                                        "message": 'Transaction Successful',
+                                        "data": {
+                                            "merchantPublicKey": merchantPublicKey,
+                                            "merchantOrderId": merchant_order_id,
+                                            'transactionID': transactionId,
+                                            'time': transactionTime,
+                                            "instrumentResponse": {
+                                                "type": "PAY_PAGE",
+                                                    "redirectInfo": {
+                                                    "url": merchant_redirect_url,
+                                                }
+                                            }
+                                        }
+                                    }
+                        
+                                webhook_payload = MasterCardWebhookPayload(
+                                    success = webhook_payload_dict['success'],
+                                    status  = webhook_payload_dict["status"],
+                                    message = webhook_payload_dict["message"],
+                                    data    = webhook_payload_dict["data"]
+                                )
+
+                                await send_webhook_response(webhook_payload, merchant_webhook_url)
+
+                            merchant_transaction.status = 'PAYMENT_PENDING'
+
+                            session.add(merchant_transaction)
+                            await session.commit()
+                            await session.refresh(merchant_transaction)
+
+                    return pretty_json({'msg': 'success'}, 200)
 
                 else:
                     return pretty_json({'msg': 'success'}, 200)

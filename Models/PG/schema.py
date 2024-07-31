@@ -33,3 +33,17 @@ class PGSandboxTransactionProcessSchema:
 class PGMerchantPipeCheckoutSchema:
     merchant_public_key: str
 
+@dataclass
+class AdminMerchantProductionTransactionUpdateSchema:
+    transaction_id: str
+    merchant_id: int
+    amount: int
+    currency: str
+    payment_mode: str
+    redirect_url: str
+    webhook_url: str
+    mobile_number: str
+    payment_type: str
+    status: str
+    
+

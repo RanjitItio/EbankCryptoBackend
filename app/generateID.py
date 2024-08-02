@@ -1,3 +1,6 @@
+from database.db import AsyncSession, async_engine
+from sqlmodel import select
+from Models.models3 import MerchantPaymentButton
 import uuid
 import time
 import json
@@ -38,6 +41,19 @@ def calculate_sha256_string(data):
     return sha256_hash.hexdigest()
 
 
+# Generate new unique Button ID 
+async def generate_new_button_id():
+    while True:
+        unique_id = str(uuid.uuid4())[:30]
+        async with AsyncSession(async_engine) as session:
+                unique_button_id_obj = await session.execute(select(MerchantPaymentButton).where(
+                    MerchantPaymentButton.button_id == unique_id
+                ))
+                unique_button_id = unique_button_id_obj.scalar()
+
+                if not unique_button_id:
+                    return f"button_{unique_id}"
+            
 
 
 def generate_random_capital_word():

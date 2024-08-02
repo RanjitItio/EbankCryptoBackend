@@ -3,7 +3,7 @@ from datetime import date
 from sqlalchemy import event
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy.sql.sqltypes import Time, DATETIME
+
 
 
 

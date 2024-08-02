@@ -45,5 +45,21 @@ class AdminMerchantProductionTransactionUpdateSchema:
     mobile_number: str
     payment_type: str
     status: str
+
+
+@dataclass
+class CreateNewPaymentButtonSchema:
+    buttonTitle: str
+    buttonColor: str
+    buttonBGColor: str
+    buttonLabel: str
+    businessName: str
+    fixedAmountLabel: str
+    fixedAmount: float
+    customerAmountLabel: str
+    customerAmount: float
+    customerEmailLabel: str
+    customerPhoneLabel: str
+
     
 

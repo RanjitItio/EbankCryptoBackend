@@ -2,15 +2,16 @@ from decouple import config
 from blacksheep.server.controllers import APIController
 from blacksheep import pretty_json, Request, Response, redirect
 from database.db import AsyncSession, async_engine
-from app.controllers.controllers import post, get
+from Models.models import UserKeys
+from Models.models2 import MerchantPIPE, MerchantProdTransaction
 from Models.PG.schema import PGProdSchema, PGProdMasterCardSchema
+from app.controllers.PG.paymentFormProcess import ProcessPaymentFormTransaction
+from app.controllers.controllers import post, get
+from app.auth import decrypt_merchant_secret_key
 from app.generateID import (
             base64_decode, calculate_sha256_string, 
             generate_base64_encode, generate_unique_id
           )
-from app.auth import decrypt_merchant_secret_key
-from Models.models import UserKeys
-from Models.models2 import MerchantPIPE, MerchantProdTransaction
 from app.controllers.PG.Mastercard.mastercard import (
     Create_Session, Update_Session, 
     Initiate_Authentication, send_webhook_response,
@@ -48,7 +49,7 @@ class PaymentGatewayProductionAPI(APIController):
     
 
     @post()
-    async def create_order(request: Request, schema: PGProdSchema) -> Response:
+    async def create_order(request: Request, schema: PGProdSchema, form_id: str = '') -> Response:
         try:
             async with AsyncSession(async_engine) as session:
                 header        = request.headers.get_first(b"X-AUTH")
@@ -63,7 +64,7 @@ class PaymentGatewayProductionAPI(APIController):
 
                 INDEX = '1'
                 payload = schema.request
-                
+
                 # Decode the payload
                 decoded_payload = base64_decode(payload)
                 payload_dict    = json.loads(decoded_payload)
@@ -78,6 +79,14 @@ class PaymentGatewayProductionAPI(APIController):
                 callback_url        = payload_dict.get('callbackUrl')
                 mobile_number       = payload_dict.get('mobileNumber')
                 payment_type        = payload_dict['paymentInstrument']['type']
+
+                if form_id:
+                    # process Transaction for Payment forms
+                    return await ProcessPaymentFormTransaction(
+                        header_value, merchant_public_key, amount, payload_dict,
+                        payload, currency, payment_type, mobile_number, merchant_secret_key, 
+                        merchant_order_id
+                    )
 
                 # If Header value is not present
                 if not header_value:
@@ -286,12 +295,6 @@ class PaymentGatewayProductionAPI(APIController):
                 exact_amount = amount/100
                 unique_transaction_id = generate_unique_id()
 
-                # Encode the merchant ID
-                encoded_merchant_public_key = generate_base64_encode(merchant_public_key)
-                encoded_amount              = generate_base64_encode(exact_amount)
-                encodedMerchantOrderID      = generate_base64_encode(merchant_order_id)
-                encodedCurrency             = generate_base64_encode(currency)
-
                 
                 merchant_prod_transaction = MerchantProdTransaction(
                     merchant_id          = merchant_id,
@@ -313,6 +316,14 @@ class PaymentGatewayProductionAPI(APIController):
                 await session.commit()
                 await session.refresh(merchant_prod_transaction)
                 
+
+                # Encode the ID's
+                encoded_merchant_public_key = generate_base64_encode(merchant_public_key)
+                encoded_amount              = generate_base64_encode(exact_amount)
+                # encodedMerchantOrderID      = generate_base64_encode(merchant_order_id)
+                encodedTransactionID        = generate_base64_encode(merchant_prod_transaction.transaction_id)
+                encodedCurrency             = generate_base64_encode(currency)
+
                 return pretty_json({
                         "success": True,
                         "status": "PAYMENT_INITIATED",
@@ -327,14 +338,14 @@ class PaymentGatewayProductionAPI(APIController):
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
-                                    "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedMerchantOrderID},{encodedCurrency}",
+                                    "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedTransactionID},{encodedCurrency}",
                                 }
                             }
                         }
                     }, 200)
 
         except Exception as e:
-            return pretty_json({'error': 'Unknown Error Occured'}, 500)
+            return pretty_json({'error': 'Unknown Error Occured', 'message': f'{str(e)}'}, 500)
         
 
 
@@ -365,7 +376,8 @@ class MasterCardTransaction(APIController):
                 card_expiry       = decoded_dict.get('cardExpiry')
                 card_cvv          = decoded_dict.get('cardCvv')
                 card_name         = decoded_dict.get('cardHolderName')
-                merchant_order_id = decoded_dict.get('MerchantOrderId')
+                # merchant_order_id = decoded_dict.get('MerchantOrderId')
+                merchant_transaction_id = decoded_dict.get('MerchantTransactionId')
 
                 required_fields = ['cardNumber', 'cardExpiry', 'cardCvv', 'cardHolderName']
 
@@ -376,13 +388,15 @@ class MasterCardTransaction(APIController):
                 
                 # Get the merchant production Transaction
                 merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                        MerchantProdTransaction.merchantOrderId == merchant_order_id
+                        MerchantProdTransaction.transaction_id == merchant_transaction_id
                 ))
                 merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
 
                 if not merchant_prod_transaction:
                     return pretty_json({'error': 'Please initiate transaction'}, 400)
                 
+                merchant_order_id = merchant_prod_transaction.merchantOrderId
+
                 # Check transaction status
                 trasnaction_status = merchant_prod_transaction.is_completd
 
@@ -412,7 +426,6 @@ class MasterCardTransaction(APIController):
                 # merchantRedirectMode = merchant_prod_transaction.merchantRedirectMode
                 merchantCallBackURL  = merchant_prod_transaction.merchantCallBackURL
                 # merchantCallBackURL  = 'https://webhook.site/01b830ad-aa36-4594-9659-84684507ca0d'
-
 
                 # Master card Transaction started
                 # Create session

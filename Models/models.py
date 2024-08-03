@@ -1,12 +1,9 @@
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy.sql.sqltypes import Time
-# from database.db import AsyncSession, async_engine
 from typing import Optional
-from datetime import datetime, date, time
+from datetime import datetime, date
 from sqlalchemy import event
-import time
-import random
-import string
+
 
 
 

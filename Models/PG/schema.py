@@ -54,10 +54,17 @@ class CreateNewPaymentButtonSchema:
     buttonBGColor: str
     buttonLabel: str
     businessName: str
+
+    isFixedAmount: bool
     fixedAmountLabel: str
     fixedAmount: float
+    fixedAmtCurr: str
+
+    isCustomerAmt: bool
     customerAmountLabel: str
     customerAmount: float
+    customerAmtCurr: str
+    
     customerEmailLabel: str
     customerPhoneLabel: str
 

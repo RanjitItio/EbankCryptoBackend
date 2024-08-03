@@ -5,8 +5,10 @@ from app.controllers.controllers import get, post
 from app.generateID import generate_new_button_id
 from Models.PG.schema import CreateNewPaymentButtonSchema
 from Models.models3 import MerchantPaymentButtonStyles, MerchantPaymentButton
+from Models.models import UserKeys
 from database.db import AsyncSession, async_engine
 from sqlmodel import select
+
 
 
 
@@ -28,7 +30,8 @@ class PaymentButtonStyle(APIController):
             'light':   'white',
             'outline': 'transparent',
             'aqua':    '#00BFFF',
-            'white':   '#FFFFFF'
+            'white':   '#FFFFFF',
+            'dark':    '#0A0D54'
         }
         return color_codes.get(color, 'white')
     
@@ -64,7 +67,7 @@ class PaymentButtonStyle(APIController):
                 button_data.append({
                     "id": button_styles.id,
                     "buttonLabel":   button_styles.buttonLabel,
-                    "buttonColor":   self.get_color_codes(button_styles.buttonColor),
+                    "buttonColor":   self.get_color_codes(button_styles.buttonBgColor),
                     "buttonBgColor": self.get_bg_color_codes(button_styles.buttonBgColor),
                     "button_id":     button_styles.button_id
                 })
@@ -102,10 +105,17 @@ class CreateMerchantPaymentButton(APIController):
                 buttonColor         = schema.buttonColor
                 buttonBgColor       = schema.buttonBGColor
                 businessName        = schema.businessName
+
+                isFixedAmount       = schema.isFixedAmount
                 fixedAmountLabel    = schema.fixedAmountLabel
                 fixedAmount         = schema.fixedAmount
+                fixedAmountCurrency = schema.fixedAmtCurr
+
+                isCustomerAmount    = schema.isCustomerAmt
                 customerAmountLabel = schema.customerAmountLabel
                 customerAmount      = schema.customerAmount
+                customerAmtCurrency = schema.customerAmtCurr
+
                 customerEmailLabel  = schema.customerEmailLabel
                 customerPhoneLabel  = schema.customerPhoneLabel
 
@@ -117,10 +127,17 @@ class CreateMerchantPaymentButton(APIController):
                     button_id           = uniqueButtonID,
                     button_title        = buttonTitle,
                     businessName        = businessName,
+
+                    isFixedAmount       = isFixedAmount,
                     fixedAmountLabel    = fixedAmountLabel,
                     fixedAmount         = fixedAmount,
+                    fixedAmountCurrency = fixedAmountCurrency,
+
+                    isCustomerAmount    = isCustomerAmount,
                     customerAmountLabel = customerAmountLabel,
                     customerAmount      = customerAmount,
+                    customerAmountCurrency = customerAmtCurrency,
+
                     emailLabel          = customerEmailLabel,
                     phoneNoLable        = customerPhoneLabel
                 )
@@ -172,3 +189,83 @@ class CreateMerchantPaymentButton(APIController):
             
         except Exception as e:
             return json({'error': 'Server error', 'message': f'{str(e)}'}, 500)
+        
+
+
+
+# All Form fields selected by merchant during button creation
+class AllMerchantSelectedFormFields(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Merchant Selcted Form Fields'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/merchant/payment/form/fields/'
+    
+    @get()
+    async def get_merchantFormField(self, request: Request, form_id: str):
+        try:
+            async with AsyncSession(async_engine) as session:
+                formID = form_id
+
+                # Get merchant created form
+                merchant_form_obj = await session.execute(select(MerchantPaymentButton).where(
+                    MerchantPaymentButton.button_id == formID
+                ))
+                merchant_form_ = merchant_form_obj.scalar()
+
+                if not merchant_form_:
+                    return json({'message': 'Payment Button not Found'}, 404)
+                
+                return json({'success': True, 'merchant_payment_form': merchant_form_}, 200)
+            
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+
+
+
+
+# Get Merchant Keys using button id
+class MerchantKeysFromFormID(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Merchant Keys using Form ID'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/merchant/payment/forms/keys/'
+    
+    
+    @get()
+    async def get_merchantKeysFromFormID(self, request: Request, form_id: str):
+        try:
+            async with AsyncSession(async_engine) as session:
+                formId =  form_id
+
+                # Get the merchant payment button
+                merchant_form_obj = await session.execute(select(MerchantPaymentButton).where(
+                    MerchantPaymentButton.button_id == formId
+                ))
+                merchant_form = merchant_form_obj.scalar()
+
+                if not merchant_form:
+                    return json({'error': 'Merchant form not found'}, 404)
+                
+                merchant_id = merchant_form.merchant_id
+
+                # Get The merchant keys
+                merchant_keys_obj = await session.execute(select(UserKeys).where(
+                    UserKeys.user_id == merchant_id
+                ))
+                merchant_keys = merchant_keys_obj.scalar()
+
+                if not merchant_keys:
+                    return json({'error': 'No Key available'}, 404)
+                
+                return json({'success': True, 'merchant_keys': merchant_keys}, 200)
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

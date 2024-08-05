@@ -156,7 +156,9 @@ class currencyExchange(BaseModel):
     exchange_rate: float
     total_amount: float
 
-class ResetPasswdSchema(BaseModel):
+
+@dataclass
+class ResetPasswdSchema:
     token:     str
     password1: str
     password2: str

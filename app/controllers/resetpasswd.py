@@ -13,7 +13,15 @@ from app.docs import docs
 from blacksheep.server.authorization import auth
 
 
-mail_send_url = config('SIGNUP_MAIL_URL')
+
+IS_DEVELOPMENT = config('IS_DEVELOPMENT')
+
+
+if IS_DEVELOPMENT == 'True':
+    mail_send_url = 'http://localhost:5173/'
+else:
+    mail_send_url = 'https://react-uat.oyefin.com/'
+
 
 
 #Mail will sent to the users address to reset the password

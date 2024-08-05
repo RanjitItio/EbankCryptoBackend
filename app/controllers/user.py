@@ -1,9 +1,11 @@
-from blacksheep.server.controllers import APIController
-from Models.schemas import UserCreateSchema ,ConfirmMail
-from sqlmodel import select
-from Models.models import Users ,Currency ,Wallet, Kycdetails, Group, UserKeys
 from blacksheep import Request, json
+from blacksheep.server.controllers import APIController
+from blacksheep.server.authorization import auth
 from database.db import async_engine, AsyncSession
+from Models.schemas import UserCreateSchema ,ConfirmMail
+from Models.models import Users ,Currency ,Wallet, Group, UserKeys
+from Models.models2 import MerchantProdTransaction
+from sqlmodel import select
 from ..settings import CRYPTO_CONFIG, SECURITIES_CODE
 from app.auth import (
     encrypt_password ,decrypt_password_reset_token, 
@@ -11,8 +13,7 @@ from app.auth import (
     )
 from decouple import config
 from app.controllers.controllers import get, post
-from blacksheep.server.authorization import auth
-# from app.controllers.media import save_user_image
+
 
 
 
@@ -292,28 +293,42 @@ class CountAvailableUser(APIController):
                 user_identity = request.identity
                 admin_id      = user_identity.claims.get('user_id') if user_identity else None
 
-                # Check the user is admin or Not
-        
+                # Admin authentication
                 user_obj = await session.execute(select(Users).where(Users.id == admin_id))
                 user_obj_data = user_obj.scalar()
 
                 if not user_obj_data.is_admin:
                     return json({'msg': 'Only admin can view the Transactions'}, 400)
                 
-            
-
-                user_kyc_obj = await session.execute(select(Kycdetails))
+                # Get all the users
+                user_kyc_obj = await session.execute(select(Users))
                 user_kyc_obj_data = user_kyc_obj.scalars().all()
 
                 if not user_kyc_obj_data:
                     return json({'msg': 'No users Available'}, 404)
                 
-            
-                count_users = len(user_kyc_obj_data)
+                # Get all the merchants
+                merchant_obj = await session.execute(select(Users).where(
+                    Users.is_merchent == True
+                ))
+                merchants = merchant_obj.scalars().all()
 
-            # print(count_users)
+                # Get all the Production Transactions
+                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction))
+                merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all() # Count all the Users and merchants
 
-                return json({'msg': 'Success', 'total_users': count_users})
+
+                count_users        = len(user_kyc_obj_data)
+                count_merchants    = len(merchants)
+                count_transactions = len(merchant_prod_transaction)
+
+
+                return json({
+                    'msg': 'Success', 
+                    'total_users': count_users, 
+                    'total_merchants': count_merchants,
+                    'total_transactions': count_transactions
+                    }, 200)
         
         except Exception as e:
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)

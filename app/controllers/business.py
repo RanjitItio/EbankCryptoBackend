@@ -490,13 +490,13 @@ class WalletPaymentController(APIController):
                     merchantID = await decrypt_merchant_secret_key(merch_key)
 
                 if merchantID == 'Hash value not found':
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
                 
                 if merchantID == 'Invalid hash or hash not found':
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
 
                 if not merchantID:
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
                 
                 #Get the merchant
                 try:
@@ -509,7 +509,7 @@ class WalletPaymentController(APIController):
                         return json({'msg': 'Requested merchant not found'}, 400)
                     
                     if not merchant_obj_data.is_active:
-                        return json({'msg': 'Merchant is not active to make payment'}, 401)
+                        return json({'msg': 'Merchant is not active to make payment'}, 403)
                     
                     merchant_fee = merchant_obj_data.fee
                     
@@ -551,7 +551,7 @@ class WalletPaymentController(APIController):
                     password_validation = check_password(password, payer_obj_data.password)
 
                     if not password_validation:
-                        return json({'msg': 'Incorrect Password'}, 401)
+                        return json({'msg': 'Incorrect Password'}, 403)
                     
                 except Exception as e:
                     return json({'msg': 'Payer fetch error', 'error': f'{str(e)}'}, 400)
@@ -677,13 +677,13 @@ class AcquirerPaymentController(APIController):
                     merchantID = await decrypt_merchant_secret_key(merch_key)
 
                 if merchantID == 'Hash value not found':
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
                 
                 if merchantID == 'Invalid hash or hash not found':
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
 
                 if not merchantID:
-                    return json({'msg': 'Invalid Merchant key'}, 401)
+                    return json({'msg': 'Invalid Merchant key'}, 403)
 
                 #Get the merchant
                 try:
@@ -696,7 +696,7 @@ class AcquirerPaymentController(APIController):
                         return json({'msg': 'Requested merchant not found'}, 400)
                     
                     if not merchant_obj_data.is_active:
-                        return json({'msg': 'Merchant is not active to make payment'}, 401)
+                        return json({'msg': 'Merchant is not active to make payment'}, 403)
                     
                     merchant_fee = merchant_obj_data.fee
                     

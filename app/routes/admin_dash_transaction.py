@@ -9,7 +9,7 @@ from sqlmodel import select, and_
 
 
 
-# Get Account balance of the Merchant    
+# Get All the success Transaction Amount  
 @auth('userauth')
 @get('/api/v3/admin/merchant/success/transactions/')
 async def AdminDashTransactionAmount(self, request: Request):

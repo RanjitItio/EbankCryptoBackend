@@ -28,7 +28,7 @@ is_development = config('IS_DEVELOPMENT')
 # URL according to Environment
 if is_development == 'True':
     url         = 'http://localhost:5173'
-    redirectURL = 'http://127.0.0.1:8000/api/mastercard/redirect/response/url'
+    redirectURL = 'https://d5ff-122-176-92-114.ngrok-free.app/api/mastercard/redirect/response/url'
 
 else:
     url = 'https://react-payment.oyefin.com'
@@ -378,7 +378,7 @@ class MasterCardTransaction(APIController):
                                 }, 200)
 
                         else:
-                            # Send Webhook URL if Merchant provided Callback url for Authentication Error
+                            # Send Webhook URL for Authentication Error
                             if merchantCallBackURL:
                                 webhook_payload_dict = {
                                     "success": False,
@@ -498,7 +498,7 @@ class MasterCardTransaction(APIController):
                         )
 
                         await send_webhook_response(webhook_payload, merchantCallBackURL)
-
+                        
                     # Update the merchant transaction status
                     merchant_prod_transaction.status       = 'PAYMENT_FAILED'
                     merchant_prod_transaction.payment_mode = 'Card'
@@ -552,7 +552,6 @@ class ReceiveMasterCardWebhook(APIController):
                 order_data    = json_data.get('order')
                 result        = json_data.get('result')
                 authentication_status = order_data.get('status')
-
                 # print('\n')
                 # print('gateway code', gateway_code)
                 # print('\n')
@@ -681,7 +680,7 @@ class ReceiveMasterCardWebhook(APIController):
                             await session.refresh(merchant_transaction)
 
                             return pretty_json({'msg': 'success'}, 200)
-
+                        
                 # If webhook response is declined after authentication
                 elif gateway_code == 'DECLINED' and authentication_status == 'AUTHENTICATION_UNSUCCESSFUL' and result == 'FAILURE':
 
@@ -707,6 +706,7 @@ class ReceiveMasterCardWebhook(APIController):
                             transactionId         = merchant_transaction.transaction_id
                             transactionTime       = merchant_transaction.createdAt
 
+
                             if merchant_webhook_url:
                                 webhook_payload_dict = {
                                         "success": False,
@@ -727,14 +727,14 @@ class ReceiveMasterCardWebhook(APIController):
                                     }
                         
                                 webhook_payload = MasterCardWebhookPayload(
-                                    success = webhook_payload_dict['success'],
-                                    status  = webhook_payload_dict["status"],
-                                    message = webhook_payload_dict["message"],
-                                    data    = webhook_payload_dict["data"]
+                                    success       = webhook_payload_dict['success'],
+                                    status        = webhook_payload_dict["status"],
+                                    message       = webhook_payload_dict["message"],
+                                    transactionID = webhook_payload_dict['transactionID'],
+                                    data          = webhook_payload_dict["data"]
                                 )
 
                                 await send_webhook_response(webhook_payload, merchant_webhook_url)
-
                             
                             merchant_transaction.status      = 'PAYMENT_FAILED'
                             merchant_transaction.is_completd = True
@@ -1020,6 +1020,8 @@ class MasterCardRedirectResponse(APIController):
 
                         merchant_prod_transaction.status = 'PAYMENT_FAILED'
                         merchant_prod_transaction.is_completd = True
+
+                        return redirect(f'{successFailURL}/merchant/payment/fail/?transaction={transaction_id}&url={redirect_url}')
                     else:
                         redirect_url = ''
 
@@ -1033,6 +1035,8 @@ class MasterCardRedirectResponse(APIController):
 
                         merchant_prod_transaction.status = 'PAYMENT_SUCCESS'
                         merchant_prod_transaction.is_completd = True
+
+                        return redirect(f'{successFailURL}/merchant/payment/success/?transaction={transaction_id}&url={redirect_url}')
                     else:
                         redirect_url = ''
 

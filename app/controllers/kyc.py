@@ -1,6 +1,6 @@
 from blacksheep.server.controllers import APIController
 from Models.schemas import Kycschema
-from sqlmodel import select, update
+from sqlmodel import select, desc
 from database.db import async_engine, AsyncSession
 from Models.models import Users,Kycdetails, Group
 from blacksheep import Request, json
@@ -11,13 +11,15 @@ from app.controllers.controllers import get, post, put, delete
 from blacksheep.server.authorization import auth
 import uuid
 from decouple import config
+from datetime import datetime
+from pathlib import Path
+from blacksheep.exceptions import BadRequest
 
 
 
 
-
-#View all the available applied KYC
-class UserKYCController(APIController):
+#View all the available applied KYC of merchants
+class MerchantKYCController(APIController):
 
     SERVER_MODE     = config('IS_DEVELOPMENT')
     DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
@@ -35,7 +37,7 @@ class UserKYCController(APIController):
 
     @classmethod
     def class_name(cls):
-        return "Users KYC"
+        return "Merchant KYC"
     
 
     async def save_user_document(self, request: Request):
@@ -68,7 +70,7 @@ class UserKYCController(APIController):
     #Get all applied KYC
     @auth('userauth')
     @get()
-    async def get_kyc(self, request: Request, limit: int = 50, offset: int = 0):
+    async def get_Merchantkyc(self, request: Request, limit: int = 50, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
 
@@ -78,8 +80,8 @@ class UserKYCController(APIController):
                 limit  = limit
                 offset = offset
                 
-                # print(self.media_url)
-                # check the user is Admin or not
+
+                # Admin Authnetication
                 try:
                     user_object      = select(Users).where(Users.id == user_id)
                     save_to_db       = await session.execute(user_object)
@@ -92,55 +94,78 @@ class UserKYCController(APIController):
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
                 #Authentication end here
 
-                try:
-                    kyc_details = await session.execute(select(Kycdetails).order_by(Kycdetails.id.desc()).limit(limit).offset(offset))
-                    all_kyc     = kyc_details.scalars().all()
-                except Exception as e:
-                    return json({'msg': 'Unknown Error occure during kyc process','error': f'{str(e)}'}, 400)
-                
-                try:
-                    user_obj      = await session.execute(select(Users))
-                    user_obj_data = user_obj.scalars().all()
+                # Get all the Merchant users
+                merchant_user_obj = await session.execute(select(Users).where(
+                    Users.is_merchent == True
+                    ).order_by(desc(Users.id)).limit(limit).offset(offset)
+                )
+                merchant_user_ = merchant_user_obj.scalars().all()
 
-                    if not user_obj_data:
-                        return json({'msg': 'User not available'}, 404)
+                if not merchant_user_:
+                    return json({'message': 'No merchant user Found'}, 404)
+
+                # try:
+                #     kyc_details = await session.execute(select(Kycdetails).order_by(Kycdetails.id.desc()).limit(limit).offset(offset))
+                #     all_kyc     = kyc_details.scalars().all()
+                # except Exception as e:
+                #     return json({'msg': 'Unknown Error occure during kyc process','error': f'{str(e)}'}, 400)
+                
+                # try:
+                #     user_obj      = await session.execute(select(Users))
+                #     user_obj_data = user_obj.scalars().all()
+
+                #     if not user_obj_data:
+                #         return json({'msg': 'User not available'}, 404)
                     
-                except Exception as e:
-                    return json({'msg': 'User not found'}, 400)
+                # except Exception as e:
+                #     return json({'msg': 'User not found'}, 400)
                 
-                if not all_kyc:
-                    return json({'msg': 'No Kyc available'}, 404)
+                # if not all_kyc:
+                #     return json({'msg': 'No Kyc available'}, 404)
                 
-                user_dict = {user.id: user for user in user_obj_data}
+                user_dict = {user.id: user for user in merchant_user_}
 
-                combined_data = []
+                kyc_data = []
+                # combined_data = []
 
-                for kyc_details in all_kyc:
+                for user in merchant_user_:
+                    kyc_query  = select(Kycdetails).where(Kycdetails.user_id == user.id)
+                    kyc_result = await session.execute(kyc_query)
+                    kyc_detail = kyc_result.scalar()
 
-                    user_id   = kyc_details.user_id
-                    user_data = user_dict.get(user_id)
+                    if kyc_detail:
+                        kyc_data.append(kyc_detail)
 
-                    group_obj      = await session.execute(select(Group).where(Group.id == user_data.group))
-                    group_obj_data = group_obj.scalar()
-                    group_name     = group_obj_data.name if group_obj_data else None
+                    combined_data = []
+                    # Append the data in combined_data
+                    for kyc_detail in kyc_data:
+                        user_id = kyc_detail.user_id
+                        user_data = user_dict.get(user_id)
 
-                    user_data = {
-                        'ip_address': user_data.ipaddress, 
-                        'lastlogin': user_data.lastlogin, 
-                        'merchant': user_data.is_merchent, 
-                        'admin': user_data.is_admin,
-                        'active': user_data.is_active,
-                        'verified': user_data.is_verified,
-                        'group': user_data.group,
-                        'group_name': group_name,
-                        'status': 'Active' if user_data.is_active else 'Inactive',
-                        'document': f'{self.media_url}/{kyc_details.uploaddocument}'
-                        }
+                        if user_data:
+                            group_query = select(Group).where(Group.id == user_data.group)
+                            group_result = await session.execute(group_query)
+                            group_data = group_result.scalar()
 
-                    combined_data.append({
-                        'user_kyc_details': kyc_details,
-                        'user': user_data
-                        })
+                            group_name = group_data.name if group_data else None
+                    
+                            user_info = {
+                                'ip_address': user_data.ipaddress, 
+                                'lastlogin': user_data.lastlogin, 
+                                'merchant': user_data.is_merchent, 
+                                'admin': user_data.is_admin,
+                                'active': user_data.is_active,
+                                'verified': user_data.is_verified,
+                                'group': user_data.group,
+                                'group_name': group_name,
+                                'status': 'Active' if user_data.is_active else 'Inactive',
+                                'document': f'{self.media_url}/{kyc_detail.uploaddocument}'
+                                }
+
+                            combined_data.append({
+                                'user_kyc_details': kyc_detail,
+                                'user': user_info
+                                })
 
                 return json({'all_Kyc': combined_data}, 200)
             
@@ -240,7 +265,7 @@ class UserKYCController(APIController):
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-                # check the user is Admin or not
+                # Admin authentication ends here
                 try:
                     user_object      = select(Users).where(Users.id == user_id)
                     save_to_db       = await session.execute(user_object)
@@ -248,7 +273,7 @@ class UserKYCController(APIController):
                     user_object_data = save_to_db.scalar()
 
                     if user_object_data.is_admin == False:
-                        return json({'msg': 'Only Admin can update the Kyc'})
+                        return json({'msg': 'Only Admin can update the Kyc'}, 400)
                     
                 except Exception as e:
                     return json({'msg': f'{str(e)}'})
@@ -307,7 +332,7 @@ class UserKYCController(APIController):
                                 await session.refresh(kyc_detail)
 
                             except Exception:
-                                return json({'msg': 'Error while updating KYC details'})
+                                return json({'msg': 'Error while updating KYC details'}, 400)
                             
                             try:
                                 get_user_obj_data.is_active = True
@@ -318,16 +343,16 @@ class UserKYCController(APIController):
                                 await session.refresh(get_user_obj_data)
 
                             except Exception as e:
-                                return json({'msg': 'Error while updating the user'})
+                                return json({'msg': 'Error while updating the user'}, 400)
 
 
-                            return json({'msg': 'Updated successfully'})
+                            return json({'msg': 'Updated successfully'}, 200)
                         
                         else:
-                            return json({'msg': 'Kyc not found'})
+                            return json({'msg': 'Kyc not found'}, 404)
 
                     except Exception as e:
-                        return json({'msg': f'{str(e)}'})
+                        return json({'msg': f'{str(e)}'}, 400)
 
                 else:
                     try:
@@ -338,7 +363,7 @@ class UserKYCController(APIController):
                                 await session.commit()
                                 await session.refresh(kyc_detail)
                             except Exception:
-                                return json({'msg': 'Error while updating KYC details'})
+                                return json({'msg': 'Error while updating KYC details'}, 400)
 
                             try:
                                 get_user_obj_data.is_active = False
@@ -349,62 +374,196 @@ class UserKYCController(APIController):
                                 await session.refresh(get_user_obj_data)
 
                             except Exception as e:
-                                return json({'msg': 'Error while updating the user'})
+                                return json({'msg': 'Error while updating the user'}, 400)
                             
-                            return json({'msg': 'Updated successfully'})
+                            return json({'msg': 'Updated successfully'}, 200)
                         
                         else:
                             return json({'msg': 'Kyc not found'})
 
                     except Exception as e:
-                        return json({'msg': f'{str(e)}'})
+                        return json({'msg': f'{str(e)}'}, 500)
 
         except Exception as e:
-            return json({'msg': 'Server error','error': f'{str(e)}'})
+            return json({'msg': 'Server error','error': f'{str(e)}'}, 500)
         
 
 
 
-
-from blacksheep import FromFiles, FromBytes, FileInput
-from pathlib import Path
-from blacksheep.exceptions import BadRequest
-from datetime import datetime
-
-# from blacksheep.messages import 
-
+#View all the available applied KYC of merchants
 class UserKYCController(APIController):
+
+    SERVER_MODE     = config('IS_DEVELOPMENT')
+    DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
+    PRODUCTION_URL  = config('PRODUCTION_URL_MEDIA')
+
+
+    if SERVER_MODE == 'True':
+        media_url = DEVELOPMENT_URL
+    else:
+        media_url = PRODUCTION_URL
 
     @classmethod
     def route(cls):
-        return '/file-upload'
+        return '/api/v2/kyc/user/'
 
     @classmethod
     def class_name(cls):
-        return "File Upload test"
+        return "User's KYC"
     
-    # @auth('userauth')
-    @post()
-    async def post_fileupload(self, request: Request, files: FromFiles):
-            try:
-                async with AsyncSession(async_engine) as session:
-                    # image_part = await request.form()
-                    # image = image_part['image']
+    # Save user document
+    async def save_user_document(self, request: Request):
+        file_data = await request.files()
+    
+        for part in file_data:
+            file_bytes = part.data
+            original_file_name  = part.file_name.decode()
 
-                    # # if image_part is None:
-                    # #     raise ValueError("No file with the name 'image' was uploaded.")
+        file_extension = original_file_name.split('.')[-1]
 
-                    # # file_name = image_part
+        file_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()}.{file_extension}"
 
-                    # print(image)
-                    current_time = datetime.now()
-                    formattedtime = current_time.strftime("%H:%M %p")
-                    ip = request.original_client_ip
+        if not file_name:
+            return BadRequest("File name is missing")
+
+        file_path = Path("Static/User") / file_name
+
+        try:
+            with open(file_path, mode="wb") as user_files:
+                user_files.write(file_bytes)
+
+        except Exception:
+            file_path.unlink()
+            raise
+        
+        return str(file_path.relative_to(Path("Static")))
+    
+    
+    #Get all applied KYC of user(Non Merchant)
+    @auth('userauth')
+    @get()
+    async def get_UserKyc(self, request: Request, limit: int = 50, offset: int = 0):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+                limit  = limit
+                offset = offset
+               
+                # Admin Authnetication
+                try:
+                    user_object      = select(Users).where(Users.id == user_id)
+                    save_to_db       = await session.execute(user_object)
+                    user_object_data = save_to_db.scalar()
+
+                    if user_object_data.is_admin == False:
+                        return json({'msg': 'Only admin can view all the KYC'}, 400)
                     
-                    user_identity = request.identity
-                    user_id = user_identity.claims.get("user_id") if user_identity else None
+                except Exception as e:
+                    return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
+                #Authentication ends
 
-                    return json({'msg': formattedtime, 'ip': ip, 'user_id': user_id})
+                # Get the users(Non Merchant)
+                users_data_obj = await session.execute(select(Users).where(
+                    Users.is_merchent == False
+                ).order_by(
+                    desc(Users.id)
+                ))
+                users_data = users_data_obj.scalars().all()
                 
-            except Exception as e:
-                return json({'error': f'{str(e)}'})
+                user_dict = {user.id: user for user in users_data}
+
+                kyc_data = []
+
+                for user in users_data:
+                    # Get the KYC related to the users
+                    kyc_query  = select(Kycdetails).where(Kycdetails.user_id == user.id)
+                    kyc_result = await session.execute(kyc_query)
+                    kyc_detail = kyc_result.scalar()
+
+                    if kyc_detail:
+                        kyc_data.append(kyc_detail)
+
+                    combined_data = []
+
+                    # Append the data in combined_data
+                    for kyc_detail in kyc_data:
+                        user_id = kyc_detail.user_id
+                        user_data = user_dict.get(user_id)
+
+                        if user_data:
+                            group_query = select(Group).where(Group.id == user_data.group)
+                            group_result = await session.execute(group_query)
+                            group_data = group_result.scalar()
+
+                            group_name = group_data.name if group_data else None
+
+                            user_info = {
+                                'ip_address': user_data.ipaddress,
+                                'lastlogin': user_data.lastlogin,
+                                'merchant': user_data.is_merchent,
+                                'admin': user_data.is_admin,
+                                'active': user_data.is_active,
+                                'verified': user_data.is_verified,
+                                'group': user_data.group,
+                                'group_name': group_name,
+                                'status': 'Active' if user_data.is_active else 'Inactive',
+                                'document': f'{self.media_url}/{kyc_detail.uploaddocument}'
+                            }
+
+                            combined_data.append({
+                                'user_kyc_details': kyc_detail,
+                                'user': user_info
+                                })
+
+                return json({'allKyc': combined_data}, 200)
+            
+        except Exception as e:
+            return json({'msg': 'Server error','error': f'{str(e)}'}, 500)
+
+  
+    
+
+
+# from blacksheep import FromFiles
+# from pathlib import Path
+# from blacksheep.exceptions import BadRequest
+# from datetime import datetime
+
+
+# class UserKYCController(APIController):
+
+#     @classmethod
+#     def route(cls):
+#         return '/file-upload'
+
+#     @classmethod
+#     def class_name(cls):
+#         return "File Upload test"
+    
+#     # @auth('userauth')
+#     @post()
+#     async def post_fileupload(self, request: Request, files: FromFiles):
+#             try:
+#                 async with AsyncSession(async_engine) as session:
+#                     # image_part = await request.form()
+#                     # image = image_part['image']
+
+#                     # # if image_part is None:
+#                     # #     raise ValueError("No file with the name 'image' was uploaded.")
+
+#                     # # file_name = image_part
+
+#                     # print(image)
+#                     current_time = datetime.now()
+#                     formattedtime = current_time.strftime("%H:%M %p")
+#                     ip = request.original_client_ip
+                    
+#                     user_identity = request.identity
+#                     user_id = user_identity.claims.get("user_id") if user_identity else None
+
+#                     return json({'msg': formattedtime, 'ip': ip, 'user_id': user_id})
+                
+#             except Exception as e:
+#                 return json({'error': f'{str(e)}'},500)

@@ -19,6 +19,7 @@ RAPID_API_HOST         = config('RAPID_API_HOST')
 
 
 
+# Get all the available Currencies
 class CurrencyController(APIController):
 
     @classmethod
@@ -43,6 +44,7 @@ class CurrencyController(APIController):
                     return json({'msg': 'No currency available'}, 400)
                 
                 return json({'currencies': all_currency}, 200)
+            
         except SQLAlchemyError as e:
             return json({'error': f'{str(e)}'}, 500)
 

@@ -149,6 +149,8 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
 class MerchantProdTransaction(SQLModel, table=True):
     id: int | None            = Field(primary_key=True, default=None)
     merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
+    pipe_id: int | None       = Field(foreign_key='pipe.id', default=None, index=True)
+    transaction_fee: float    = Field(default=0.00, nullable=True)
     gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
     payment_mode: str | None  = Field(default='', nullable=True)
     transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)
@@ -178,6 +180,26 @@ class MerchantSandBoxSteps(SQLModel, table=True):
     isBusiness: bool    = Field(default=False)
     isBank: bool        = Field(default=False)
     is_completed: bool  = Field(default=False)
+
+
+
+# Merchant Account Balace after fee deduction
+class MerchantAccountBalance(SQLModel, table=True):
+    id: int | None     = Field(primary_key=True, default=None)
+    amount: float      = Field(default=0.00)
+    merchant_id: int   = Field(foreign_key='users.id', index=True)
+    currency: str      = Field(default='')
+
+
+
+
+# All the collected fees of every transaction
+class CollectedFees(SQLModel, table=True):
+    id: int | None   = Field(primary_key=True, default=None)
+    amount: float    = Field(default=0.00)
+    currency: str    = Field(default='')
+
+
 
 
 

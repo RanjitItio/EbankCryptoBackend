@@ -68,5 +68,15 @@ class CreateNewPaymentButtonSchema:
     customerEmailLabel: str
     customerPhoneLabel: str
 
+
+@dataclass
+class CreateMerchantWithdrawlSchma:
+    bank_id: int
+    bank_currency_id: int
+    account_currency: str
+    withdrawal_amount: int
+
+
+
     
 

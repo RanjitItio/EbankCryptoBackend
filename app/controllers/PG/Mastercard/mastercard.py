@@ -214,12 +214,11 @@ def Mastercard_Transaction_Status(transactionID):
 
 # Send Master card Webhook Response to Client
 class MasterCardWebhookPayload:
-    def __init__(self, success: bool, status: str, message: str, transactionID: str, data: dict) -> None:
+    def __init__(self, success: bool, status: str, message: str, data: dict) -> None:
         self.success = success
         self.status  = status
         self.message = message
         self.data    = data
-        self.transactionID = transactionID
 
 
 async def send_mastercard_webhook(url: str, payload: MasterCardWebhookPayload):
@@ -228,7 +227,6 @@ async def send_mastercard_webhook(url: str, payload: MasterCardWebhookPayload):
             "success": payload.success,
             "status":  payload.status,
             "message": payload.message,
-            "transactionID": payload.transactionID,
             "data": payload.data
         })
         return response

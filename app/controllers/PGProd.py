@@ -392,6 +392,54 @@ class MasterCardTransaction(APIController):
                                     'session': sessionID,
                                     'transactionID': transaction_id
                                 }, 200)
+                        
+                        if initiate_auth.get('result') == 'FAILURE' and initiate_auth.get('response')['gatewayCode'] == 'DECLINED':
+                            # Send Webhook URL for Authentication Error
+                            if merchantCallBackURL:
+                                webhook_payload_dict = {
+                                    "success": False,
+                                    "status": "PAYMENT_FAILED",
+                                    "message": initiate_auth.get('response')['gatewayRecommendation'],
+                                    "data": {
+                                        "merchantPublicKey": merchantPublicKey,
+                                        "merchantOrderId": merchant_order_id,
+                                        "transactionId":'',
+                                        "time": '',
+                                        "instrumentResponse": {
+                                            "type": "PAY_PAGE",
+                                                "redirectInfo": {
+                                                "url": merchantRedirectURL,
+                                        }
+                                        }
+                                    }
+                                }
+                                
+                                webhook_payload = MasterCardWebhookPayload(
+                                    success = webhook_payload_dict['success'],
+                                    status  = webhook_payload_dict["status"],
+                                    message = webhook_payload_dict["message"],
+                                    data    = webhook_payload_dict["data"]
+                                )
+
+                                await send_webhook_response(webhook_payload, merchantCallBackURL)
+
+                            # Update the merchant transaction status
+                            merchant_prod_transaction.status       = 'PAYMENT_FAILED'
+                            merchant_prod_transaction.payment_mode = 'Card'
+                            merchant_prod_transaction.gateway_res  = initiate_auth
+
+
+                            session.add(merchant_prod_transaction)
+                            await session.commit()
+                            await session.refresh(merchant_prod_transaction)
+
+                            # Response to the page
+                            return pretty_json({
+                                'status': 'PAYMENT_FAILED',
+                                'message': initiate_auth.get('response')['gatewayRecommendation'],
+                                'transactionID': transaction_id,
+                                'merchantRedirectURL': merchantRedirectURL
+                            }, 400)
 
                         else:
                             # Send Webhook URL for Authentication Error
@@ -426,6 +474,8 @@ class MasterCardTransaction(APIController):
                             # Update the merchant transaction status
                             merchant_prod_transaction.status       = 'PAYMENT_FAILED'
                             merchant_prod_transaction.payment_mode = 'Card'
+                            merchant_prod_transaction.gateway_res  = initiate_auth
+
 
                             session.add(merchant_prod_transaction)
                             await session.commit()
@@ -441,6 +491,7 @@ class MasterCardTransaction(APIController):
 
                     else:
                         # Send webhook url if present for Update session error
+
                         if merchantCallBackURL:
                             webhook_payload_dict = {
                                 "success": False,

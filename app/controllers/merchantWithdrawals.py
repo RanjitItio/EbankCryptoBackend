@@ -114,6 +114,8 @@ class MerchantWithdrawalController(APIController):
                 ).order_by(desc(MerchantWithdrawals.id)))
                 merchantWithdrawal = merchantWithdrawalRequests.scalars().all()
 
+                if not merchantWithdrawal:
+                    return json({'error': 'No withdrawal request found'}, 404)
                 
                 for withdrawals in merchantWithdrawal:
                     # Get the bank account linked to the merchant
@@ -146,8 +148,8 @@ class MerchantWithdrawalController(APIController):
                         'is_active': withdrawals.is_active
                     })
 
-
                 return json({'success': True, 'merchantWithdrawalRequests': combined_data}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        

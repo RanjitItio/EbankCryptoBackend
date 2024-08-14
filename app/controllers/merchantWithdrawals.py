@@ -23,6 +23,7 @@ class MerchantWithdrawalController(APIController):
     def route(cls) -> str | None:
         return '/api/v3/merchant/withdrawal/'
     
+    # Create new Withdrawal Request
     @auth('userauth')
     @post()
     async def create_merchantWithdrawal(self, request: Request, schema: CreateMerchantWithdrawlSchma):
@@ -96,7 +97,8 @@ class MerchantWithdrawalController(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
-
+ 
+    # Get all the pending withdrawals
     @auth('userauth')
     @get()
     async def get_merchantWithdrawals(self, request: Request):
@@ -136,13 +138,23 @@ class MerchantWithdrawalController(APIController):
                     ))
                     merchant_bank_currency = merchant_bank_currency_obj.scalar()
 
+                    # Get user Details
+                    merchant_user_obj = await session.execute(select(Users).where(
+                        Users.id == withdrawals.merchant_id
+                    ))
+                    merchant_user = merchant_user_obj.scalar()
+
+
                     combined_data.append({
                         'id': withdrawals.id,
                         'merchant_id': withdrawals.merchant_id,
+                        'merchant_name': merchant_user.full_name,
+                        'merchant_email': merchant_user.email,
                         'bank_account': merchant_bank_account.bank_name,
+                        'bank_account_number': merchant_bank_account.acc_no,
+                        'bankCurrency': merchant_bank_currency.name,
                         'withdrawalAmount': withdrawals.amount,
                         'withdrawalCurrency': merchant_withdrawal_currency.name,
-                        'bankCurrency': merchant_bank_currency.name,
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
                         'is_active': withdrawals.is_active
@@ -153,3 +165,73 @@ class MerchantWithdrawalController(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
+
+
+
+# Merchant Pending Withdrawals
+class MerchantPendingWithdrawalController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Merchant Pending Withdrawals'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v3/merchant/pg/pending/withdrawal/'
+    
+    # Create new Withdrawal Request
+    @auth('userauth')
+    @get()
+    async def get_merchantPendingWithdrawals(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                # Authenticate user
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+                combined_data = []
+
+                # Get all the pending Withdrawal request raise by the merchant
+                stmt = select(MerchantWithdrawals.id,
+                              MerchantWithdrawals.bank_currency,
+                              MerchantWithdrawals.merchant_id,
+                              MerchantWithdrawals.amount,
+                              MerchantWithdrawals.status,
+                              MerchantWithdrawals.is_active,
+                              MerchantWithdrawals.createdAt,
+
+                              MerchantBankAccount.bank_name,
+                              Currency.name
+                              ).join(
+                                  MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
+                              ).join(
+                                  Currency, Currency.id == MerchantWithdrawals.currency
+                              )
+                merchantWithdrawalRequests = await session.execute(stmt.where(
+                    and_(
+                        MerchantWithdrawals.merchant_id == user_id,
+                         MerchantWithdrawals.status == 'Pending'
+                         )
+                ).order_by(desc(MerchantWithdrawals.id)))
+
+                merchantWithdrawal = merchantWithdrawalRequests.all()
+
+                if not merchantWithdrawal:
+                    return json({'message': 'No withdrawal request found'}, 404)
+                
+                for withdrawals in merchantWithdrawal:
+
+                    combined_data.append({
+                        'id': withdrawals.id,
+                        'merchant_id': withdrawals.merchant_id,
+                        'withdrawalAmount': withdrawals.amount,
+                        'withdrawalCurrency': withdrawals.name,
+                        'createdAt': withdrawals.createdAt,
+                        'status':   withdrawals.status,
+                        'is_active': withdrawals.is_active
+                    })
+
+                return json({'success': True, 'merchantPendingWithdrawals': combined_data}, 200)
+                
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

@@ -10,7 +10,7 @@ from datetime import datetime
 
 
 
-
+# Get all merchant withdrawals
 @auth('userauth')
 @get('/api/v4/admin/merchant/pg/withdrawals/')
 async def AdminMerchantWithdrawalRequests(request: Request):
@@ -341,5 +341,95 @@ async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
 
 
      
+# Export all merchant withdrawals by Admin
+@auth('userauth')
+@get('/api/v4/admin/merchant/pg/export/withdrawals/')
+async def AdminMerchantExportWithdrawalRequests(request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Authenticate Admin
+            user_identity = request.identity
+            user_id       = user_identity.claims.get('user_id') if user_identity else None
+
+            combined_data = []
+
+            admin_user_obj = await session.execute(select(Users).where(
+                Users.id == user_id
+            ))
+            admin_user = admin_user_obj.scalar()
+
+            is_admin_user = admin_user.is_admin
+
+            if not is_admin_user:
+                return json({'error': 'Admin authentication failed'}, 401)
+            # Admin authentication Ends
+
+            # Get all the merchant withdrawals
+            stmt = select(MerchantWithdrawals.id, 
+                          MerchantWithdrawals.merchant_id,
+                          MerchantWithdrawals.amount,
+                          MerchantWithdrawals.createdAt,
+                          MerchantWithdrawals.currency,
+                          MerchantWithdrawals.bank_currency,
+                          MerchantWithdrawals.status,
+                          MerchantWithdrawals.is_active,
+                          MerchantBankAccount.bank_name,
+                          Users.full_name,
+                          Users.email,
+                          ).join(
+                               Users, Users.id == MerchantWithdrawals.merchant_id
+                          ).join(
+                               MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
+                          )
+            merchant_withdrawals_object = await session.execute(stmt)
+            merchant_withdrawals        = merchant_withdrawals_object.all()
+
+
+            if not merchant_withdrawals:
+                 return json({'error': 'No withdrawal request found'}, 404)
+            
+
+            for withdrawals in merchant_withdrawals:
+                    # Get the withdrawal currency and Bank Currecy
+
+                    merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.currency
+                    ))
+                    merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
+
+                    # Get the merchant Bank Currency
+                    merchant_bank_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.bank_currency
+                    ))
+                    merchant_bank_currency = merchant_bank_currency_obj.scalar()
+
+                    # Get merchant account balance
+                    merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
+                         and_(MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
+                              MerchantAccountBalance.currency    == merchant_withdrawal_currency.name
+                              )
+                    ))
+                    merchant_account_balance_ = merchant_account_balance_obj.scalar()
+
+                    combined_data.append({
+                        'id': withdrawals.id,
+                        'merchant_id': withdrawals.merchant_id,
+                        'merchant_name': withdrawals.full_name,
+                        'merchant_email': withdrawals.email,
+                        'bank_account': withdrawals.bank_name,
+                        'bankCurrency': merchant_bank_currency.name,
+                        'withdrawalAmount': withdrawals.amount,
+                        'withdrawalCurrency': merchant_withdrawal_currency.name,
+                        'createdAt': withdrawals.createdAt,
+                        'status':   withdrawals.status,
+                        'is_active': withdrawals.is_active,
+                        'account_balance': merchant_account_balance_.amount,
+                        'account_currency': merchant_account_balance_.currency
+                    })
+
+            return json({'success': True, 'AdminMerchantExportWithdrawalRequests': combined_data}, 200)
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
 

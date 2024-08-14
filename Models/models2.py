@@ -1,8 +1,11 @@
+from pydantic import validator
 from sqlmodel import SQLModel, Field, Column, JSON
 from datetime import date
 from sqlalchemy import event
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
+import json
+from sqlalchemy.ext.mutable import MutableDict
 
 
 
@@ -156,7 +159,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)
     currency: str             = Field(default='', nullable=True)
     status: str               = Field(default='', index=True)
-    amount: int               = Field(default=0)
+    amount: float             = Field(default=0.00)
     createdAt: datetime       = Field(default=datetime.now(), nullable=True)
     merchantOrderId: str      = Field(default='')
     merchantRedirectURl: str  = Field(default='', nullable=True)
@@ -170,7 +173,6 @@ class MerchantProdTransaction(SQLModel, table=True):
     def assignTransactionCreatedTime(self):
         current_time   = datetime.now()
         self.createdAt = current_time
-
 
 
 # Steps for Sandbox

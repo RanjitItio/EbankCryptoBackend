@@ -6,7 +6,10 @@ Refer to https://www.uvicorn.org/deployment/ for production deployments.
 """
 import os
 
+from blacksheep.testing import TestClient
 import uvicorn
+
+from app.main import app
 # from rich.console import Console
 
 
@@ -34,3 +37,8 @@ if __name__ == "__main__":
         log_level="info",
         reload=True,
     )
+
+# Assume the implementation is here as per your original code
+
+
+client = TestClient(app)

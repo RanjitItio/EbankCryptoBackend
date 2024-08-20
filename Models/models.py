@@ -43,7 +43,7 @@ class Users(SQLModel, table=True):
 
 
     def assign_full_name(self):
-        self.full_name = self.first_name + " " + self.lastname
+        self.full_name = f"{self.first_name} {self.lastname}"
 
 
 
@@ -55,6 +55,7 @@ class UserKeys(SQLModel, table=True):
     secret_key: str      = Field(default='', unique=True)
     created_at: datetime = Field(default=datetime.now(), nullable=True)
     is_active: bool      = Field(default=False, nullable=True)
+
 
 
 
@@ -349,7 +350,7 @@ class TestModel(SQLModel, table=True):
         self.test_id = test_id_mapping.get(self.currency, '0000-0000-0000')
 
     def assign_full_name(self):
-        self.full_name = self.first_name + " " + self.last_name
+        self.full_name = f"{self.first_name} {self.last_name}"
 
     def assignMicroTime(self):
         current_time   = datetime.now()

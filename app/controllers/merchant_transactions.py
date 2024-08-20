@@ -3,9 +3,10 @@ from blacksheep import Request, json
 from database.db import AsyncSession, async_engine
 from blacksheep.server.controllers import APIController
 from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
-from sqlmodel import select, and_, desc, cast, Time, Date
+from sqlmodel import select, and_, desc, cast, Time, Date, func
 from blacksheep.server.authorization import auth
 from datetime import datetime, timedelta
+
 
 
 
@@ -41,7 +42,17 @@ class MerchantProductionTransactions(APIController):
                 if not merchant_transactions:
                     return json({'error': 'No transaction available'}, 404)
                 
-                return json({'msg': 'Success', 'merchant_prod_trasactions': merchant_transactions}, 200)
+                # Count total rows
+                count_stmt     = select(func.count(MerchantProdTransaction.id)).where(
+                    MerchantProdTransaction.merchant_id == user_id
+                    )
+                total_rows_obj = await session.execute(count_stmt)
+                total_rows     = total_rows_obj.scalar()
+
+                total_rows_count = total_rows / limit
+
+                
+                return json({'msg': 'Success','total_rows': total_rows_count ,'merchant_prod_trasactions': merchant_transactions}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)
@@ -125,8 +136,15 @@ class MerchantSandboxTransactions(APIController):
 
                 if not merchant_transactions:
                     return json({'error': 'No transaction available'}, 404)
+                
+                # Count total rows
+                count_stmt = select(func.count(MerchantSandBoxTransaction.id)).where(MerchantSandBoxTransaction.merchant_id == user_id)
+                total_rows_obj = await session.execute(count_stmt)
+                total_rows = total_rows_obj.scalar()
 
-                return json({'msg': 'Success', 'merchant_sandbox_trasactions': merchant_transactions}, 200)
+                total_rows_count = total_rows / limit
+
+                return json({'msg': 'Success','total_rows': total_rows_count ,'merchant_sandbox_trasactions': merchant_transactions}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)

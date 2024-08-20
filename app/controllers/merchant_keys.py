@@ -44,11 +44,13 @@ class MerchantKeysController(APIController):
                 merchant_public_key = merchant_keys.public_key
                 merchant_secret_key = merchant_keys.secret_key
                 created_date        = merchant_keys.created_at
+                status              = merchant_keys.is_active
 
                 return json({'success': True, 
                              'merchantPublicKey': merchant_public_key,
                              'merchantSecretKey': merchant_secret_key,
-                             'createdAt': created_date
+                             'createdAt': created_date,
+                             'status': status
                              }, 200)
 
         except Exception as e:

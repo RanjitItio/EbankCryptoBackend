@@ -58,6 +58,38 @@ class MerchantWithdrawals(SQLModel, table=True):
 
 
 
+# Merchant API Logs Table
+class MerchantAPILogs(SQLModel, table=True):
+    id: int | None       = Field(default=None, primary_key=True)
+    merchant_id: int     = Field(foreign_key='users.id')
+    end_point: str       = Field(default='')
+    error: str           = Field(default='')
+    request_header: str  = Field(default='')
+    request_body: str    = Field(default='')
+    response_header: str = Field(default='')
+    response_body: str   = Field(default='')
+
+
+
+# Merchant Refund Transaction Table
+class MerchantRefund(SQLModel, table=True):
+    id: int | None               = Field(primary_key=True, default=None)
+    merchant_id: int | None      = Field(foreign_key='users.id', default=None)
+    transaction_id: int | None   = Field(foreign_key='merchantprodtransaction.id', default=None)
+    amount: float                = Field(default=0.00)
+    currency: int | None         = Field(foreign_key='currency.id')
+    comment: str                 = Field(default=str)
+    instant_refund: bool         = Field(default=False)
+    instant_refund_amount: float = Field(default=0.00)
+    createdAt: datetime          = Field(datetime.now())
+    status: str                  = Field(default='Pending', nullable=True)
+    is_completed: bool           = Field(default=False)
+
+
+    def AssigncreatedTime(self):
+        self.createdAt = datetime.now()
+
+
 
 
 # Auto assign current date and time when created
@@ -66,11 +98,15 @@ def MerchantPaymentButton_time_listener(mapper, connection, target):
     target.assign_current_datetime()
 
 
-
-
 # Auto assign Current date time when created
 @event.listens_for(MerchantWithdrawals, 'before_insert')
 def AssignWithdrawalTime(mapper, connection, target):
+    target.AssigncreatedTime()
+
+
+# Auto assign Current date time when created
+@event.listens_for(MerchantRefund, 'before_insert')
+def AssignRefundTime(mapper, connection, target):
     target.AssigncreatedTime()
 
 

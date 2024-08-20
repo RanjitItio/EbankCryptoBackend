@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import Optional
 from dataclasses import dataclass, field
 
 
@@ -33,6 +33,8 @@ class PGSandboxTransactionProcessSchema:
 class PGMerchantPipeCheckoutSchema:
     merchant_public_key: str
 
+
+
 @dataclass
 class AdminMerchantProductionTransactionUpdateSchema:
     transaction_id: str
@@ -45,6 +47,7 @@ class AdminMerchantProductionTransactionUpdateSchema:
     mobile_number: str
     payment_type: str
     status: str
+
 
 
 @dataclass
@@ -69,6 +72,7 @@ class CreateNewPaymentButtonSchema:
     customerPhoneLabel: str
 
 
+
 @dataclass
 class CreateMerchantWithdrawlSchma:
     bank_id: int
@@ -77,8 +81,11 @@ class CreateMerchantWithdrawlSchma:
     withdrawal_amount: int
 
 
+@dataclass
+class MerchantCreateRefundSchema:
+    transaction_id: int
+    refund_amt: float
+    instant_refund: bool
+    comment: Optional[str] = field(default='')
 
-
-
-    
 

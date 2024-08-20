@@ -13,7 +13,6 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
             merchant_account_balance = transactionAmount - charged_fee
 
             # Save the Fees chanrged during the transaction
-            
             existing_collected_fees = await session.execute(
                 select(CollectedFees).where(CollectedFees.currency == currency)
             )

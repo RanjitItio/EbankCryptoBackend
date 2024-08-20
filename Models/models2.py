@@ -168,6 +168,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
+    is_refunded: bool         = Field(default=False, nullable=True)
     
 
     def assignTransactionCreatedTime(self):

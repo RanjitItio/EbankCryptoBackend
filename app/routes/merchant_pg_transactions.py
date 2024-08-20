@@ -6,6 +6,7 @@ from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
 from sqlmodel import and_, select, cast, Date, Time
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime
+from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
 
 
 
@@ -141,7 +142,7 @@ async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 25
     
 
 
-# Update Merchant Production Transaction
+# Update Merchant Production Transaction by Admn
 @auth('userauth')
 @put('/api/admin/merchant/pg/transaction/update/')
 async def update_merchantPGTransaction(request: Request, schema: AdminMerchantProductionTransactionUpdateSchema):
@@ -180,6 +181,10 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             if not merchant_transaction:
                 return json({'error': 'Transaction not found'}, 404)
             
+            # If the transaction already updated
+            # if merchant_transaction.is_completd:
+            #     return json({'message': 'Transaction already updated'}, 405)
+
 
             # Update the transaction with details
             merchant_transaction.amount               = schema.amount
@@ -190,10 +195,19 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_transaction.merchantPaymentType  = schema.payment_type
             merchant_transaction.status               = schema.status
 
+            if schema.status == 'PAYMENT_SUCCESS':
+                merchant_transaction.is_completd = True
+
+                await CalculateMerchantAccountBalance(
+                    merchant_transaction.amount, 
+                    merchant_transaction.currency, 
+                    merchant_transaction.transaction_fee, 
+                    merchant_transaction.merchant_id
+                    )
+
             session.add(merchant_transaction)
             await session.commit()
             await session.refresh(merchant_transaction)
-
 
             return json({'success': True, 'message': 'Updated Successfully'}, 200)
         

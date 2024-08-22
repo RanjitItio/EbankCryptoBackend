@@ -393,10 +393,10 @@ async def SearchMerchantRefunds(request: Request,query: str):
             elif refund_status:
                 conditions.append(MerchantRefund.status.in_([ws.status for ws in refund_status]))
 
-            if query_date:
+            elif query_date:
                 conditions.append(cast(MerchantRefund.createdAt, Date) == query_date)
 
-            if query_time:
+            elif query_time:
                 conditions.append(cast(MerchantRefund.createdAt, Time) == query_time)
 
             if conditions:

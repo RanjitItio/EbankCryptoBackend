@@ -8,12 +8,11 @@ from Models.models import BusinessProfile, Currency, MerchantTransactions, Users
 from datetime import datetime
 from pathlib import Path
 import uuid
-from sqlmodel import select, and_
+from sqlmodel import select, and_, func
 from Models.Merchant.schema import MerchantWalletPaymentFormSchema, MerchantArrearPaymentMethodSchema
 from decouple import config
 from sqlalchemy import desc
 from app.auth import decrypt_merchant_secret_key, check_password
-from sqlalchemy import desc
 from .send_pg_request import send_request_ipg15
 
 
@@ -398,25 +397,28 @@ class UserAvailableMerchantController(APIController):
         
     @auth('userauth')
     @get()
-    async def get_user_created_merchants(self, request: Request):
+    async def get_user_created_merchants(self, request: Request, limit : int = 15, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
 
                 #Get the available merchant of the user
-                try:
-                    merchants_obj     = await session.execute(select(BusinessProfile).
-                                                              where(BusinessProfile.user == user_id).
-                                                              order_by(desc(BusinessProfile.id)))
-                    
-                    all_merchants_obj = merchants_obj.scalars().all()
+                merchants_obj     = await session.execute(select(BusinessProfile).
+                                                            where(BusinessProfile.user == user_id).
+                                                            order_by(desc(BusinessProfile.id)).limit(limit).offset(offset))
+                
+                all_merchants_obj = merchants_obj.scalars().all()
 
-                    if not all_merchants_obj:
-                        return json({'msg': 'Merchant not available'}, 404)
+                if not all_merchants_obj:
+                    return json({'msg': 'Merchant not available'}, 404)
+                
+                # Count available business rows
+                count_stmt = select(func.count(BusinessProfile.id)).where(BusinessProfile.user == user_id)
+                total_business_profile_obj = await session.execute(count_stmt)
+                total_business_profile     = total_business_profile_obj.scalar()
 
-                except Exception as e:
-                    return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
+                total_business_profile_count = total_business_profile / limit
                 
                 #Get The currency of the Merchant
                 try:
@@ -453,7 +455,11 @@ class UserAvailableMerchantController(APIController):
                         'currency': currency_data
                     })
 
-                return json({'msg': 'Merchant data fetched successfully', 'data': combined_data}, 200)
+                return json({
+                    'msg': 'Merchant data fetched successfully', 
+                    'data': combined_data,
+                    'total_row_count': total_business_profile_count
+                    }, 200)
 
         except Exception as e:
             return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

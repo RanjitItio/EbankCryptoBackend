@@ -5,7 +5,7 @@ from Models.models3 import MerchantWithdrawals
 from Models.models import MerchantBankAccount, Users, Currency
 from Models.models2 import MerchantAccountBalance
 from Models.Admin.PG.schema import AdminWithdrawalUpdateSchema
-from sqlmodel import select, and_, or_, cast, Date, Time, func
+from sqlmodel import select, and_, or_, cast, Date, Time, func, desc
 from datetime import datetime
 
 
@@ -42,14 +42,17 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                           MerchantWithdrawals.bank_currency,
                           MerchantWithdrawals.status,
                           MerchantWithdrawals.is_active,
+
                           MerchantBankAccount.bank_name,
+
                           Users.full_name,
                           Users.email,
                           ).join(
                                Users, Users.id == MerchantWithdrawals.merchant_id
                           ).join(
                                MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
-                          )
+                          ).order_by(desc(MerchantWithdrawals.id))
+          
             merchant_withdrawals_object = await session.execute(stmt)
             merchant_withdrawals        = merchant_withdrawals_object.all()
 

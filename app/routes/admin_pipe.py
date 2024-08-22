@@ -3,8 +3,9 @@ from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Currency
 from Models.models2 import PIPE, PIPEType, PIPETypeAssociation
-from sqlmodel import select, or_, and_
+from sqlmodel import select, or_, and_, desc, cast, Date, func
 from Models.Admin.PIPE.pipeschema import AdminPipeCreateSchema, AdminPipeUpdateSchema
+from datetime import datetime
 
 
 
@@ -401,7 +402,7 @@ async def Admin_pipe_delete(request: Request, query: int):
 #Get all pipe by Admin
 @auth('userauth')
 @get('/api/v5/admin/pipes/')
-async def Admin_pipe(request: Request):
+async def Admin_pipe(request: Request, limit: int = 15, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -413,29 +414,29 @@ async def Admin_pipe(request: Request):
                 return json({'msg': 'Unauthorized'}, 401)
             
             #Authenticate the user as Admin
-            try:
-                is_admin_user_obj = await session.execute(select(Users).where(
-                    Users.id == admin_id
-                ))
-                is_admin_user = is_admin_user_obj.scalar()
+            is_admin_user_obj = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            is_admin_user = is_admin_user_obj.scalar()
 
-                check_admin = is_admin_user.is_admin
+            check_admin = is_admin_user.is_admin
 
-                if not check_admin:
-                    return json({'msg': 'Admin authorization failed'}, 403)
-
-            except Exception as e:
-                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
+            if not check_admin:
+                return json({'msg': 'Admin authorization failed'}, 403)
             #Admin Authentication ends
 
+
             #Get all the available pipe
-            try:
-                pipe_obj = await session.execute(select(PIPE))
-                all_pipe     = pipe_obj.scalars().all()
-                
-            except Exception as e:
-                return json({'msg': 'Pipe fetch error', 'error': f'{str(e)}'}, 400)
+            pipe_obj = await session.execute(select(PIPE).order_by(desc(PIPE.id)).limit(limit).offset(offset))
+            all_pipe     = pipe_obj.scalars().all()
             
+            # Count available Pipes
+            count_stmt = select(func.count(PIPE.id))
+            count_statement_obj = await session.execute(count_stmt)
+            count_statement = count_statement_obj.scalar()
+
+            total_pipe_count = count_statement / limit
+
             #Fetch currencies
             try:
                 currency_obj = await session.execute(select(Currency))
@@ -444,7 +445,7 @@ async def Admin_pipe(request: Request):
             except Exception as e:
                 return json({'msg': 'Currency fetch error'}, 400)
             
-            #Fetch currencies
+            #Fetch Pipe Type
             try:
                 pipe_type_obj = await session.execute(select(PIPEType))
                 all_pipe_type     =  pipe_type_obj.scalars().all()
@@ -455,6 +456,7 @@ async def Admin_pipe(request: Request):
             currency_dict  = {curr.id: curr for curr in all_currency}
             pipe_type_dict = {pipe_.id: pipe_ for pipe_ in all_pipe_type}
             
+
             for pipe in all_pipe:
                 currency_id   = pipe.process_curr
                 currency_data = currency_dict.get(currency_id)
@@ -473,7 +475,6 @@ async def Admin_pipe(request: Request):
                 pipe_type_ids = [pipe_type_assoc.pipe_type_id for pipe_type_assoc in pipe_type_association]
 
                 pipe_type_data = [pipe_type_dict.get(pipe_type_id) for pipe_type_id in pipe_type_ids]
-
 
                 combined_data.append({
                     'id': pipe.id,
@@ -521,9 +522,11 @@ async def Admin_pipe(request: Request):
                     'types': pipe_type_data if pipe_type_data else None,
                 })
 
-
-
-            return json({'msg': 'Pipe data fetched successfully', 'all_pipes_data': combined_data}, 200)
+            return json({
+                'msg': 'Pipe data fetched successfully', 
+                'all_pipes_data': combined_data,
+                'total_row_count': total_pipe_count
+                }, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
@@ -531,56 +534,352 @@ async def Admin_pipe(request: Request):
 
 
 
-#Get all pipe by Admin
+#Search pipe by Admin
 @auth('userauth')
-@get('/api/v5/admin/pipe/data/')
-async def Admin_pipe(request: Request):
+@get('/api/v5/admin/search/pipe/')
+async def admin_pipe_search(request: Request, query: str):
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
             admin_id       = admin_identity.claims.get('user_id') if admin_identity else None
 
-            combined_data = []
+            conditions = []
 
             if admin_id is None:
                 return json({'msg': 'Unauthorized'}, 401)
             
             #Authenticate the user as Admin
-            try:
-                is_admin_user_obj = await session.execute(select(Users).where(
-                    Users.id == admin_id
-                ))
-                is_admin_user = is_admin_user_obj.scalar()
+            is_admin_user_obj = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            is_admin_user = is_admin_user_obj.scalar()
 
-                check_admin = is_admin_user.is_admin
+            check_admin = is_admin_user.is_admin
 
-                if not check_admin:
-                    return json({'msg': 'Admin authorization failed'}, 403)
-
-            except Exception as e:
-                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
+            if not check_admin:
+                return json({'msg': 'Admin authorization failed'}, 403)
             #Admin Authentication ends
 
-            #Get all the available pipe
-            try:
-                pipe_obj = await session.execute(select(PIPE))
-                all_pipe     = pipe_obj.scalars().all()
-                
-            except Exception as e:
-                return json({'msg': 'Pipe fetch error', 'error': f'{str(e)}'}, 400)
-            
-            
-            for pipe in all_pipe:
+            query_int = None
+            query_date = None
+            search_query = query
 
-                combined_data.append({
+            try:
+                query_date = datetime.strptime(search_query, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+            try:
+                query_int = int(search_query)
+            except Exception as e:
+                query_int = None
+
+            # Search Pipe by Gateway ID
+            pipe_gatewat_id_obj = await session.execute(select(PIPE).where(
+                PIPE.id == query_int
+            ))
+            pipe_gatewat_id = pipe_gatewat_id_obj.scalars().all()
+
+            # Search Pipe by status
+            pipe_status_obj = await session.execute(select(PIPE).where(
+                PIPE.status == search_query
+            ))
+            pipe_status = pipe_status_obj.scalars().all()
+
+            # Search Pipe by Date
+            pipe_date_obj = await session.execute(select(PIPE).where(
+                PIPE.created_at == query_date
+            ))
+            pipe_date = pipe_date_obj.scalars().all()
+
+            # Search Pipe by pipe name
+            pipe_name_obj = await session.execute(select(PIPE).where(
+                PIPE.name == search_query
+            ))
+            pipe_name = pipe_name_obj.scalars().all()
+
+            # Search Pipe by pipe name
+            pipe_process_mode_obj = await session.execute(select(PIPE).where(
+                PIPE.process_mode == search_query
+            ))
+            pipe_process_mode = pipe_process_mode_obj.scalars().all()
+
+
+            # Execute query with join statement
+            stmt = select(
+                PIPE.id,
+                PIPE.body,
+                PIPE.status,
+                PIPE.refund_policy,
+                PIPE.auto_refund,
+                PIPE.query,
+                PIPE.settlement_period,
+                PIPE.is_active,
+                PIPE.whitelisting_ip,
+                PIPE.auth_keys,
+                PIPE.bank_max_trans_limit,
+                PIPE.bank_min_trans_limit,
+                PIPE.bank_max_fail_trans_allowed,
+                PIPE.bank_scrub_period,
+                PIPE.connection_mode,
+                PIPE.payment_medium,
+                PIPE.webhook_url,
+                PIPE.redirect_msg,
+                PIPE.bank_down_period,
+                PIPE.bank_trxn_count,
+                PIPE.name,
+                PIPE.prod_url,
+                PIPE.whitelist_domain,
+                PIPE.checkout_label,
+                PIPE.bank_success_resp,
+                PIPE.bank_min_success_cnt,
+                PIPE.test_url,
+                PIPE.process_country,
+                PIPE.checkout_sub_label,
+                PIPE.bank_fail_resp,
+                PIPE.bank_min_fail_count,
+                PIPE.created_at,
+                PIPE.status_url,
+                PIPE.block_country,
+                PIPE.comments,
+                PIPE.bank_pending_res,
+                PIPE.refund_url,
+                PIPE.headers,
+                PIPE.process_mode,
+                PIPE.bank_status_path,
+                
+                Currency.name.label('process_curr')
+            ).join(
+                Currency, Currency.id == PIPE.process_curr
+            ).order_by(desc(PIPE.id))
+
+            # Execute Conditions
+            if pipe_gatewat_id:
+                conditions.append(PIPE.id == query_int)
+
+            elif pipe_status:
+                conditions.append(PIPE.status.in_([st.status for st in pipe_status]))
+            
+            elif pipe_date:
+                conditions.append(cast(PIPE.created_at, Date) == query_date)
+            
+            elif pipe_name:
+                conditions.append(PIPE.name.in_([nm.name for nm in pipe_name]))
+
+            elif pipe_process_mode:
+                conditions.append(PIPE.process_mode.in_([nm.process_mode for nm in pipe_process_mode]))
+
+
+            if conditions:
+                statement = stmt.where(or_(*conditions))
+            else:
+                return json({'msg': 'Pipe data fetched successfully', 'all_searched_pipes_': []}, 200)
+            
+
+            merchant_pipes_object = await session.execute(statement)
+            merchant_pipes        = merchant_pipes_object.fetchall()
+
+            merchant_pipes_data = []
+
+            # Get all the pipe type
+            pipe_type_obj = await session.execute(select(PIPEType))
+            all_pipe_type     =  pipe_type_obj.scalars().all()
+            
+            pipe_type_dict = {pipe_.id: pipe_ for pipe_ in all_pipe_type}
+
+            # All the payment pipes
+            for pipe in merchant_pipes:
+                try:
+                    pipe_type_association_obj = await session.execute(select(PIPETypeAssociation).where(
+                        PIPETypeAssociation.pipe_id == pipe.id
+                    ))
+                    pipe_type_association     =  pipe_type_association_obj.scalars().all()
+
+                except Exception as e:
+                    return json({'msg': 'Currency fetch error'}, 400)
+                
+                pipe_type_ids = [pipe_type_assoc.pipe_type_id for pipe_type_assoc in pipe_type_association]
+
+                pipe_type_data = [pipe_type_dict.get(pipe_type_id) for pipe_type_id in pipe_type_ids]
+
+                merchant_pipes_data.append({
                     'id': pipe.id,
+                    'body': pipe.body,
+                    'status': pipe.status,
+                    'refund_policy': pipe.refund_policy,
+                    'process_curr': {
+                        'name': pipe.process_curr
+                    },
+                    'bank_min_trans_limit': pipe.bank_min_trans_limit,
+                    'auto_refund': pipe.auto_refund,
+                    'query': pipe.query,
+                    'settlement_period': pipe.settlement_period,
+                    'bank_max_trans_limit': pipe.bank_max_trans_limit,
+                    'is_active': pipe.is_active,
+                    'whitelisting_ip': pipe.whitelisting_ip,
+                    'auth_keys': pipe.auth_keys,
+                    'bank_max_fail_trans_allowed': pipe.bank_max_fail_trans_allowed,
+                    'bank_scrub_period': pipe.bank_scrub_period,
+                    'connection_mode': pipe.connection_mode,
+                    'payment_medium':    pipe.payment_medium,
+
+                    'webhook_url': pipe.webhook_url,
+                    'redirect_msg': pipe.redirect_msg,
+                    'bank_down_period': pipe.bank_down_period,
+                    'bank_trxn_count': pipe.bank_trxn_count,
                     'name': pipe.name,
+                    'prod_url': pipe.prod_url,
+                    'whitelist_domain': pipe.whitelist_domain,
+                    'checkout_label': pipe.checkout_label,
+                    'bank_success_resp': pipe.bank_success_resp,
+                    'bank_min_success_cnt': pipe.bank_min_success_cnt,
+                    'test_url': pipe.test_url,
+                    'process_country': pipe.process_country,
+                    'checkout_sub_label': pipe.checkout_sub_label,
+                    'bank_fail_resp': pipe.bank_fail_resp,
+                    'bank_min_fail_count': pipe.bank_min_fail_count,
+                    'created_at': pipe.created_at,
+                    'status_url': pipe.status_url,
+                    'block_country': pipe.block_country,
+                    'comments': pipe.comments,
+                    'bank_pending_res': pipe.bank_pending_res,
+                    'refund_url': pipe.refund_url,
+                    'headers': pipe.headers,
+                    'process_mode': pipe.process_mode,
+                    'bank_status_path': pipe.bank_status_path,
+                    'types': pipe_type_data if pipe_type_data else None,
                 })
 
-            return json({'msg': 'Pipe data fetched successfully', 'all_pipes_': combined_data}, 200)
+
+            return json({'msg': 'Pipe data fetched successfully', 'all_searched_pipes_': merchant_pipes_data}, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
     
 
+
+
+# Export All pipe data
+@auth('userauth')
+@get('/api/v5/admin/export/pipe/')
+async def ExportMerchantPipes(request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Authenticate Admin
+            user_identity = request.identity
+            admin_id = user_identity.claims.get('user_id')
+
+            combined_data = []
+
+            admin_user_obj = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            admin_user = admin_user_obj.scalar()
+
+            if not admin_user.is_admin:
+                return json({'message': 'Admin authorization failed'}, 401)
+            # Admin authentication ends
+
+            # Get all the Pipes
+            stmt = select(
+                PIPE.id,
+                PIPE.body,
+                PIPE.status,
+                PIPE.refund_policy,
+                PIPE.auto_refund,
+                PIPE.query,
+                PIPE.settlement_period,
+                PIPE.is_active,
+                PIPE.whitelisting_ip,
+                PIPE.auth_keys,
+                PIPE.bank_max_trans_limit,
+                PIPE.bank_min_trans_limit,
+                PIPE.bank_max_fail_trans_allowed,
+                PIPE.bank_scrub_period,
+                PIPE.connection_mode,
+                PIPE.payment_medium,
+                PIPE.webhook_url,
+                PIPE.redirect_msg,
+                PIPE.bank_down_period,
+                PIPE.bank_trxn_count,
+                PIPE.name,
+                PIPE.prod_url,
+                PIPE.whitelist_domain,
+                PIPE.checkout_label,
+                PIPE.bank_success_resp,
+                PIPE.bank_min_success_cnt,
+                PIPE.test_url,
+                PIPE.process_country,
+                PIPE.checkout_sub_label,
+                PIPE.bank_fail_resp,
+                PIPE.bank_min_fail_count,
+                PIPE.created_at,
+                PIPE.status_url,
+                PIPE.block_country,
+                PIPE.comments,
+                PIPE.bank_pending_res,
+                PIPE.refund_url,
+                PIPE.headers,
+                PIPE.process_mode,
+                PIPE.bank_status_path,
+                
+                Currency.name.label('process_curr')
+            ).join(
+                Currency, Currency.id == PIPE.process_curr
+            )
+
+            # Execute query
+            pipe_obj = await session.execute(stmt)
+            pipes = pipe_obj.fetchall()
+
+            for pipe in pipes:
+                combined_data.append({
+                    'id': pipe.id,
+                    'name': pipe.name,
+                    'status': pipe.status,
+                    'body': pipe.body,
+                    'refund_policy': pipe.refund_policy,
+                    'processing_currency': pipe.process_curr,
+                    'created_at': pipe.created_at,
+                    'status_url': pipe.status_url,
+                    'bank_min_trans_limit': pipe.bank_min_trans_limit,
+                    'auto_refund': pipe.auto_refund,
+                    'query': pipe.query,
+                    'settlement_period': pipe.settlement_period,
+                    'bank_max_trans_limit': pipe.bank_max_trans_limit,
+                    'is_active': pipe.is_active,
+                    'whitelisting_ip': pipe.whitelisting_ip,
+                    'auth_keys': pipe.auth_keys,
+                    'bank_max_fail_trans_allowed': pipe.bank_max_fail_trans_allowed,
+                    'bank_scrub_period': pipe.bank_scrub_period,
+                    'connection_mode': pipe.connection_mode,
+                    'payment_medium':    pipe.payment_medium,
+
+                    'webhook_url': pipe.webhook_url,
+                    'redirect_msg': pipe.redirect_msg,
+                    'bank_down_period': pipe.bank_down_period,
+                    'bank_trxn_count': pipe.bank_trxn_count,
+                    'prod_url': pipe.prod_url,
+                    'whitelist_domain': pipe.whitelist_domain,
+                    'checkout_label': pipe.checkout_label,
+                    'bank_success_resp': pipe.bank_success_resp,
+                    'bank_min_success_cnt': pipe.bank_min_success_cnt,
+                    'test_url': pipe.test_url,
+                    'process_country': pipe.process_country,
+                    'checkout_sub_label': pipe.checkout_sub_label,
+                    'bank_fail_resp': pipe.bank_fail_resp,
+                    'bank_min_fail_count': pipe.bank_min_fail_count,
+                    'block_country': pipe.block_country,
+                    'comments': pipe.comments,
+                    'bank_pending_res': pipe.bank_pending_res,
+                    'refund_url': pipe.refund_url,
+                    'headers': pipe.headers,
+                    'process_mode': pipe.process_mode,
+                    'bank_status_path': pipe.bank_status_path,
+                })
+
+            return json({'success': True, 'export_pipe_data': combined_data}, 200)
+            
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 

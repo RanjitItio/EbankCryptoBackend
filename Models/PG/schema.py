@@ -38,6 +38,7 @@ class PGMerchantPipeCheckoutSchema:
 @dataclass
 class AdminMerchantProductionTransactionUpdateSchema:
     transaction_id: str
+    transaction_fee: float
     merchant_id: int
     amount: int
     currency: str
@@ -85,7 +86,7 @@ class CreateMerchantWithdrawlSchma:
 class MerchantCreateRefundSchema:
     transaction_id: int
     refund_amt: float
-    instant_refund: bool
+    # instant_refund: bool
     comment: Optional[str] = field(default='')
 
 

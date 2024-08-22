@@ -46,8 +46,8 @@ async def Admin_Merchant_Refunds(request: Request, limit: int = 10, offset: int 
             stmt = select(
                 MerchantRefund.id,
                 MerchantRefund.merchant_id,
-                MerchantRefund.instant_refund,
-                MerchantRefund.instant_refund_amount,
+                # MerchantRefund.instant_refund,
+                # MerchantRefund.instant_refund_amount,
                 MerchantRefund.is_completed,
                 MerchantRefund.amount,
                 MerchantRefund.comment,
@@ -86,8 +86,8 @@ async def Admin_Merchant_Refunds(request: Request, limit: int = 10, offset: int 
                         "merchant_id": refunds.merchant_id,
                         'merchant_name': refunds.merchant_name,
                         'merchant_email': refunds.merchant_email,
-                        'instant_refund': refunds.instant_refund,
-                        'instant_refund_amount': refunds.instant_refund_amount,
+                        # 'instant_refund': refunds.instant_refund,
+                        # 'instant_refund_amount': refunds.instant_refund_amount,
                         'is_completed': refunds.is_completed,
                         'transaction_id': refunds.transaction_id,
                         'amount': refunds.amount,
@@ -209,8 +209,8 @@ async def ExportMerchantRefunds(request: Request):
             stmt = select(
                 MerchantRefund.id,
                 MerchantRefund.merchant_id,
-                MerchantRefund.instant_refund,
-                MerchantRefund.instant_refund_amount,
+                # MerchantRefund.instant_refund,
+                # MerchantRefund.instant_refund_amount,
                 MerchantRefund.is_completed,
                 MerchantRefund.amount,
                 MerchantRefund.comment,
@@ -249,8 +249,8 @@ async def ExportMerchantRefunds(request: Request):
                     "merchant_id": refunds.merchant_id,
                     'merchant_name': refunds.merchant_name,
                     'merchant_email': refunds.merchant_email,
-                    'instant_refund': refunds.instant_refund,
-                    'instant_refund_amount': refunds.instant_refund_amount,
+                    # 'instant_refund': refunds.instant_refund,
+                    # 'instant_refund_amount': refunds.instant_refund_amount,
                     'is_completed': refunds.is_completed,
                     'transaction_id': refunds.transaction_id,
                     'amount': refunds.amount,
@@ -338,13 +338,6 @@ async def SearchMerchantRefunds(request: Request,query: str):
             )
             refund_amount = refund_amount_obj.scalars().all()
 
-            # Search Instant Refund wise
-            instant_refund_obj = await session.execute(
-                select(MerchantRefund).where(
-                        MerchantRefund.instant_refund == instant_refund_query
-                ) 
-            )
-            instant_refund = instant_refund_obj.scalars().all()
 
              # Search status wise
             refund_status_obj = await session.execute(
@@ -355,8 +348,8 @@ async def SearchMerchantRefunds(request: Request,query: str):
             stmt = select(
                 MerchantRefund.id,
                 MerchantRefund.merchant_id,
-                MerchantRefund.instant_refund,
-                MerchantRefund.instant_refund_amount,
+                # MerchantRefund.instant_refund,
+                # MerchantRefund.instant_refund_amount,
                 MerchantRefund.is_completed,
                 MerchantRefund.amount,
                 MerchantRefund.comment,
@@ -394,8 +387,8 @@ async def SearchMerchantRefunds(request: Request,query: str):
             elif refund_amount:
                 conditions.append(MerchantRefund.amount.in_([wa.amount for wa in refund_amount]))
 
-            elif instant_refund:
-                conditions.append(MerchantRefund.instant_refund.in_([wa.instant_refund for wa in instant_refund]))
+            # elif instant_refund:
+            #     conditions.append(MerchantRefund.instant_refund.in_([wa.instant_refund for wa in instant_refund]))
 
             elif refund_status:
                 conditions.append(MerchantRefund.status.in_([ws.status for ws in refund_status]))
@@ -422,8 +415,8 @@ async def SearchMerchantRefunds(request: Request,query: str):
                     "merchant_id": refunds.merchant_id,
                     'merchant_name': refunds.merchant_name,
                     'merchant_email': refunds.merchant_email,
-                    'instant_refund': refunds.instant_refund,
-                    'instant_refund_amount': refunds.instant_refund_amount,
+                    # 'instant_refund': refunds.instant_refund,
+                    # 'instant_refund_amount': refunds.instant_refund_amount,
                     'is_completed': refunds.is_completed,
                     'transaction_id': refunds.transaction_id,
                     'amount': refunds.amount,

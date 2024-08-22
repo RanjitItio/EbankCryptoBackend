@@ -5,7 +5,7 @@ from Models.models3 import MerchantWithdrawals
 from Models.models import MerchantBankAccount, Users, Currency
 from Models.models2 import MerchantAccountBalance
 from Models.Admin.PG.schema import AdminWithdrawalUpdateSchema
-from sqlmodel import select, and_, or_, cast, Date, Time
+from sqlmodel import select, and_, or_, cast, Date, Time, func
 from datetime import datetime
 
 
@@ -13,7 +13,7 @@ from datetime import datetime
 # Get all merchant withdrawals
 @auth('userauth')
 @get('/api/v4/admin/merchant/pg/withdrawals/')
-async def AdminMerchantWithdrawalRequests(request: Request):
+async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -57,6 +57,11 @@ async def AdminMerchantWithdrawalRequests(request: Request):
             if not merchant_withdrawals:
                  return json({'error': 'No withdrawal request found'}, 404)
             
+            count_stmt = select(func.count(MerchantWithdrawals.id))
+            total_withdrawals_obj = await session.execute(count_stmt)
+            total_withdrawal_rows = total_withdrawals_obj.scalar()
+
+            total_withdrawal_row_count = total_withdrawal_rows / limit
 
             for withdrawals in merchant_withdrawals:
                     # Get the withdrawal currency and Bank Currecy
@@ -96,9 +101,12 @@ async def AdminMerchantWithdrawalRequests(request: Request):
                         'account_currency': merchant_account_balance_.currency
                     })
 
-            return json({'success': True, 'AdminMerchantWithdrawalRequests': combined_data}, 200)
-
-            
+            return json({
+                    'success': True, 
+                    'AdminMerchantWithdrawalRequests': combined_data,
+                    'total_row_count': total_withdrawal_row_count
+                    }, 200)
+        
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
@@ -136,6 +144,11 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                if not merchant_withdrawals:
                     return json({'message': 'No Withdrawal request found with given information'}, 404)
                
+               # Approved Withdrawals
+               if merchant_withdrawals.status == 'Approved':
+                    return json({'message': 'Already updated, Can not perform this action'}, 400)
+               
+          
                # Get the currency
                currency_obj = await session.execute(select(Currency).where(
                     Currency.id == merchant_withdrawals.currency
@@ -146,7 +159,7 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
                     and_(MerchantAccountBalance.merchant_id == merchant_withdrawals.merchant_id,
                          MerchantAccountBalance.currency    == currency.name
-                         )
+                    )
                ))
                merchant_account_balance = merchant_account_balance_obj.scalar()
 

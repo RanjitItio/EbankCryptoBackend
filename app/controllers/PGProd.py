@@ -291,11 +291,12 @@ class MasterCardTransaction(APIController):
                 decode_payload = base64_decode(request_payload)
                 decoded_dict   = json.loads(decode_payload)
 
+                # Get the payload data
                 card_no           = decoded_dict.get('cardNumber')
                 card_expiry       = decoded_dict.get('cardExpiry')
                 card_cvv          = decoded_dict.get('cardCvv')
                 card_name         = decoded_dict.get('cardHolderName')
-                # merchant_order_id = decoded_dict.get('MerchantOrderId')
+                
                 merchant_transaction_id = decoded_dict.get('MerchantTransactionId')
 
                 required_fields = ['cardNumber', 'cardExpiry', 'cardCvv', 'cardHolderName']
@@ -342,17 +343,33 @@ class MasterCardTransaction(APIController):
 
                 #Merchant Redirect URL and Redirect Mode
                 merchantRedirectURL  = merchant_prod_transaction.merchantRedirectURl
-                # merchantRedirectMode = merchant_prod_transaction.merchantRedirectMode
+               
                 merchantCallBackURL  = merchant_prod_transaction.merchantCallBackURL
-                # merchantCallBackURL  = 'https://webhook.site/01b830ad-aa36-4594-9659-84684507ca0d'
 
-                # Get the pipe assigned to the merchant
-                merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
-                    and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
-                         MerchantPIPE.is_active == True
-                         )
+                # Get the pipe which payment medium is card
+                card_pipe_obj = await session.execute(select(PIPE).where(
+                    PIPE.payment_medium == 'Card'
                 ))
-                merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+                card_pipe = card_pipe_obj.scalar()
+
+                if card_pipe:
+                    # Get the pipe assigned to the merchant
+                    merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
+                        and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
+                            MerchantPIPE.is_active == True,
+                            MerchantPIPE.pipe      == card_pipe.id
+                            )
+                    ))
+                    merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+                else:
+                    # Get the pipe assigned to the merchant
+                    merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
+                        and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
+                            MerchantPIPE.is_active == True,
+                            )
+                    ))
+                    merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+
 
                 # If not acquirer assigned
                 if not merchant_assigned_pipe:
@@ -372,9 +389,9 @@ class MasterCardTransaction(APIController):
                     if update_session.get('session')['updateStatus'] == 'SUCCESS':
 
                         # Store json response in transaction
-                        merchant_prod_transaction.gateway_res  = update_session
-                        merchant_prod_transaction.payment_mode = 'Card'
-                        merchant_prod_transaction.pipe_id      = merchant_assigned_pipe.pipe
+                        merchant_prod_transaction.gateway_res     = update_session
+                        merchant_prod_transaction.payment_mode    = 'Card'
+                        merchant_prod_transaction.pipe_id         = merchant_assigned_pipe.pipe
                         merchant_prod_transaction.transaction_fee = merchant_assigned_pipe.fee
 
                         session.add(merchant_prod_transaction)

@@ -3,7 +3,7 @@ from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users
 from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
-from sqlmodel import and_, select, cast, Date, Time
+from sqlmodel import and_, select, cast, Date, Time, func
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
@@ -13,7 +13,7 @@ from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalan
 # Get all the merchant production transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/transactions/')
-async def get_merchant_pg_transaction(request: Request, limit : int = 25, offset : int = 0):
+async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset : int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -37,6 +37,13 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 25, offset
                 (MerchantProdTransaction.id).desc()
             ).limit(limit).offset(offset))
             merchant_transactions = merchant_transactions_obj.scalars().all()
+
+            # Count total row count
+            count_stmt = select(func.count(MerchantProdTransaction.id))
+            total_transaction_row_obj = await session.execute(count_stmt)
+            total_rows = total_transaction_row_obj.scalar()
+
+            total_rows_count = total_rows / limit
 
             # get the user id
             user_obj = await session.execute(select(Users))
@@ -65,10 +72,16 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 25, offset
                     'merchantCallBackURL': transactions.merchantCallBackURL,
                     'merchantMobileNumber': transactions.merchantMobileNumber,
                     'merchantPaymentType':  transactions.merchantPaymentType,
-                    'is_completed':          transactions.is_completd
+                    'is_completed':          transactions.is_completd,
+                    'transaction_fee': transactions.transaction_fee
                 })
 
-            return json({'success': True, 'message': 'Transaction fetched successfuly', 'AdminmerchantPGTransactions': combined_data}, 200)
+            return json({
+                'success': True, 
+                'message': 'Transaction fetched successfuly', 
+                'AdminmerchantPGTransactions': combined_data,
+                'total_row_count':  total_rows_count
+                }, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)
@@ -78,7 +91,7 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 25, offset
 # Get all the merchant sandbx transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sandbox/transactions/')
-async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 25, offset : int = 0):
+async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 15, offset : int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -102,6 +115,13 @@ async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 25
                 (MerchantSandBoxTransaction.id).desc()
             ).limit(limit).offset(offset))
             merchant_transactions = merchant_transactions_obj.scalars().all()
+
+            # Count total row count
+            count_stmt = select(func.count(MerchantProdTransaction.id))
+            total_transaction_row_obj = await session.execute(count_stmt)
+            total_rows = total_transaction_row_obj.scalar()
+
+            total_rows_count = total_rows / limit
 
             # get the user id
             user_obj = await session.execute(select(Users))
@@ -129,17 +149,22 @@ async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 25
                     'createdAt': transactions.createdAt,
                     'merchantOrderId': transactions.merchantOrderId,
                     'merchantRedirectURl': transactions.merchantRedirectURl,
-                    'merchantCallBackURL': transactions.merchantCallBackURL,
+                    'merchantCallBackURL':  transactions.merchantCallBackURL,
                     'merchantMobileNumber': transactions.merchantMobileNumber,
                     'merchantPaymentType':  transactions.merchantPaymentType,
-                    'is_completed':          transactions.is_completd
+                    'is_completed':         transactions.is_completd
                 })
 
-            return json({'success': True, 'message': 'Transaction fetched successfuly', 'AdminmerchantPGSandboxTransactions': combined_data}, 200)
+            return json({
+                'success': True, 
+                'message': 'Transaction fetched successfuly', 
+                'AdminmerchantPGSandboxTransactions': combined_data,
+                'total_row_count':  total_rows_count
+                }, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)
-    
+
 
 
 # Update Merchant Production Transaction by Admn
@@ -182,8 +207,8 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 return json({'error': 'Transaction not found'}, 404)
             
             # If the transaction already updated
-            # if merchant_transaction.is_completd:
-            #     return json({'message': 'Transaction already updated'}, 405)
+            if merchant_transaction.is_completd:
+                return json({'message': 'Transaction already updated'}, 405)
 
 
             # Update the transaction with details
@@ -194,6 +219,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_transaction.merchantMobileNumber = schema.mobile_number
             merchant_transaction.merchantPaymentType  = schema.payment_type
             merchant_transaction.status               = schema.status
+            merchant_transaction.transaction_fee      = schema.transaction_fee
 
             if schema.status == 'PAYMENT_SUCCESS':
                 merchant_transaction.is_completd = True
@@ -206,7 +232,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     )
 
             session.add(merchant_transaction)
-            await session.commit()
+            await session.commit()  
             await session.refresh(merchant_transaction)
 
             return json({'success': True, 'message': 'Updated Successfully'}, 200)

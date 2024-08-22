@@ -1,7 +1,6 @@
 from blacksheep import json, Request, get, put
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
-from sqlmodel import select
 from Models.models import Users, MerchantGroup, BusinessProfile, Currency
 from datetime import datetime, date
 import uuid
@@ -9,6 +8,7 @@ from blacksheep.exceptions import BadRequest
 from pathlib import Path
 from decouple import config
 from sqlalchemy import desc
+from sqlmodel import select, func
 import re
 
 
@@ -50,12 +50,12 @@ async def save_business_logo(request: Request):
     return str(file_path.relative_to(Path("Static")))
 
 
-#Update Merchant by Admin
+#Update Business by Admin
 @auth('userauth')
 @put('/api/admin/merchant/update/')
 async def search_all_transaction(self, request: Request, query: str = ''):
     """
-     Admin will be able to Update Merchant Details
+     Admin will be able to Update Business Details
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -76,6 +76,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
                 return json({'msg': f'Missing fields: {", ".join(missing_fields)}'}, 400)
             ##Request Payload validation##
 
+            # Get payload data
             business_name = request_body['bsn_name']
             business_url  = request_body['bsn_url']
             currency_name = request_body['currency']
@@ -144,6 +145,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
             else:
                 business_logo_path = merchant_obj_data.logo
 
+            # Admin approved the Business
             if status == 'Approved':
                 try:
                     merchant_obj_data.bsn_name  = business_name
@@ -162,6 +164,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
                 except Exception as e:
                     return json({'msg': 'Merchant update error', 'error': f'{str(e)}'}, 400)
 
+            # If status == Moderation
             elif status == 'Moderation': 
 
                 try:
@@ -180,7 +183,8 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 
                 except Exception as e:
                     return json({'msg': 'Merchant update error', 'error': f'{str(e)}'}, 400)
-
+                
+            # For status is Cancelled or Rejected
             else:
                 try:
                     merchant_obj_data.bsn_name  = business_name
@@ -208,12 +212,13 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 
 
 
-#View all merchant by Admin
+#View all Businesses by Admin
+##############################
 @auth('userauth')
 @get('/api/admin/all/merchant/')
-async def search_all_transaction(self, request: Request, limit: int = 25, offset: int = 0):
+async def search_all_transaction(self, request: Request, limit: int = 15, offset: int = 0):
     """
-     Admin will be able to View Merchants
+     Admin will be able to View Business
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -242,6 +247,13 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
             except Exception as e:
                 return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
             
+            # Count Availabe Business rows
+            count_stmt          = select(func.count(BusinessProfile.id))
+            total_business_row_obj = await session.execute(count_stmt)
+            total_business_row     = total_business_row_obj.scalar()
+
+            total_business_row_count = total_business_row / limit
+
             #Get The users
             try:
                 user_obj      = await session.execute(select(Users))
@@ -268,12 +280,12 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
                 return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
             
             
-            user_dict     = {user.id: user for user in user_obj_data}
-            group_dict    = {grp.id: grp for grp in group_obj_data}
-            currency_dict = {cur.id: cur for cur in currency_obj_data}
+            user_dict     = {user.id: user for user in user_obj_data}  # Users data 
+            group_dict    = {grp.id: grp for grp in group_obj_data}    # Group Name
+            currency_dict = {cur.id: cur for cur in currency_obj_data}  # Currency Data
 
             combined_data = []
-        
+
             for merchant in merchant_obj_data:
                 user_id   = merchant.user
                 merchant_user = user_dict.get(user_id)
@@ -314,44 +326,49 @@ async def search_all_transaction(self, request: Request, limit: int = 25, offset
                     }
                 )
 
-            return json({'msg': 'Merchant data fetched successfully', 'data': combined_data}, 200)
+            return json({
+                    'msg': 'Merchant data fetched successfully', 
+                    'data': combined_data,
+                    'total_business_count': total_business_row_count
+                    }, 200)
 
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
     
 
 
-
+# Search Business Data
 @auth('userauth')
 @get('/api/v2/admin/search/merchant/')
 async def search_merchant(self, request: Request, query: str):
+    user_identity   = request.identity
+    AdminID         = user_identity.claims.get("user_id") if user_identity else None
+
+    searched_text = query
+
     try:
         async with AsyncSession(async_engine) as session:
-            user_identity   = request.identity
-            AdminID         = user_identity.claims.get("user_id") if user_identity else None
 
-            searched_text = query
+            # Admin Authentication
+            user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+            user_obj_data = user_obj.scalar()
 
-            # Check the user is admin or Not
-            try:
-                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
-                user_obj_data = user_obj.scalar()
-
-                if not user_obj_data.is_admin:
-                    return json({'msg': 'Only admin can view the Transactions'}, 400)
-                
-            except Exception as e:
-                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+            if not user_obj_data.is_admin:
+                return json({'msg': 'Only admin can view the Transactions'}, 400)
+            # Admin Authentication ends
             
+            # Convert to int if starts with integer
             if re.fullmatch(r'\d+', searched_text):
                 parsed_value = int(searched_text)
 
+            # Convert to dateime format if format is in date format
             elif re.fullmatch(r'\d{4}-\d{2}-\d{2}', searched_text):
                 parsed_value = datetime.strptime(searched_text, '%Y-%m-%d').date()
 
             else:
                 parsed_value = searched_text
 
+            # Get all user
             try:
                 all_user_obj      = await session.execute(select(Users))
                 all_user_obj_data = all_user_obj.scalars().all()
@@ -361,6 +378,7 @@ async def search_merchant(self, request: Request, query: str):
             except Exception as e:
                 return json({'msg': 'User not found'}, 400)
             
+            # Get all currency
             try:
                 currency_obj      = await session.execute(select(Currency))
                 currency_data     = currency_obj.scalars().all()
@@ -370,6 +388,7 @@ async def search_merchant(self, request: Request, query: str):
             except Exception as e:
                 return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
             
+            # Get all merchant groups
             try:
                 merchant_grp_obj  = await session.execute(select(MerchantGroup))
                 merchant_grp_data = merchant_grp_obj.scalars().all()
@@ -379,6 +398,7 @@ async def search_merchant(self, request: Request, query: str):
             except Exception as e:
                 return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
             
+            # Empty query
             if parsed_value == ' ':
                 try:
                     merchant_profile_obj = select(BusinessProfile).order_by((BusinessProfile.id).desc)
@@ -389,7 +409,8 @@ async def search_merchant(self, request: Request, query: str):
 
                 except Exception as e:
                     return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
-                
+            
+            # Date Query Conditions
             elif isinstance(parsed_value, date):
                 try:
                     merchant_profile_obj = select(BusinessProfile).where(
@@ -402,6 +423,7 @@ async def search_merchant(self, request: Request, query: str):
                 except Exception as e:
                     return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
             
+            # String Query conditions
             elif isinstance(parsed_value, str):
 
                 for user in all_user_obj_data:
@@ -440,7 +462,6 @@ async def search_merchant(self, request: Request, query: str):
                 else:
                     try:
                         merchant_profile_obj = select(BusinessProfile).where(
-                            (BusinessProfile.merchant_id.ilike(parsed_value))  |
                             (BusinessProfile.bsn_name.ilike(parsed_value))  |
                             (BusinessProfile.bsn_url.ilike(parsed_value))  |
                             (BusinessProfile.status.ilike(parsed_value))  
@@ -484,7 +505,6 @@ async def search_merchant(self, request: Request, query: str):
                             'id':           merchant.id,
                             'bsn_url':      merchant.bsn_url,
                             'user':         merchant.user,
-                            'merchant_id':  merchant.merchant_id,
                             'logo':         f"{url}{merchant.logo}",
                             'group':        merchant.group,
                             'created_time': merchant.created_time,
@@ -500,7 +520,73 @@ async def search_merchant(self, request: Request, query: str):
                 )
 
             return json({'msg': 'merchant data fetched successfully', 'data': combined_data}, 200)
-                
 
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+    
+
+
+
+# Export All Business by Admin
+@auth('userauth')
+@get('/api/v2/admin/export/business/')
+async def exportMerchantBusiness(request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            admin_id       = user_identity.claims.get('user_id') if user_identity else None
+            
+            combined_data = []
+
+            # Admin Authentication
+            admin_obj = await session.execute(select(Users).where(Users.id == admin_id))
+            admin_obj_data = admin_obj.scalar()
+
+            if not admin_obj_data.is_admin:
+                return json({'msg': 'Admin authorization failed'}, 401)
+            # Admin Authentication ends
+
+            # Execute join query
+            stmt = select(
+                BusinessProfile.id,
+                BusinessProfile.bsn_name.label('business_name'),
+                BusinessProfile.bsn_url.label('business_url'),
+                BusinessProfile.bsn_msg.label('message'),
+                BusinessProfile.created_date,
+                BusinessProfile.created_time,
+                BusinessProfile.status,
+
+                Currency.name.label('business_currency'),
+
+                Users.full_name.label('merchant_name'),
+                Users.email.label('merchant_email')
+
+            ).join(
+                Currency, Currency.id == BusinessProfile.currency
+            ).join(
+                Users, Users.id == BusinessProfile.user
+            )
+
+            merchant_business_obj = await session.execute(stmt)
+            merchant_business     = merchant_business_obj.fetchall()
+
+            for business in merchant_business:
+                combined_data.append({
+                    'business_id': business.id,
+                    'business_name': business.business_name,
+                    'business_url':  business.business_url,
+                    'message':  business.message,
+                    'created_date': business.created_date,
+                    'created_time': business.created_time,
+                    'status': business.status,
+                    'business_currency': business.business_currency,
+                    'merchant_name': business.merchant_name,
+                    'merchant_email': business.merchant_email
+                })
+
+            return json({'success': True, 'merchant_business_export': combined_data}, 200)
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+

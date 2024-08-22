@@ -1,5 +1,5 @@
 from database.db import AsyncSession, async_engine
-from Models.models2 import MerchantAccountBalance, CollectedFees
+from Models.models2 import MerchantAccountBalance, CollectedFees, MerchantPIPE
 from sqlmodel import select
 
 
@@ -9,7 +9,7 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
         async with AsyncSession(async_engine) as session:
             merchant_pipe_fee_amount = merchantPipeFee
 
-            charged_fee = transactionAmount * merchant_pipe_fee_amount
+            charged_fee              = (transactionAmount / 100) * merchant_pipe_fee_amount
             merchant_account_balance = transactionAmount - charged_fee
 
             # Save the Fees chanrged during the transaction

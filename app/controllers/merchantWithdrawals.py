@@ -7,7 +7,7 @@ from Models.models import MerchantBankAccount, Currency, Users
 from Models.models3 import MerchantWithdrawals
 from Models.models2 import MerchantAccountBalance
 from Models.PG.schema import CreateMerchantWithdrawlSchma
-from sqlmodel import select, and_, desc, alias
+from sqlmodel import select, and_, desc, func
 
 
 
@@ -98,10 +98,10 @@ class MerchantWithdrawalController(APIController):
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
  
-    # Get all the pending withdrawals
+    # Get all the withdrawals
     @auth('userauth')
     @get()
-    async def get_merchantWithdrawals(self, request: Request):
+    async def get_merchantWithdrawals(self, request: Request, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate User
@@ -119,6 +119,14 @@ class MerchantWithdrawalController(APIController):
                 if not merchantWithdrawal:
                     return json({'error': 'No withdrawal request found'}, 404)
                 
+                # Count total Rows
+                count_stmt            = select(func.count(MerchantWithdrawals.id)).where(MerchantWithdrawals.merchant_id == user_id)
+                total_withdrawals_obj = await session.execute(count_stmt)
+                total_withdrawal_rows = total_withdrawals_obj.scalar()
+
+                total_withdrawal_rows_count = total_withdrawal_rows / limit
+
+
                 for withdrawals in merchantWithdrawal:
                     # Get the bank account linked to the merchant
                     merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
@@ -160,7 +168,7 @@ class MerchantWithdrawalController(APIController):
                         'is_active': withdrawals.is_active
                     })
 
-                return json({'success': True, 'merchantWithdrawalRequests': combined_data}, 200)
+                return json({'success': True,'total_row_count': total_withdrawal_rows_count, 'merchantWithdrawalRequests': combined_data}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

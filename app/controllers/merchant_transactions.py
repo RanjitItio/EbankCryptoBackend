@@ -50,7 +50,6 @@ class MerchantProductionTransactions(APIController):
                 total_rows     = total_rows_obj.scalar()
 
                 total_rows_count = total_rows / limit
-
                 
                 return json({'msg': 'Success','total_rows': total_rows_count ,'merchant_prod_trasactions': merchant_transactions}, 200)
 
@@ -89,10 +88,10 @@ class MerchantAllProductionTransactions(APIController):
                 merchant_transactions_object = await session.execute(select(MerchantProdTransaction).where(
                     and_(MerchantProdTransaction.merchant_id == user_id,
                          MerchantProdTransaction.createdAt >= start_of_month,
-                         MerchantProdTransaction.createdAt <= end_of_month
+                         MerchantProdTransaction.createdAt <= end_of_month,
+                         MerchantProdTransaction.is_completd == True
                          )
-                )
-            )
+                    ))
                 merchant_transactions = merchant_transactions_object.scalars().all()
 
                 if not merchant_transactions:
@@ -262,6 +261,15 @@ class SearchMerchantProductionTransactions(APIController):
                 combined_data = []
                 query_date = None
                 query_time = None
+                query_status = None
+
+                if search_query == 'PAYMENT SUCCESS':
+                    query_status = 'PAYMENT_SUCCESS'
+                elif search_query == 'PAYMENT INITIATED':
+                    query_status = 'PAYMENT_INITIATED'
+                elif search_query == 'PAYMENT FAILED':
+                    query_status = 'PAYMENT_FAILED'
+
 
                 try:
                     query_date = datetime.strptime(search_query, "%d %B %Y").date()
@@ -320,10 +328,10 @@ class SearchMerchantProductionTransactions(APIController):
 
                 # Search transaction status wise
                 merchant_status_obj = await session.execute(select(MerchantProdTransaction).where(
-                    and_(MerchantProdTransaction.status == search_query,
+                    and_(MerchantProdTransaction.status == query_status,
                          MerchantProdTransaction.merchant_id == user_id
                          )
-                ))
+                    ))
                 merchant_status = merchant_status_obj.scalars().all()
 
                 # Search Transaction by Date
@@ -341,7 +349,7 @@ class SearchMerchantProductionTransactions(APIController):
                     ))
                 merchant_time = merchant_time_obj.scalars().all()
 
-
+                # Execute conditions
                 if merchant_order:
                     merchant_prod_transactions_obj = merchant_order
                 elif merchant_transactionID:
@@ -361,8 +369,8 @@ class SearchMerchantProductionTransactions(APIController):
                 else:
                     merchant_prod_transactions_obj = []
 
-                if not merchant_prod_transactions_obj:
-                    return json({'message': 'No transaction found'}, 404)
+                # if not merchant_prod_transactions_obj:
+                #     return json({'message': 'No transaction found'}, 404)
                 
 
                 for transaction in merchant_prod_transactions_obj:

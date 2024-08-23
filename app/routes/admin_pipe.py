@@ -759,6 +759,60 @@ async def admin_pipe_search(request: Request, query: str):
 
 
 
+#Get all pipe by Admin
+@auth('userauth')
+@get('/api/v5/admin/pipe/data/')
+async def Admin_pipe(request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            admin_identity = request.identity
+            admin_id       = admin_identity.claims.get('user_id') if admin_identity else None
+
+            combined_data = []
+
+            if admin_id is None:
+                return json({'msg': 'Unauthorized'}, 401)
+
+            #Authenticate the user as Admin
+            try:
+                is_admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == admin_id
+                ))
+                is_admin_user = is_admin_user_obj.scalar()
+
+                check_admin = is_admin_user.is_admin
+
+                if not check_admin:
+                    return json({'msg': 'Admin authorization failed'}, 403)
+
+            except Exception as e:
+                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
+            #Admin Authentication ends
+
+            #Get all the available pipe
+            try:
+                pipe_obj = await session.execute(select(PIPE))
+                all_pipe     = pipe_obj.scalars().all()
+
+            except Exception as e:
+                return json({'msg': 'Pipe fetch error', 'error': f'{str(e)}'}, 400)
+
+
+            for pipe in all_pipe:
+
+                combined_data.append({
+                    'id': pipe.id,
+                    'name': pipe.name,
+                })
+
+            return json({'msg': 'Pipe data fetched successfully', 'all_pipes_': combined_data}, 200)
+
+    except Exception as e:
+        return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+    
+
+
+
 # Export All pipe data
 @auth('userauth')
 @get('/api/v5/admin/export/pipe/')

@@ -6,8 +6,10 @@ from app.generateID import generate_new_button_id
 from Models.PG.schema import CreateNewPaymentButtonSchema
 from Models.models3 import MerchantPaymentButtonStyles, MerchantPaymentButton
 from Models.models import UserKeys
+from Models.models2 import MerchantProdTransaction
 from database.db import AsyncSession, async_engine
-from sqlmodel import select
+from sqlmodel import select, and_
+from URLs.urls import create_and_get_payment_button
 
 
 
@@ -89,8 +91,9 @@ class CreateMerchantPaymentButton(APIController):
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/merchant/payment/button/'
+        return f'{create_and_get_payment_button}'
     
+
     @auth('userauth')
     @post()
     async def create_paymentButton(self, request: Request, schema: CreateNewPaymentButtonSchema):
@@ -176,6 +179,8 @@ class CreateMerchantPaymentButton(APIController):
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id')
 
+                combined_data = []
+
                 # Get the buttons
                 payment_button_obj = await session.execute(select(MerchantPaymentButton).where(
                     MerchantPaymentButton.merchant_id == user_id
@@ -185,6 +190,24 @@ class CreateMerchantPaymentButton(APIController):
                 if not payment_button_:
                     return json({'error': 'Button Not found'}, 404)
                 
+
+                transaction_amount = 0
+
+                for button in payment_button_:
+                    # Get success transactions made through the button without refunded
+                    merchantButtonTransactionObj = await session.execute(select(MerchantProdTransaction).where(
+                        and_(MerchantProdTransaction.merchantOrderId == button.button_id,
+                             MerchantProdTransaction.merchant_id     == button.merchant_id,
+                             MerchantProdTransaction.is_refunded     == False
+                             )
+                        ))
+                    merchantButtonTransaction = merchantButtonTransactionObj.scalar()
+                    
+                    if merchantButtonTransaction:
+                        transaction_amount += merchantButtonTransaction.amount
+
+                print(transaction_amount)
+
                 return json({'success': True, 'merchant_payment_buttons': payment_button_}, 200)
             
         except Exception as e:

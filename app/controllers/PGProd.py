@@ -352,23 +352,23 @@ class MasterCardTransaction(APIController):
                 ))
                 card_pipe = card_pipe_obj.scalar()
 
-                if card_pipe:
+                # if card_pipe:
+                #     # Get the pipe assigned to the merchant
+                #     merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
+                #         and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
+                #             MerchantPIPE.is_active == True,
+                #             MerchantPIPE.pipe      == card_pipe.id
+                #             )
+                #     ))
+                #     merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+                # else:
                     # Get the pipe assigned to the merchant
-                    merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
-                        and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
-                            MerchantPIPE.is_active == True,
-                            MerchantPIPE.pipe      == card_pipe.id
-                            )
-                    ))
-                    merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
-                else:
-                    # Get the pipe assigned to the merchant
-                    merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
-                        and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
-                            MerchantPIPE.is_active == True,
-                            )
-                    ))
-                    merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+                merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
+                    and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
+                        MerchantPIPE.is_active == True,
+                        )
+                ))
+                merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
 
 
                 # If not acquirer assigned

@@ -23,6 +23,7 @@ class MerchantPaymentButton(SQLModel, table=True):
     emailLabel: str             = Field(default='')
     phoneNoLable: str           = Field(default='')
     cretedAt: datetime          = Field(default=datetime.now(), nullable=True)
+    is_active: bool             = Field(default=True, nullable=True)
 
     def assign_current_datetime(self):
         self.cretedAt = datetime.now()

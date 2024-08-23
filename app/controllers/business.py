@@ -93,6 +93,10 @@ class MerchantController(APIController):
                 business_msg  = request_body['bsn_msg']
                 logo          = await request.files()
                 
+                if business_msg:
+                    business_msg = business_msg
+                else:
+                    business_msg = 'Message'
 
                 #Check the user is merchant or not
                 try:

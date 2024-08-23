@@ -32,6 +32,8 @@ class MerchantProductionTransactions(APIController):
         try:
             async with AsyncSession(async_engine) as session:
 
+                combined_data = []
+
                 # fetch all the transactions
                 merchant_transactions_object = await session.execute(select(MerchantProdTransaction).where(
                     MerchantProdTransaction.merchant_id == user_id
@@ -50,8 +52,33 @@ class MerchantProductionTransactions(APIController):
                 total_rows     = total_rows_obj.scalar()
 
                 total_rows_count = total_rows / limit
-                
-                return json({'msg': 'Success','total_rows': total_rows_count ,'merchant_prod_trasactions': merchant_transactions}, 200)
+
+
+                for transaction in merchant_transactions:
+
+                    combined_data.append({
+                        "id": transaction.id,
+                        "merchant_id": transaction.merchant_id,
+                        "currency": transaction.currency,
+                        "merchantMobileNumber": transaction.merchantMobileNumber,
+                        "payment_mode": transaction.payment_mode,
+                        "status": transaction.status,
+                        "merchantPaymentType": transaction.merchantPaymentType,
+                        "amount":transaction.amount,
+                        "is_completd": transaction.is_completd,
+                        "createdAt": transaction.createdAt,
+                        "is_refunded": transaction.is_refunded,
+                        "merchantOrderId": transaction.merchantOrderId,
+                        "pipe_id": transaction.pipe_id,
+                        "merchantRedirectURl": transaction.merchantRedirectURl,
+                        "gateway_res": transaction.gateway_res,
+                        "transaction_fee": transaction.transaction_fee,
+                        "merchantRedirectMode": transaction.merchantRedirectMode,
+                        "transaction_id": transaction.transaction_id,
+                        "merchantCallBackURL": transaction.merchantCallBackURL
+                    })
+
+                return json({'msg': 'Success','total_rows': total_rows_count ,'merchant_prod_trasactions': combined_data}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)

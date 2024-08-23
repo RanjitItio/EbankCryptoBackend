@@ -190,25 +190,54 @@ class CreateMerchantPaymentButton(APIController):
                 if not payment_button_:
                     return json({'error': 'Button Not found'}, 404)
                 
-
                 transaction_amount = 0
 
                 for button in payment_button_:
+
                     # Get success transactions made through the button without refunded
                     merchantButtonTransactionObj = await session.execute(select(MerchantProdTransaction).where(
                         and_(MerchantProdTransaction.merchantOrderId == button.button_id,
                              MerchantProdTransaction.merchant_id     == button.merchant_id,
-                             MerchantProdTransaction.is_refunded     == False
+                             MerchantProdTransaction.is_refunded     == False,
+                             MerchantProdTransaction.status          == 'PAYMENT_SUCCESS'
                              )
                         ))
-                    merchantButtonTransaction = merchantButtonTransactionObj.scalar()
-                    
+                    merchantButtonTransaction = merchantButtonTransactionObj.scalars().all()
+
                     if merchantButtonTransaction:
-                        transaction_amount += merchantButtonTransaction.amount
+                        transaction_amount = sum(transaction.amount for transaction in merchantButtonTransaction)
+                    
+                    if button.isFixedAmount:
+                        selected_currency = button.fixedAmountCurrency
+                    elif button.isCustomerAmount:
+                        selected_currency = button.customerAmountCurrency
+                    else:
+                        selected_currency = 'NONE'
 
-                    print(transaction_amount)
 
-                return json({'success': True, 'merchant_payment_buttons': payment_button_}, 200)
+                    combined_data.append({
+                        'id': button.id,
+                        'merchant_id': button.merchant_id,
+                        'form_currency': selected_currency,
+                        'button_id':  button.button_id,
+                        'button_title': button.button_title,
+                        'businessName': button.businessName,
+                        'isFixedAmount': button.isFixedAmount,
+                        'fixedAmountLabel': button.fixedAmountLabel,
+                        'fixedAmount': button.fixedAmount,
+                        'fixedAmountCurrency': button.fixedAmountCurrency,
+                        'isCustomerAmount': button.isCustomerAmount,
+                        'customerAmountLabel': button.customerAmountLabel,
+                        'customerAmount': button.customerAmount,
+                        'customerAmountCurrency': button.customerAmountCurrency,
+                        'emailLabel': button.emailLabel,
+                        'phoneNoLable': button.phoneNoLable,
+                        'cretedAt': button.cretedAt,
+                        'total_sales': transaction_amount,
+                        'status': button.is_active,
+                    })
+
+                return json({'success': True, 'merchant_payment_buttons': combined_data}, 200)
             
         except Exception as e:
             return json({'error': 'Server error', 'message': f'{str(e)}'}, 500)

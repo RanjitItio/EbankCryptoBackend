@@ -1,0 +1,1 @@
+all_admin_users = '/api/v2/admin/users/'

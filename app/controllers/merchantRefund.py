@@ -9,7 +9,7 @@ from Models.models import Currency
 from Models.PG.schema import MerchantCreateRefundSchema
 from sqlmodel import select, and_, desc, func, cast, Date, Time, or_
 from blacksheep import get as GET
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
@@ -413,3 +413,35 @@ async def search_merchant_refunds(request: Request, query: str):
         return json({'error': 'Server Error', 'messsage': f'{str(e)}'}, 500)
 
 
+
+
+
+
+# Show all success refunds on Merchant dashboard chart
+@auth('userauth')
+@GET('/api/merchant/dash/refund/chart/')
+async def MerchantSuccessRefundChart(request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Authnticate users
+            user_identity = request.identity
+            user_id       = user_identity.claims.get('user_id')
+
+            now = datetime.now()
+            start_of_month = datetime(now.year, now.month, 1)
+            end_of_month = (start_of_month + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)
+
+            # Get all the refunds of the user
+            merchantSuccessRefundsObject = await session.execute(select(MerchantRefund).where(
+                and_(MerchantRefund.merchant_id == user_id,
+                     MerchantRefund.is_completed == True,
+                     MerchantRefund.createdAt >= start_of_month,
+                     MerchantRefund.createdAt <= end_of_month
+                     )
+                ))
+            merchantSuccessRefunds = merchantSuccessRefundsObject.scalars().all()
+
+            return json({'success': True, 'merchant_refunds': merchantSuccessRefunds}, 200)
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

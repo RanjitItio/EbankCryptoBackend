@@ -206,7 +206,7 @@ class CreateMerchantPaymentButton(APIController):
                     if merchantButtonTransaction:
                         transaction_amount += merchantButtonTransaction.amount
 
-                print(transaction_amount)
+                    print(transaction_amount)
 
                 return json({'success': True, 'merchant_payment_buttons': payment_button_}, 200)
             

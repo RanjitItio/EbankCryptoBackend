@@ -372,8 +372,8 @@ class MasterCardTransaction(APIController):
 
 
                 # If not acquirer assigned
-                if not merchant_assigned_pipe:
-                    return pretty_json({'error': 'pipe with payment medium card is not available'}, 400)
+                # if not merchant_assigned_pipe:
+                #     return pretty_json({'error': 'pipe with payment medium card is not available'}, 400)
                 
                 ## Master card Transaction started
                 # Create session

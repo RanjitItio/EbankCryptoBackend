@@ -88,7 +88,7 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
     
 
 
-# Get all the merchant sandbx transactions by Admin
+# Get all the merchant sandbox transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sandbox/transactions/')
 async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 15, offset : int = 0):

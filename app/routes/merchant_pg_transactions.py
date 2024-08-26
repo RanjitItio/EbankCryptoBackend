@@ -3,7 +3,7 @@ from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users
 from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
-from sqlmodel import and_, select, cast, Date, Time, func
+from sqlmodel import and_, select, cast, Date, Time, func, desc
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
@@ -684,7 +684,7 @@ async def search_merchant_pg_sandbox_transactions(request: Request, query: str):
 ## Every merchant transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/distinct/transactions/')
-async def merchant_pg_transaction(request: Request, query: int):
+async def merchant_pg_transaction(request: Request, query: int, limit: int = 15, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate admin
@@ -705,6 +705,14 @@ async def merchant_pg_transaction(request: Request, query: int):
 
             merchant_id    = query
             combined_data  = []
+
+            # Count merchant transactions
+            count_stmt = select(func.count(MerchantProdTransaction.id)).where(MerchantProdTransaction.merchant_id == merchant_id)
+            exec_count = await session.execute(count_stmt)
+            total_transactions_count = exec_count.scalar()
+
+            total_merchant_transaction_count = total_transactions_count / limit
+
 
             # Execute statement
             stmt = select(
@@ -731,7 +739,9 @@ async def merchant_pg_transaction(request: Request, query: int):
                 Users, Users.id == MerchantProdTransaction.merchant_id
             ).where(
                 MerchantProdTransaction.merchant_id == merchant_id
-            )
+            ).order_by(
+                desc(MerchantProdTransaction.id)
+            ).limit(limit).offset(offset)
 
 
             # Get all the transaction related to the merchant
@@ -763,7 +773,11 @@ async def merchant_pg_transaction(request: Request, query: int):
                     'transaction_fee': transaction.transaction_fee
                 })
 
-            return json({'success': True, 'distinct_merchant_transaction': combined_data}, 200)
+            return json({
+                'success': True, 
+                'distinct_merchant_transaction': combined_data,
+                'total_row_count': total_merchant_transaction_count
+                }, 200)
         
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

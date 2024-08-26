@@ -29,60 +29,46 @@ async def GetAdminRevenues(request: Request):
                 return json({'message': 'Unauthorized access'}, 401)
             # Authentication ends here
 
-            stmt = select(
-                MerchantProdTransaction.id,
-                MerchantProdTransaction.merchant_id,
-                MerchantProdTransaction.transaction_fee,
-                MerchantProdTransaction.is_refunded,
-                MerchantProdTransaction.is_completd,
-                MerchantProdTransaction.status,
-                MerchantProdTransaction.amount.label('transaction_amount'),
-                MerchantProdTransaction.payment_mode,
-                MerchantProdTransaction.transaction_id,
+            pipe_obj = await session.execute(select(PIPE))
+            pipes    = pipe_obj.scalars().all()
 
-                PIPE.id.label('geteway_id'),
-                PIPE.name.label('pipe_name')
-            ).join(
-                PIPE, PIPE.id == MerchantProdTransaction.pipe_id
-            ).where(
-                and_(MerchantProdTransaction.status == 'PAYMENT_SUCCESS',
-                     MerchantProdTransaction.is_refunded == False)
-                )
+            # Transactions related to every pipe\
+            pipe_revenue_data = []
 
-            # Get all the success production transactions
-            successTransactionsObj = await session.execute(stmt)
-            successTransactions    = successTransactionsObj.fetchall()
+            for p in pipes:
+                merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    MerchantProdTransaction.pipe_id == p.id
+                ))
+                merchant_transactions = merchant_transaction_obj.scalars().all()
 
-            pipe_wise_transactions = {}
+                currency_wise_transactions = {}
+                
+                for transaction in merchant_transactions:
+                    currency = transaction.currency 
+                    amount = transaction.amount if not transaction.is_refunded else -transaction.amount
 
-            for transaction in successTransactions:
-                pipe_name = transaction.pipe_name
+                    if currency not in currency_wise_transactions:
+                        currency_wise_transactions[currency] = 0
 
-                if pipe_name not in pipe_wise_transactions:
-                    pipe_wise_transactions[pipe_name] = {
-                        'total_revenue': 0,
-                        'gateway_id': [],
-                        'pipe_name': [],
-                    }
+                    currency_wise_transactions[currency] += amount
 
-                pipe_wise_transactions[pipe_name]['total_revenue'] += transaction.transaction_fee
-                pipe_wise_transactions[pipe_name]['gateway_id'] = transaction.geteway_id
-                pipe_wise_transactions[pipe_name]['pipe_name'] = transaction.pipe_name
+                # pipe_total_transaction_amount = sum(transaction.amount if not transaction.is_refunded else
+                #                             - transaction.amount for transaction in merchant_transactions)
 
-                # pipe_wise_transactions[pipe_name]['transactions'].append({
-                #     'id': transaction.id,
-                #     'merchant_id': transaction.merchant_id,
-                #     'transaction_fee': transaction.transaction_fee,
-                #     'is_refunded': transaction.is_refunded,
-                #     'is_completd': transaction.is_completd,   
-                #     'status': transaction.status,
-                #     'transaction_amount': transaction.transaction_amount,
-                #     'geteway_id': transaction.geteway_id,
-                # })
+                total_transaction_amounts = [
+                    {'currency': currency, 'total_amount': total_amount}
+                    for currency, total_amount in currency_wise_transactions.items()
+                ]
+
+                pipe_revenue_data.append({
+                    'pipe_id': p.id,
+                    'pipe_name': p.name,
+                    'total_transaction_amount': total_transaction_amounts
+                })
 
             return json({
                 'success': True,
-                'pipe_wise_transactions': pipe_wise_transactions
+                'pipe_wise_transaction': pipe_revenue_data
                 }, 200)
 
     except Exception as e:

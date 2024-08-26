@@ -370,7 +370,6 @@ class MasterCardTransaction(APIController):
                 ))
                 merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
 
-
                 # If not acquirer assigned
                 # if not merchant_assigned_pipe:
                 #     return pretty_json({'error': 'pipe with payment medium card is not available'}, 400)
@@ -391,8 +390,8 @@ class MasterCardTransaction(APIController):
                         # Store json response in transaction
                         merchant_prod_transaction.gateway_res     = update_session
                         merchant_prod_transaction.payment_mode    = 'Card'
-                        merchant_prod_transaction.pipe_id         = merchant_assigned_pipe.pipe
-                        merchant_prod_transaction.transaction_fee = merchant_assigned_pipe.fee
+                        merchant_prod_transaction.pipe_id         = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
+                        merchant_prod_transaction.transaction_fee = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
 
                         session.add(merchant_prod_transaction)
                         await session.commit()

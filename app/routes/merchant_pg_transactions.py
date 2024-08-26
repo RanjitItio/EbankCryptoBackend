@@ -677,3 +677,93 @@ async def search_merchant_pg_sandbox_transactions(request: Request, query: str):
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+
+
+
+## Every merchant transactions by Admin
+@auth('userauth')
+@get('/api/v2/admin/merchant/pg/distinct/transactions/')
+async def merchant_pg_transaction(request: Request, query: int):
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Authenticate admin
+            user_identity = request.identity
+            admin_id       = user_identity.claims.get('user_id') if user_identity else None
+
+            # Admin Authentication
+            admin_object = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            admin = admin_object.scalar()
+
+            is_admin_user = admin.is_admin
+
+            if not is_admin_user:
+                return json({'error': 'Unauthorized Access'}, 401)
+            # Admin authentication ends here
+
+            merchant_id    = query
+            combined_data  = []
+
+            # Execute statement
+            stmt = select(
+                MerchantProdTransaction.id,
+                MerchantProdTransaction.gateway_res,
+                MerchantProdTransaction.payment_mode,
+                MerchantProdTransaction.transaction_id,
+                MerchantProdTransaction.currency,
+                MerchantProdTransaction.status,
+                MerchantProdTransaction.amount,
+                MerchantProdTransaction.createdAt,
+                MerchantProdTransaction.merchantOrderId,
+                MerchantProdTransaction.merchantRedirectURl,
+                MerchantProdTransaction.merchantCallBackURL,
+                MerchantProdTransaction.merchantMobileNumber,
+                MerchantProdTransaction.merchantPaymentType,
+                MerchantProdTransaction.is_completd,
+                MerchantProdTransaction.transaction_fee,
+
+                Users.id.label('merchant_id'),
+                Users.full_name.label('merchant_name'),
+                Users.email.label('merchant_email')
+            ).join(
+                Users, Users.id == MerchantProdTransaction.merchant_id
+            ).where(
+                MerchantProdTransaction.merchant_id == merchant_id
+            )
+
+
+            # Get all the transaction related to the merchant
+            merchant_transactions_obj = await session.execute(stmt)
+            merchant_transactions_ = merchant_transactions_obj.all()
+
+            for transaction in merchant_transactions_:
+
+                combined_data.append({
+                    'id': transaction.id,
+                    'merchant': {
+                        'merchant_id': transaction.merchant_id,
+                        'merchant_name': transaction.merchant_name,
+                        'merchant_email': transaction.merchant_email
+                    },
+                    'gatewayRes': transaction.gateway_res,
+                    'payment_mode': transaction.payment_mode,
+                    'transaction_id': transaction.transaction_id,
+                    'currency': transaction.currency,
+                    'status':   transaction.status,
+                    'amount':   transaction.amount,
+                    'createdAt': transaction.createdAt,
+                    'merchantOrderId': transaction.merchantOrderId,
+                    'merchantRedirectURl': transaction.merchantRedirectURl,
+                    'merchantCallBackURL': transaction.merchantCallBackURL,
+                    'merchantMobileNumber': transaction.merchantMobileNumber,
+                    'merchantPaymentType':  transaction.merchantPaymentType,
+                    'is_completed':  transaction.is_completd,
+                    'transaction_fee': transaction.transaction_fee
+                })
+
+            return json({'success': True, 'distinct_merchant_transaction': combined_data}, 200)
+        
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

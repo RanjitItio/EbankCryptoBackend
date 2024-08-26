@@ -37,8 +37,11 @@ async def GetAdminRevenues(request: Request):
 
             for p in pipes:
                 merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                    MerchantProdTransaction.pipe_id == p.id
-                ))
+                    and_(MerchantProdTransaction.pipe_id == p.id,
+                         MerchantProdTransaction.status  == 'PAYMENT_SUCCESS',
+                         MerchantProdTransaction.is_completd == True
+                        )
+                    ))
                 merchant_transactions = merchant_transaction_obj.scalars().all()
 
                 currency_wise_transactions = {}

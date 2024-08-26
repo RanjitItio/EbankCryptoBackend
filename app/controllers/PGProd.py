@@ -387,11 +387,16 @@ class MasterCardTransaction(APIController):
 
                     if update_session.get('session')['updateStatus'] == 'SUCCESS':
 
+                        # Calculate transaction fee amount
+                        transaction_fee_amount = (merchant_prod_transaction.amount / 100) * merchant_assigned_pipe.fee
+
                         # Store json response in transaction
                         merchant_prod_transaction.gateway_res     = update_session
                         merchant_prod_transaction.payment_mode    = 'Card'
                         merchant_prod_transaction.pipe_id         = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
                         merchant_prod_transaction.transaction_fee = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
+                        merchant_prod_transaction.fee_amount      = transaction_fee_amount
+
 
                         session.add(merchant_prod_transaction)
                         await session.commit()

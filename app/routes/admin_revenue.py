@@ -45,7 +45,7 @@ async def GetAdminRevenues(request: Request):
                 
                 for transaction in merchant_transactions:
                     currency = transaction.currency 
-                    amount = transaction.amount if not transaction.is_refunded else -transaction.amount
+                    amount   = transaction.fee_amount if not transaction.is_refunded else -transaction.fee_amount
 
                     if currency not in currency_wise_transactions:
                         currency_wise_transactions[currency] = 0

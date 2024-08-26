@@ -153,7 +153,8 @@ class MerchantProdTransaction(SQLModel, table=True):
     id: int | None            = Field(primary_key=True, default=None)
     merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
     pipe_id: int | None       = Field(foreign_key='pipe.id', default=None, index=True)
-    transaction_fee: float    = Field(default=0.00, nullable=True)
+    transaction_fee: float    = Field(default=0.00, nullable=True) # In Percentage
+    fee_amount: float         = Field(default=0.00, nullable=True)
     gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
     payment_mode: str | None  = Field(default='', nullable=True)
     transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)
@@ -174,6 +175,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     def assignTransactionCreatedTime(self):
         current_time   = datetime.now()
         self.createdAt = current_time
+
 
 
 # Steps for Sandbox

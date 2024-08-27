@@ -1,19 +1,18 @@
 from blacksheep.server.controllers import APIController
-from Models.schemas import Kycschema
-from sqlmodel import select, desc
+from blacksheep.exceptions import BadRequest
+from blacksheep import Request, json
+from blacksheep.server.authorization import auth
+from blacksheep.server.authorization import auth
 from database.db import async_engine, AsyncSession
 from Models.models import Users,Kycdetails, Group
-from blacksheep import Request, json
-from sqlalchemy.exc import SQLAlchemyError
-from Models.schemas import UpdateKycSchema, AllKycByAdminSchema
-from blacksheep.server.authorization import auth
+from Models.schemas import UpdateKycSchema
 from app.controllers.controllers import get, post, put, delete
-from blacksheep.server.authorization import auth
-import uuid
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import select, desc, func
 from decouple import config
 from datetime import datetime
 from pathlib import Path
-from blacksheep.exceptions import BadRequest
+import uuid
 
 
 
@@ -39,7 +38,7 @@ class MerchantKYCController(APIController):
     def class_name(cls):
         return "Merchant KYC"
     
-
+    # Save user uploaded document
     async def save_user_document(self, request: Request):
         file_data = await request.files()
     
@@ -70,17 +69,12 @@ class MerchantKYCController(APIController):
     #Get all applied KYC
     @auth('userauth')
     @get()
-    async def get_Merchantkyc(self, request: Request, limit: int = 50, offset: int = 0):
+    async def get_Merchantkyc(self, request: Request, limit: int = 20, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
-
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id') if user_identity else None
-
-                limit  = limit
-                offset = offset
                 
-
                 # Admin Authnetication
                 try:
                     user_object      = select(Users).where(Users.id == user_id)
@@ -94,6 +88,7 @@ class MerchantKYCController(APIController):
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
                 #Authentication end here
 
+
                 # Get all the Merchant users
                 merchant_user_obj = await session.execute(select(Users).where(
                     Users.is_merchent == True
@@ -103,30 +98,17 @@ class MerchantKYCController(APIController):
 
                 if not merchant_user_:
                     return json({'message': 'No merchant user Found'}, 404)
-
-                # try:
-                #     kyc_details = await session.execute(select(Kycdetails).order_by(Kycdetails.id.desc()).limit(limit).offset(offset))
-                #     all_kyc     = kyc_details.scalars().all()
-                # except Exception as e:
-                #     return json({'msg': 'Unknown Error occure during kyc process','error': f'{str(e)}'}, 400)
-                
-                # try:
-                #     user_obj      = await session.execute(select(Users))
-                #     user_obj_data = user_obj.scalars().all()
-
-                #     if not user_obj_data:
-                #         return json({'msg': 'User not available'}, 404)
-                    
-                # except Exception as e:
-                #     return json({'msg': 'User not found'}, 400)
-                
-                # if not all_kyc:
-                #     return json({'msg': 'No Kyc available'}, 404)
                 
                 user_dict = {user.id: user for user in merchant_user_}
 
                 kyc_data = []
-                # combined_data = []
+
+                # Count all available rows
+                count_stmt = select(func.count(Kycdetails.id))
+                execute_statement = await session.execute(count_stmt)
+                total_available_kyc_row_obj = execute_statement.scalar()
+
+                total_kyc_row_count = total_available_kyc_row_obj / limit
 
                 for user in merchant_user_:
                     kyc_query  = select(Kycdetails).where(Kycdetails.user_id == user.id)
@@ -148,7 +130,7 @@ class MerchantKYCController(APIController):
                             group_data = group_result.scalar()
 
                             group_name = group_data.name if group_data else None
-                    
+
                             user_info = {
                                 'ip_address': user_data.ipaddress, 
                                 'lastlogin': user_data.lastlogin, 
@@ -164,15 +146,19 @@ class MerchantKYCController(APIController):
 
                             combined_data.append({
                                 'user_kyc_details': kyc_detail,
-                                'user': user_info
+                                'user': user_info,
                                 })
 
-                return json({'all_Kyc': combined_data}, 200)
+                return json({
+                    'all_Kyc': combined_data,
+                    'total_row_count': total_kyc_row_count
+                    }, 200)
             
         except Exception as e:
             return json({'msg': 'Server error','error': f'{str(e)}'}, 500)
+        
 
-
+    # Apply new kyc
     @post()
     async def create_kyc(self, request: Request):
         try:
@@ -180,6 +166,7 @@ class MerchantKYCController(APIController):
 
                 request_body        = await request.form()
 
+                # Get the data from payload
                 user_email          =  request_body['email']
                 user_mobile_no      =  request_body['phoneno']
                 user_firstname      =  request_body['firstname']
@@ -199,6 +186,7 @@ class MerchantKYCController(APIController):
                 user_id_number      =  request_body['id_number']
                 user_id_expiry_date =  request_body['id_expiry_date']
 
+                # Get the user ID
                 try:
                     user             = await session.get(Users,int(user_id))
                     is_kyc_submitted = await session.get(Kycdetails, int(user_id))
@@ -208,6 +196,7 @@ class MerchantKYCController(APIController):
                 if user is None:
                     return json({'msg': 'User not found'}, 404)
                 
+                # Upload the document
                 try:
                     files = await request.files()
                     
@@ -218,8 +207,9 @@ class MerchantKYCController(APIController):
                 except Exception as e:
                     return json({'msg': f'Image upload error {str(e)}'}, 400)
                 
+
                 if is_kyc_submitted is None:
-                    # user.kyc_data = kyc_data
+                    # Create new KYC data
                     try:
                         kyca =  Kycdetails(
                             firstname      = user_firstname,
@@ -256,6 +246,7 @@ class MerchantKYCController(APIController):
         except SQLAlchemyError as e:
             return json({"Error": str(e)}, 500)
         
+    # Update Kyc data by Admin
     @auth('userauth')
     @put()
     async def update_kyc(self, request: Request, update_kyc: UpdateKycSchema):

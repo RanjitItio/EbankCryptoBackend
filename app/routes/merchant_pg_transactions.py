@@ -207,8 +207,8 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 return json({'error': 'Transaction not found'}, 404)
             
             # If the transaction already updated
-            if merchant_transaction.is_completd:
-                return json({'message': 'Transaction already updated'}, 405)
+            # if merchant_transaction.is_completd:
+            #     return json({'message': 'Transaction already updated'}, 405)
             
             # calculate Fee Ammount
             transaction_fee_amount = ((schema.amount / 100) * schema.transaction_fee)

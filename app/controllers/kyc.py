@@ -88,21 +88,6 @@ class MerchantKYCController(APIController):
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
                 #Authentication end here
 
-
-                # Get all the Merchant users
-                merchant_user_obj = await session.execute(select(Users).where(
-                    Users.is_merchent == True
-                    ).order_by(desc(Users.id)).limit(limit).offset(offset)
-                )
-                merchant_user_ = merchant_user_obj.scalars().all()
-
-                if not merchant_user_:
-                    return json({'message': 'No merchant user Found'}, 404)
-                
-                user_dict = {user.id: user for user in merchant_user_}
-
-                kyc_data = []
-
                 # Count all available rows
                 count_stmt = select(func.count(Kycdetails.id))
                 execute_statement = await session.execute(count_stmt)
@@ -110,44 +95,78 @@ class MerchantKYCController(APIController):
 
                 total_kyc_row_count = total_available_kyc_row_obj / limit
 
-                for user in merchant_user_:
-                    kyc_query  = select(Kycdetails).where(Kycdetails.user_id == user.id)
-                    kyc_result = await session.execute(kyc_query)
-                    kyc_detail = kyc_result.scalar()
+                # Execute Query 
+                stmt = select(
+                    Kycdetails.id, Kycdetails.gander, Kycdetails.state,
+                    Kycdetails.status, Kycdetails.marital_status, Kycdetails.country,
+                    Kycdetails.email, Kycdetails.nationality, Kycdetails.user_id,
+                    Kycdetails.firstname, Kycdetails.phoneno, Kycdetails.id_type,
+                    Kycdetails.id_number, Kycdetails.id_expiry_date, Kycdetails.address,
+                    Kycdetails.lastname, Kycdetails.landmark, Kycdetails.lastname,
+                    Kycdetails.city, Kycdetails.uploaddocument, Kycdetails.dateofbirth,
+                    Kycdetails.zipcode,
 
-                    if kyc_detail:
-                        kyc_data.append(kyc_detail)
+                    Users.ipaddress.label('ip_address'), Users.lastlogin, Users.is_merchent,
+                    Users.is_admin, Users.is_active, Users.is_verified, Users.group,
+                ).join(
+                    Users, Users.id == Kycdetails.user_id
+                ).order_by(
+                    desc(Kycdetails.id)
+                ).limit(limit).offset(offset)
 
-                    combined_data = []
-                    # Append the data in combined_data
-                    for kyc_detail in kyc_data:
-                        user_id = kyc_detail.user_id
-                        user_data = user_dict.get(user_id)
+                merchant_kyc_obj = await session.execute(stmt)
+                merchant_kyc_    = merchant_kyc_obj.all()
 
-                        if user_data:
-                            group_query = select(Group).where(Group.id == user_data.group)
-                            group_result = await session.execute(group_query)
-                            group_data = group_result.scalar()
+                combined_data = []
+                
+                for kyc in merchant_kyc_:
+                    group_query = select(Group).where(Group.id == kyc.group)
+                    group_result = await session.execute(group_query)
+                    group_data = group_result.scalar()
 
-                            group_name = group_data.name if group_data else None
+                    group_name = group_data.name if group_data else None
 
-                            user_info = {
-                                'ip_address': user_data.ipaddress, 
-                                'lastlogin': user_data.lastlogin, 
-                                'merchant': user_data.is_merchent, 
-                                'admin': user_data.is_admin,
-                                'active': user_data.is_active,
-                                'verified': user_data.is_verified,
-                                'group': user_data.group,
-                                'group_name': group_name,
-                                'status': 'Active' if user_data.is_active else 'Inactive',
-                                'document': f'{self.media_url}/{kyc_detail.uploaddocument}'
-                                }
+                    user_info = {
+                        'ip_address': kyc.ip_address, 
+                        'lastlogin': kyc.lastlogin, 
+                        'merchant': kyc.is_merchent, 
+                        'admin': kyc.is_admin,
+                        'active': kyc.is_active,
+                        'verified': kyc.is_verified,
+                        'group': kyc.group,
+                        'group_name': group_name,
+                        'status': 'Active' if kyc.is_active else 'Inactive',
+                        'document': f'{self.media_url}/{kyc.uploaddocument}'
+                        }
+                    
+                    kyc_details = {
+                        "gander": kyc.gander,
+                        "state":  kyc.state,
+                        "status": kyc.status,
+                        "marital_status": kyc.marital_status,
+                        "country": kyc.country,
+                        "email": kyc.email,
+                        "nationality": kyc.nationality,
+                        "user_id": kyc.user_id,
+                        "firstname": kyc.firstname,
+                        "phoneno": kyc.phoneno,
+                        "id_type": kyc.id_type,
+                        "address": kyc.address,
+                        "id_number": kyc.id_number,
+                        "id_expiry_date": kyc.id_expiry_date,
+                        "id": kyc.id,
+                        "landmark": kyc.landmark,
+                        "lastname": kyc.lastname,
+                        "city": kyc.city,
+                        "uploaddocument": kyc.uploaddocument,
+                        "dateofbirth": kyc.dateofbirth,
+                        "zipcode": kyc.zipcode
+                    }
 
-                            combined_data.append({
-                                'user_kyc_details': kyc_detail,
-                                'user': user_info,
-                                })
+                    combined_data.append({
+                        'user_kyc_details': kyc_details,
+                        'user': user_info,
+                    })
 
                 return json({
                     'all_Kyc': combined_data,

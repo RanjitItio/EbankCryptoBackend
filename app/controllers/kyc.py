@@ -110,6 +110,8 @@ class MerchantKYCController(APIController):
                     Users.is_admin, Users.is_active, Users.is_verified, Users.group,
                 ).join(
                     Users, Users.id == Kycdetails.user_id
+                ).where(
+                    Users.is_merchent == True 
                 ).order_by(
                     desc(Kycdetails.id)
                 ).limit(limit).offset(offset)

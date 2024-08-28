@@ -202,6 +202,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             except Exception as e:
                 return json({'error': 'Merchant Transaction error', 'message': f'{str(e)}'}, 400)
             
+            
             # If no transaction found with given details
             if not merchant_transaction:
                 return json({'error': 'Transaction not found'}, 404)
@@ -209,9 +210,18 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             # If the transaction already updated
             # if merchant_transaction.is_completd:
             #     return json({'message': 'Transaction already updated'}, 405)
+
+            # If the transaction has been succeeded
+            if merchant_transaction.status == 'PAYMENT_SUCCESS':
+                return json({'message': 'Transaction already updated'}, 405)
+            
+            transactionFee = schema.transaction_fee if isinstance(schema.transaction_fee, int) else merchant_transaction.transaction_fee
+            
+            if not transactionFee:
+                return json({'message': 'Provide transaction Fee'}, 400)
             
             # calculate Fee Ammount
-            transaction_fee_amount = ((schema.amount / 100) * schema.transaction_fee)
+            transaction_fee_amount = ((schema.amount / 100) * transactionFee)
 
             # Update the transaction with details
             merchant_transaction.amount               = schema.amount
@@ -221,7 +231,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_transaction.merchantMobileNumber = schema.mobile_number
             merchant_transaction.merchantPaymentType  = schema.payment_type
             merchant_transaction.status               = schema.status
-            merchant_transaction.transaction_fee      = schema.transaction_fee
+            merchant_transaction.transaction_fee      = transactionFee
             merchant_transaction.fee_amount           = transaction_fee_amount
 
 

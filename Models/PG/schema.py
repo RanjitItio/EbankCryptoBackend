@@ -59,6 +59,8 @@ class CreateNewPaymentButtonSchema:
     buttonLabel: str
     businessName: str
 
+    redirectUrl: str
+    
     isFixedAmount: bool
     fixedAmountLabel: str
     fixedAmount: float

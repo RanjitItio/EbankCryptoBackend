@@ -12,6 +12,7 @@ class MerchantPaymentButton(SQLModel, table=True):
     button_id: str              = Field(unique=True, index=True)
     button_title: str           = Field(default='')
     businessName: str           = Field(default='Business Name')
+    redirectURL: str            = Field(default='', nullable=True)
     isFixedAmount: bool         = Field(default=False, nullable=True)
     fixedAmountLabel: str       = Field(default='', nullable=True)
     fixedAmount: float          = Field(default=0.00, nullable=True)

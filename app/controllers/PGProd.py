@@ -29,7 +29,7 @@ is_development = config('IS_DEVELOPMENT')
 # URL according to Environment
 if is_development == 'True':
     url         = 'http://localhost:5173'
-    redirectURL = 'https://d5ff-122-176-92-114.ngrok-free.app/api/mastercard/redirect/response/url'
+    redirectURL = 'https://dec7-122-176-92-114.ngrok-free.app/api/mastercard/redirect/response/url'
 
 else:
     url = 'https://react-payment.oyefin.com'
@@ -83,6 +83,7 @@ class PaymentGatewayProductionAPI(APIController):
                 mobile_number       = payload_dict.get('mobileNumber')
                 payment_type        = payload_dict['paymentInstrument']['type']
 
+
                 # If transaction amount is 0
                 if amount == 0 or amount == 0.00:
                     return pretty_json({'error': {
@@ -97,7 +98,7 @@ class PaymentGatewayProductionAPI(APIController):
                     return await ProcessPaymentFormTransaction(
                         header_value, merchant_public_key, amount, payload_dict,
                         payload, currency, payment_type, mobile_number, merchant_secret_key, 
-                        merchant_order_id
+                        merchant_order_id, redirect_url
                     )
 
                 # If Header value is not present

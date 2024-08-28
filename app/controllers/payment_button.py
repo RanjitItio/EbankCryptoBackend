@@ -9,7 +9,7 @@ from Models.models import UserKeys
 from Models.models2 import MerchantProdTransaction
 from database.db import AsyncSession, async_engine
 from sqlmodel import select, and_
-from URLs.urls import create_and_get_payment_button
+
 
 
 
@@ -91,7 +91,7 @@ class CreateMerchantPaymentButton(APIController):
     
     @classmethod
     def route(cls) -> str | None:
-        return f'{create_and_get_payment_button}'
+        return '/api/merchant/payment/button/'
     
 
     @auth('userauth')
@@ -108,6 +108,8 @@ class CreateMerchantPaymentButton(APIController):
                 buttonColor         = schema.buttonColor
                 buttonBgColor       = schema.buttonBGColor
                 businessName        = schema.businessName
+
+                redirectURL         = schema.redirectUrl
 
                 isFixedAmount       = schema.isFixedAmount
                 fixedAmountLabel    = schema.fixedAmountLabel
@@ -130,6 +132,8 @@ class CreateMerchantPaymentButton(APIController):
                     button_id           = uniqueButtonID,
                     button_title        = buttonTitle,
                     businessName        = businessName,
+
+                    redirectURL         = redirectURL,
 
                     isFixedAmount       = isFixedAmount,
                     fixedAmountLabel    = fixedAmountLabel,

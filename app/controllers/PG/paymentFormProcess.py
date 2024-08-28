@@ -23,7 +23,7 @@ else:
 # Process payment form transactions
 async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amount, payload_dict,
                         payload, currency, payment_type, mobile_number, merchant_secret_key, 
-                        merchant_order_id):
+                        merchant_order_id, redirect_url):
     try:
         async with AsyncSession(async_engine) as session:
             INDEX = '1'
@@ -117,7 +117,6 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
             unique_transaction_id = generate_unique_id()
 
             # Get the merchant button id
-            
 
             merchant_prod_transaction = MerchantProdTransaction(
                 merchant_id          = merchant_id,
@@ -125,7 +124,7 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                 currency             = currency,
                 amount               = exact_amount,
                 merchantOrderId      = merchant_order_id,
-                # merchantRedirectURl  = redirect_url,
+                merchantRedirectURl  = redirect_url,
                 merchantRedirectMode = "REDIRECT",
                 merchantMobileNumber = mobile_number,
                 merchantPaymentType  = payment_type,

@@ -34,6 +34,7 @@ class UserController(APIController):
         return "Users Data"
     
     
+    # Get all the available users
     @get()
     async def get_user(self, request: Request):
         try:
@@ -58,51 +59,70 @@ class UserController(APIController):
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
- 
+                # Check for existing mail
                 try:
                     existing_user = await session.execute(select(Users).where(Users.email == user.email))
                     first_user = existing_user.scalars().first()
                 except Exception as e:
                     return json({'error': f'user fetch error {str(e)}'}, 400)
                 
+                # Check for existing mobile Number
                 try:
                     existing_mobieno = await session.execute(select(Users).where(Users.phoneno == user.phoneno))
                     mobileno         = existing_mobieno.scalars().first()
                 except Exception as e:
                     return json({'msg': 'Mobile no fetche error', 'error': f'{str(e)}'}, 400)
                 
+                # IF email exists
+                if first_user:
+                    return json({'msg': f"{first_user.email} already exists"}, 400)
+                
+                # If mobile number exists
+                if mobileno:
+                    return json({'msg': f"{mobileno.phoneno} number already exists"}, 400)
+                
+                # If password did not Match
+                if user.password != user.password1:
+                    return json({"msg":"Password is not same Please try again"}, status=403) 
+                
+
                 try:
+                    # For merchant user
                     if user.is_merchent:
                         user_group     = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
                         user_group_obj = user_group.scalars().first()
 
                         if not user_group_obj:
-                            user_group_id = 1
+                            # Create a group
+                            new_group = Group(
+                                name = 'Merchant Regular'
+                            )
+
+                            session.add(new_group)
+                            await session.commit()
+                            await session.refresh(new_group)
                         else:
                             user_group_id = user_group_obj.id
+                    # For Regular User
                     else:
                         user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
                         user_group_obj = user_group.scalars().first()
 
                         if not user_group_obj:
-                            user_group_id = 1
+                            new_group = Group(
+                                name = 'Default User'
+                            )
+
+                            session.add(new_group)
+                            await session.commit()
+                            await session.refresh(new_group)
                         else:
                             user_group_id = user_group_obj.id
 
                 except Exception as e:
-                    return json({'msg': 'Group assign error', 'error': f'{str(e)}'}, 400)
-
-
-                if first_user:
-                    return json({'msg': f"{first_user.email} already exists"}, 400)
+                    return json({'msg': 'Group assign error', 'error': f'{str(e)}'}, 400)  
                 
-                if mobileno:
-                    return json({'msg': f"{mobileno.phoneno} number already exists"}, 400)
-                
-                if user.password != user.password1:
-                    return json({"msg":"Password is not same Please try again"}, status=403)   
-                
-
+                # Create user
                 try:
                     user_instance = Users(
                         first_name  = user.firstname,
@@ -146,7 +166,8 @@ class UserController(APIController):
                         currency_list = all_currency.scalars().all()
                     except Exception as e:
                         return json({'error': f'Currency error {str(e)}'}, 400)
-
+                    
+                    # Assign wallet
                     if currency_list:
                         for currency_obj in currency_list:
                             wallet = Wallet(
@@ -179,6 +200,7 @@ class UserController(APIController):
                                 </body>
                                 </html>
                                 """
+                        # Send mail
                         send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
 
                         return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)

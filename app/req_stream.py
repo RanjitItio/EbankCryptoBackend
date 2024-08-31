@@ -31,7 +31,7 @@ async def read_stream(request: Request, max_body_size: int = 1500000):
         yield chunk
 
 
-
+# Upload bank Account Docs
 async def save_merchant_bank_doc(file, request: Request, max_size: int = 1000000):
     file_data = file
 
@@ -61,6 +61,40 @@ async def save_merchant_bank_doc(file, request: Request, max_size: int = 1000000
         file_path.unlink()
         raise
     
+    return str(file_path.relative_to(Path("Static")))
+
+
+
+# Upload merchant profile Picture by Merchant
+async def upload_merchant_profile_Image(file, max_size: int = 2000000):
+
+    file_data = file
+
+    for part in file_data:
+        file_bytes = part.data
+        original_file_name  = part.file_name.decode()
+        file_size = len(file_bytes)
+
+    if file_size > max_size:
+        return 'File size exceeds the maximum allowed size'
+    
+    file_extension = original_file_name.split('.')[-1]
+
+    file_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()}.{file_extension}"
+
+    if not file_name:
+        return BadRequest("File name is missing")
+    
+    file_path = Path("Static/MerchantProfilePic") / file_name
+
+    try:
+        with open(file_path, mode="wb") as user_files:
+            user_files.write(file_bytes)
+
+    except MaxBodyExceededError:
+        file_path.unlink()
+        raise
+
     return str(file_path.relative_to(Path("Static")))
 
 

@@ -100,3 +100,25 @@ class AdminMerchantBanksSchema:
 
 
 
+@dataclass
+class ChangePasswordSchema:
+    password1: str
+    password2: str
+
+
+@dataclass
+class UpdateMerchantProfileSchema:
+    email: str
+    phoneno: str
+    full_name: str
+    state: str
+    city: str
+    landmark: str
+    zipcode: str
+    country: str
+    address: str
+    nationality: str
+    dob: str
+    gender: str
+    marital_status: str
+

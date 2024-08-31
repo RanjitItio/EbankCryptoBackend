@@ -21,13 +21,13 @@ class Users(SQLModel, table=True):
     email: str                     = Field(index=True, unique=True)
     phoneno: str 
     password: str
-    default_wallets: Optional[int] = None
-    address1: str                  = Field(default='Address1')
-    address2: str                  = Field(default='Address2')
-    city: str                      = Field(default='City')
-    state: str                     = Field(default='State')
-    country: str                   = Field(default='Country')
-    picture: str                   = Field(default='Picture')
+    # default_wallets: Optional[int] = None
+    # address1: str                  = Field(default='Address1')
+    # address2: str                  = Field(default='Address2')
+    # city: str                      = Field(default='City')
+    # state: str                     = Field(default='State')
+    # country: str                   = Field(default='Country')
+    picture: str                   = Field(default='')
     is_merchent: bool              = Field(default=False)
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)

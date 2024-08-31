@@ -34,13 +34,13 @@ class MerchantController(APIController):
     def class_name(cls) -> str:
         return 'Merchant Controller'
     
-
+    # Save Business Logo
     async def save_business_logo(self, request: Request):
         file_data = await request.files()
     
         for part in file_data:
             file_bytes = part.data
-            original_file_name  = part.file_name.decode()
+            original_file_name = part.file_name.decode()
 
         file_extension = original_file_name.split('.')[-1]
 
@@ -49,7 +49,7 @@ class MerchantController(APIController):
         if not file_name:
             return BadRequest("File name is missing")
 
-        file_path = Path("Static/Merchant") / file_name
+        file_path = Path("Static/Merchant") / file_name                 
 
         try:
             with open(file_path, mode="wb") as user_files:

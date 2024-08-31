@@ -182,10 +182,10 @@ class MerchantBankAccountController(APIController):
 
                     if doc_path == 'File size exceeds the maximum allowed size':
                         return json({'msg': 'File size exceeds the maximum allowed size'}, 403)
-                    
+
                     elif doc_path == 'File name is missing':
                         return json({'msg': 'File name is missing'}, 403)
-                    
+
                     else:
                         path = doc_path
 

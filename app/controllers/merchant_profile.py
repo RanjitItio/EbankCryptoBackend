@@ -178,7 +178,7 @@ class MerchantProfileController(APIController):
 
 
 
-
+# Upload profile Picture by merchant
 class UploadProfilePicture(APIController):
 
     @classmethod

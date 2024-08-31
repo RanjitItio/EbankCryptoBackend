@@ -85,42 +85,45 @@ class UserController(APIController):
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"}, status=403) 
                 
+                # user_group_id = None
 
-                try:
-                    # For merchant user
-                    if user.is_merchent:
-                        user_group     = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
-                        user_group_obj = user_group.scalars().first()
+              
+                # For merchant user
+                if user.is_merchent:
+                    user_group     = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
+                    user_group_obj = user_group.scalars().first()
 
-                        if not user_group_obj:
-                            # Create a group
-                            new_group = Group(
-                                name = 'Merchant Regular'
-                            )
+                    if not user_group_obj:
+                        # Create a group
+                        new_group = Group(
+                            name = 'Merchant Regular'
+                        )
 
-                            session.add(new_group)
-                            await session.commit()
-                            await session.refresh(new_group)
-                        else:
-                            user_group_id = user_group_obj.id
-                    # For Regular User
+                        session.add(new_group)
+                        await session.commit()
+                        await session.refresh(new_group)
+
+                        user_group_id = new_group.id
                     else:
-                        user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
-                        user_group_obj = user_group.scalars().first()
+                        user_group_id = user_group_obj.id
+                # For Regular User
+                else:
+                    user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
+                    user_group_obj = user_group.scalars().first()
 
-                        if not user_group_obj:
-                            new_group = Group(
-                                name = 'Default User'
-                            )
+                    if not user_group_obj:
+                        new_group = Group(
+                            name = 'Default User'
+                        )
 
-                            session.add(new_group)
-                            await session.commit()
-                            await session.refresh(new_group)
-                        else:
-                            user_group_id = user_group_obj.id
+                        session.add(new_group)
+                        await session.commit()
+                        await session.refresh(new_group)
 
-                except Exception as e:
-                    return json({'msg': 'Group assign error', 'error': f'{str(e)}'}, 400)  
+                        user_group_id = new_group.id
+                    else:
+                        user_group_id = user_group_obj.id
+
                 
                 # Create user
                 try:
@@ -132,7 +135,6 @@ class UserController(APIController):
                         password    = encrypt_password(user.password),
                         group       = user_group_id,
                         is_merchent = user.is_merchent,
-                        # picture     = user_image_path if user_image_path else ''
                     )
 
                     session.add(user_instance)

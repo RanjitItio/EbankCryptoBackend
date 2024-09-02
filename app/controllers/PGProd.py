@@ -4,14 +4,16 @@ from blacksheep import pretty_json, Request, Response, redirect
 from database.db import AsyncSession, async_engine
 from Models.models import UserKeys
 from Models.models2 import MerchantPIPE, MerchantProdTransaction, PIPE, MerchantPIPE, MerchantAccountBalance
+from Models.models3 import MerchantAPILogs
 from Models.PG.schema import PGProdSchema, PGProdMasterCardSchema
-from app.controllers.PG.paymentFormProcess import ProcessPaymentFormTransaction
-from app.controllers.controllers import post, get
 from app.auth import decrypt_merchant_secret_key
 from app.generateID import (
             base64_decode, calculate_sha256_string, 
             generate_base64_encode, generate_unique_id
           )
+from app.controllers.PG.paymentFormProcess import ProcessPaymentFormTransaction
+from app.controllers.PG.APILogs import createNewAPILogs
+from app.controllers.controllers import post, get
 from app.controllers.PG.Mastercard.mastercard import (
     Create_Session, Update_Session, 
     Initiate_Authentication, send_webhook_response,
@@ -74,63 +76,15 @@ class PaymentGatewayProductionAPI(APIController):
 
                 # Get all the data from Payload
                 merchant_public_key = payload_dict.get('merchantPublicKey')
-                merchant_secret_key = payload_dict.get('merchantSecretKey')
-                merchant_order_id   = payload_dict.get('merchantOrderId')
+                merchant_secret_key = payload_dict.get('merchantSecretKey') 
+                merchant_order_id   = payload_dict.get('merchantOrderId')   
                 currency            = payload_dict.get('currency')
                 amount              = payload_dict.get('amount')
                 redirect_url        = payload_dict.get('redirectUrl')
                 callback_url        = payload_dict.get('callbackUrl')
                 mobile_number       = payload_dict.get('mobileNumber')
-                payment_type        = payload_dict['paymentInstrument']['type']
+                payment_type        = payload_dict.get('paymentInstrument') if payload_dict.get('paymentInstrument') else None
 
-
-                # If transaction amount is 0
-                if amount == 0 or amount == 0.00:
-                    return pretty_json({'error': {
-                        'success': False,
-                        'status': 'PAYMENT PROCESSING',
-                        "message": "Amount should be greater than 0"
-                    }}, 400)
-                
-                # If payment done through Form
-                if form_id:
-                    # process Transaction for Payment forms
-                    return await ProcessPaymentFormTransaction(
-                        header_value, merchant_public_key, amount, payload_dict,
-                        payload, currency, payment_type, mobile_number, merchant_secret_key, 
-                        merchant_order_id, redirect_url
-                    )
-
-                # If Header value is not present
-                if not header_value:
-                    return pretty_json({'error': {
-                        "success": False,
-                        "status": "PAYMENT_PROCESSING",
-                        "message": "Missing Header: X-AUTH",
-                    }}, 400)
-
-                # Validate required fields
-                required_fields = ['merchantPublicKey', 'merchantSecretKey', 'merchantOrderId', 'amount', 'redirectUrl', 'currency']
-                
-                # Missing fields validation
-                for field in required_fields:
-                    if not payload_dict.get(field):
-                        return pretty_json({'error': {
-                            "success": False,
-                            "status": "PAYMENT_PROCESSING",
-                            "message":  f'Missing Parameter: {field}',
-                        }}, 400)
-
-                # If Payment type is not present in payload
-                if not payment_type:
-                    return pretty_json({'error': {
-                            "success": False,
-                            "status": "PAYMENT_PROCESSING",
-                            "message":  "Missing Parameter: paymentInstrument.type",
-                        }}, 400)
-                
-                # Decrypt Merchant secret key
-                merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
 
                 # Get the Secrect key and public key data of the merchant
                 merchant_key_obj = await session.execute(select(UserKeys).where(
@@ -139,11 +93,168 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_key = merchant_key_obj.scalar()
 
                 if not merchant_key:
+
                     return pretty_json({'error': {
                         "success": False,
                         "status": "PAYMENT_PROCESSING",
                         "message":  "Invalid merchantPublicKey",
                     }}, 400)
+                
+
+                # If transaction amount is 0
+                if amount == 0 or amount == 0.00:
+                    # Create API Log for the Error
+                    api_log_obj = MerchantAPILogs(
+                        merchant_id      = merchant_key.user_id,
+                        error            = 'Wrong Amount entered, Should be greater than 0 and +ve Integer',
+                        end_point        = '/api/pg/prod/v1/pay/',
+                        request_header   = header_value,
+                        request_body     = payload,
+                        response_header  = '',
+                        response_body    = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "Amount should be greater than 0"
+                            }}
+                        )
+                    
+                    session.add(api_log_obj)
+                    await session.commit()
+                    await session.refresh(api_log_obj)
+                    
+                    return pretty_json({'error': {
+                        'success': False,
+                        'status': 'PAYMENT PROCESSING',
+                        "message": "Amount should be greater than 0"
+                    }}, 400)
+                
+                # Validate required fields
+                required_fields = ['merchantPublicKey', 'merchantSecretKey', 'merchantOrderId', 'amount', 'redirectUrl', 'currency']
+                
+                # Missing fields validation
+                for field in required_fields:
+
+                    if not payload_dict.get(field):
+
+                        # Create Log for the error
+                        response_header = ''
+                        response_body = {'error': {
+                                    'success': False,
+                                    'status': 'PAYMENT_PROCESSING',
+                                    "message": f'Missing Parameter {field}'
+                                }}
+                        
+                        await createNewAPILogs(
+                            merchant_key.user_id,
+                            f'Missing Parameter {field}',
+                            '/api/pg/prod/v1/pay/',
+                            header_value,
+                            payload,
+                            response_header,
+                            response_body
+                        )
+
+                        return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  f'Missing Parameter: {field}',
+                        }}, 400)
+                    
+
+                # If Payment type is not present in payload
+                if not payment_type:
+
+                    # Create Log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": f'Missing Parameter {field}'
+                            }}
+                    
+                    await createNewAPILogs(
+                        merchant_key.user_id,
+                        'Missing Parameter: paymentInstrument',
+                        '/api/pg/prod/v1/pay/',
+                        header_value,
+                        payload,
+                        response_header,
+                        response_body
+                    )
+
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  "Missing Parameter: paymentInstrument",
+                        }}, 400)
+                
+
+                # If paymentInstrument.type is not present
+                if not payment_type['type']:
+                    # Create Log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": 'Missing Parameter: paymentInstrument.type'
+                            }}
+                    
+                    await createNewAPILogs(
+                        merchant_key.user_id,
+                        'Incorrect paymentInstrument.type',
+                        '/api/pg/prod/v1/pay/',
+                        header_value,
+                        payload,
+                        response_header,
+                        response_body
+                    )
+
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  "Missing Parameter: paymentInstrument.type"
+                        }}, 400)
+                
+
+                # If payment Instrument type is not PAY_PAGE
+                if payment_type['type'] != 'PAY_PAGE':
+                    # Create Log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": 'Incorrect paymentInstrument.type'
+                            }}
+                    
+                    await createNewAPILogs(
+                        merchant_key.user_id,
+                        'Incorrect paymentInstrument.type',
+                        '/api/pg/prod/v1/pay/',
+                        header_value,
+                        payload,
+                        response_header,
+                        response_body
+                    )
+
+                    return pretty_json({'error': {
+                            "success": False,
+                            "status": "PAYMENT_PROCESSING",
+                            "message":  "Incorrect paymentInstrument type"
+                        }}, 400)
+                
+
+                # If payment done through Form
+                if form_id:
+                    # process Transaction for Payment forms
+                    return await ProcessPaymentFormTransaction(
+                        header_value, merchant_public_key, amount, payload_dict,
+                        payload, currency, payment_type, mobile_number, merchant_secret_key, 
+                        merchant_order_id, redirect_url
+                    )
+                
+                # Decrypt Merchant secret key
+                merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
+
                 
                 # Public Key & Merchant ID
                 merchant_public_key = merchant_key.public_key
@@ -151,33 +262,80 @@ class PaymentGatewayProductionAPI(APIController):
 
                 merchant_key_status = merchant_key.is_active
 
+                # IF merchant key is not active
                 if merchant_key_status == False:
+                    # Create Log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "Key is in Sandbox mode, Please activate the key"
+                            }}
+                    
+                    await createNewAPILogs(
+                        merchant_key.user_id,
+                        "Key is in Sandbox mode, Please activate the key",
+                        '/api/pg/prod/v1/pay/',
+                        header_value,
+                        payload,
+                        response_header,
+                        response_body
+                    )
+
+
                     return pretty_json({'error': {
                         "success": False,
                         "status": "PAYMENT_PROCESSING",
                         "message":  "Inactive key, Please contact administrations",
                     }}, 400)
                 
-                
+
                 # Verify header X-AUTH
                 sha256   = calculate_sha256_string(payload + '/api/pg/prod/v1/pay/' + merchant_key.secret_key)
                 checksum = sha256 + '****' + INDEX
 
                  # Validate header value
                 if checksum != header_value:
+                    # Create log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "Incorrect X-AUTH header"
+                            }}
+                    
+                    await createNewAPILogs(merchant_key.user_id, "Incorrect X-AUTH header", '/api/pg/prod/v1/pay/',
+                                            header_value, payload, response_header, response_body
+                                )
+
+
                     return pretty_json({'error': {
                         "success": False,
                         "status": "PAYMENT_PROCESSING",
                         "message":  "Incorrect X-AUTH header",
                     }}, 400)
                 
+
                 if currency != 'USD':
+                    # Create log for for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "Invalid Currency: Only USD Accepted"
+                            }}
+                    
+                    await createNewAPILogs(merchant_key.user_id, "Invalid Currency: Only USD Accepted", '/api/pg/prod/v1/pay/',
+                                            header_value, payload, response_header, response_body
+                                )
+                    
                     return pretty_json({'error': {
                         "success": False,
                         "status": "PAYMENT_PROCESSING",
                         "message":  "Invalid Currency: Only USD Accepted",
                     }}, 400)
                 
+
                 # Check Merchant pipe
                 merchant_pipe_assigned_obj = await session.execute(select(MerchantPIPE).where(
                     and_(MerchantPIPE.merchant == merchant_key.user_id, MerchantPIPE.is_active == True)
@@ -185,6 +343,18 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_pipe_assigned = merchant_pipe_assigned_obj.scalars().all()
 
                 if not merchant_pipe_assigned:
+                    # Create log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "No Active Acquirer assigned, Please contact administration"
+                            }}
+                    
+                    await createNewAPILogs(merchant_key.user_id, "No Active Acquirer available, Please contact administration", '/api/pg/prod/v1/pay/',
+                                            header_value, payload, response_header, response_body
+                                )
+                    
                     return pretty_json({'error': {
                         "success": False,
                         "status": "PAYMENT_PROCESSING",
@@ -199,6 +369,18 @@ class PaymentGatewayProductionAPI(APIController):
                 merchant_order_id_validation_ = merchant_order_id_validation_obj.scalar()
 
                 if merchant_order_id_validation_:
+                    # Create Log for the error
+                    response_header = ''
+                    response_body = {'error': {
+                                'success': False,
+                                'status': 'PAYMENT_PROCESSING',
+                                "message": "Duplicate merchantOrderId"
+                            }}
+                    
+                    await createNewAPILogs(merchant_key.user_id, "Duplicate merchantOrderId", '/api/pg/prod/v1/pay/',
+                                            header_value, payload, response_header, response_body
+                                )
+                    
                     return pretty_json({'error': {
                             "success": False,
                             "status": "PAYMENT_PROCESSING",
@@ -265,7 +447,7 @@ class PaymentGatewayProductionAPI(APIController):
                     }, 200)
 
         except Exception as e:
-            return pretty_json({'error': 'Unknown Error Occured'}, 500)
+            return pretty_json({'error': 'Unknown Error Occured', 'message': f'{str(e)}'}, 500)
         
 
 

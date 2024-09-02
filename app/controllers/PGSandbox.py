@@ -484,7 +484,7 @@ class MerchantSandboxTransactionStatus(APIController):
                 if not merchant_transaction:
                     return pretty_json({'error': {
                         'success': False,
-                        'message': 'Transactio not found'
+                        'message': 'Transaction not found'
                     }}, 404)
                 
                 payment_status    = merchant_transaction.status

@@ -1,6 +1,7 @@
 from blacksheep import pretty_json
 from app.auth import decrypt_merchant_secret_key
 from app.generateID import calculate_sha256_string, generate_base64_encode, generate_unique_id
+from app.controllers.PG.APILogs import createNewAPILogs
 from Models.models import UserKeys
 from Models.models2 import MerchantPIPE, MerchantProdTransaction
 from database.db import AsyncSession, async_engine
@@ -31,27 +32,6 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
             # Specify checkout url according to the environment
             checkout_url = url
 
-            if not header_value:
-                return pretty_json({'error': {
-                    'success': False,
-                    "status": "PAYMENT_PROCESSING",
-                    "message": "Missing Header: X-AUTH",
-                }})
-            
-            # required_fields = ['merchantPublicKey', 'merchantSecretKey', 'amount', 'redirectUrl', 'currency']
-            required_fields = ['merchantPublicKey', 'merchantSecretKey', 'amount', 'currency']
-
-            # for field in required_fields:
-            #     if not payload_dict.get(field):
-            #         return pretty_json({'error': {
-            #             "success": False,
-            #             "status": "PAYMENT_PROCESSING",
-            #             "message":  f'Missing Parameter: {field}',
-            #         }}, 400)
-            
-            # Decrypt Merchant secret key
-            merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
-
             # Get the Secrect key and public key data of the merchant
             merchant_key_obj = await session.execute(select(UserKeys).where(
                 UserKeys.public_key == merchant_public_key
@@ -65,13 +45,36 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                     "message":  "Invalid merchantPublicKey"
                 }}, 400)
             
+            
+            # Decrypt Merchant secret key
+            merchant_secret_key = await decrypt_merchant_secret_key(merchant_secret_key)
+            
              # Public Key & Merchant ID
             merchant_public_key = merchant_key.public_key
             merchant_id         = merchant_key.user_id
 
             merchant_key_status = merchant_key.is_active
 
+            # If key is not active
             if merchant_key_status == False:
+                # Create Log for the error
+                response_header = ''
+                response_body = {'error': {
+                            'success': False,
+                            'status': 'PAYMENT_PROCESSING',
+                            "message": "Key is in Sandbox mode, Please activate the key"
+                        }}
+                
+                await createNewAPILogs(
+                    merchant_key.user_id,
+                    "Key is in Sandbox mode, Please activate the key",
+                    '/api/pg/prod/v1/pay/',
+                    header_value,
+                    payload,
+                    response_header,
+                    response_body
+                )
+
                 return pretty_json({'error': {
                     "success": False,
                     "status": "PAYMENT_PROCESSING",
@@ -85,19 +88,49 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
 
             # Validate header value
             if checksum != header_value:
+                # Create log for the error
+                response_header = ''
+                response_body = {'error': {
+                            'success': False,
+                            'status': 'PAYMENT_PROCESSING',
+                            "message": "Incorrect X-AUTH header"
+                        }}
+                
+                await createNewAPILogs(merchant_key.user_id, "Incorrect X-AUTH header", '/api/pg/prod/v1/pay/',
+                                        header_value, payload, response_header, response_body
+                            )
+                
+
                 return pretty_json({'error': {
                     "success":  False,
                     "status":  "PAYMENT_PROCESSING",
                     "message": "Incorrect X-AUTH header",
                 }}, 400)
             
+
             # If currency is not equal to USD
             if currency != 'USD':
+
+                # Create log for for the error
+                response_header = ''
+                response_body = {'error': {
+                            'success': False,
+                            'status': 'PAYMENT_PROCESSING',
+                            "message": "Invalid Currency: Only USD Accepted"
+                        }}
+                
+                await createNewAPILogs(merchant_key.user_id, "Invalid Currency: Only USD Accepted", '/api/pg/prod/v1/pay/',
+                                        header_value, payload, response_header, response_body
+                            )
+                
+
                 return pretty_json({'error': {
                     "success": False,
                     "status": "PAYMENT_PROCESSING",
                     "message":  "Invalid Currency: Only USD Accepted",
                 }}, 400)
+            
+
             
             # Check Merchant pipe
             merchant_pipe_assigned_obj = await session.execute(select(MerchantPIPE).where(
@@ -105,19 +138,33 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
             ))
             merchant_pipe_assigned = merchant_pipe_assigned_obj.scalars().all()
 
+
             if not merchant_pipe_assigned:
+                # Create log for the error
+                response_header = ''
+                response_body = {'error': {
+                            'success': False,
+                            'status': 'PAYMENT_PROCESSING',
+                            "message": "No Active Acquirer assigned, Please contact administration"
+                        }}
+                
+                await createNewAPILogs(merchant_key.user_id, "No Active Acquirer available, Please contact administration", '/api/pg/prod/v1/pay/',
+                                        header_value, payload, response_header, response_body
+                            )
+                
+
                 return pretty_json({'error': {
                     "success": False,
                     "status": "PAYMENT_PROCESSING",
                     "message":  "No Active Acquirer available, Please contact administration",
                 }}, 400)
             
+            
              # Save the Merchant Sandbox Transaction details
             exact_amount = amount/100
             unique_transaction_id = generate_unique_id()
 
             # Get the merchant button id
-
             merchant_prod_transaction = MerchantProdTransaction(
                 merchant_id          = merchant_id,
                 status               = 'PAYMENT_INITIATED',

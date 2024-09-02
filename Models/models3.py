@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column, JSON
 from datetime import datetime
 from sqlalchemy import event
 
@@ -62,14 +62,18 @@ class MerchantWithdrawals(SQLModel, table=True):
 
 # Merchant API Logs Table
 class MerchantAPILogs(SQLModel, table=True):
-    id: int | None       = Field(default=None, primary_key=True)
-    merchant_id: int     = Field(foreign_key='users.id')
-    end_point: str       = Field(default='')
-    error: str           = Field(default='')
-    request_header: str  = Field(default='')
-    request_body: str    = Field(default='')
-    response_header: str = Field(default='')
-    response_body: str   = Field(default='')
+    id: int | None             = Field(default=None, primary_key=True)
+    merchant_id: int           = Field(foreign_key='users.id')
+    createdAt: datetime        = Field(datetime.now())
+    end_point: str             = Field(default='')
+    error: str                 = Field(default='')
+    request_header: str        = Field(default='')
+    request_body: str          = Field(default='')
+    response_header: str       = Field(default='')
+    response_body: dict | None = Field(sa_column=Column(JSON), default={})
+
+    def AssigncreatedTime(self):
+        self.createdAt = datetime.now()
 
 
 
@@ -94,6 +98,9 @@ class MerchantRefund(SQLModel, table=True):
 
 
 
+
+
+
 # Auto assign current date and time when created
 @event.listens_for(MerchantPaymentButton, 'before_insert')
 def MerchantPaymentButton_time_listener(mapper, connection, target):
@@ -109,6 +116,13 @@ def AssignWithdrawalTime(mapper, connection, target):
 # Auto assign Current date time when created
 @event.listens_for(MerchantRefund, 'before_insert')
 def AssignRefundTime(mapper, connection, target):
+    target.AssigncreatedTime()
+
+
+
+# Auto assign Current date time when API Log created
+@event.listens_for(MerchantAPILogs, 'before_insert')
+def AssignAPILogTime(mapper, connection, target):
     target.AssigncreatedTime()
 
 

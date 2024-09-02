@@ -496,7 +496,7 @@ class MerchantSandboxTransactionStatus(APIController):
                 time              = merchant_transaction.createdAt
 
 
-                if payment_status == 'PAYMENT_INITIATE':
+                if payment_status == 'PAYMENT_INITIATED':
                     message = 'Payment Initiated remained to complete the transaction'
                     status   = 'STARTED'
                     responseCode = 'INITIATED'
@@ -516,6 +516,11 @@ class MerchantSandboxTransactionStatus(APIController):
                     success      = False
 
                 elif payment_status == 'PAYMENT_FAILED':
+                    message      = 'Payment Failed'
+                    responseCode = 'FAILED'
+                    status        = 'FAILED'
+                    success      = False
+                else:
                     message      = 'Payment Failed'
                     responseCode = 'FAILED'
                     status        = 'FAILED'

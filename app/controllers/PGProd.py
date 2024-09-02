@@ -951,7 +951,7 @@ class MastercardTransactionStatus(APIController):
     @classmethod
     def route(cls) -> str | None:
         return '/api/v1/prod/mastercard/validate/{id}/'
-    
+
     @get()
     async def mastercard_transaction_status(request: Request, id: str):
         try:
@@ -1041,8 +1041,8 @@ class MerchantTransactionStatus(APIController):
                 if not merchant_transaction:
                     return pretty_json({"error": {
                             "success": False,
-                            "message": "Invalid merchantOrderID"
-                        }}, 400)
+                            "message": "Transaction not found"
+                        }}, 404)
                 
                 payment_status    = merchant_transaction.status
                 merchant_order_id = merchant_transaction.merchantOrderId
@@ -1052,7 +1052,7 @@ class MerchantTransactionStatus(APIController):
                 payment_mode      = merchant_transaction.payment_mode
 
 
-                if payment_status == 'PAYMENT_INITIATE':
+                if payment_status == 'PAYMENT_INITIATED':
                     message = 'Payment Initiated remained to complete the transaction'
                     status   = 'STARTED'
                     responseCode = 'INITIATED'
@@ -1076,26 +1076,30 @@ class MerchantTransactionStatus(APIController):
                     responseCode = 'FAILED'
                     status        = 'FAILED'
                     success      = False
+                else:
+                    message      = 'PAYMENT_ERROR'
+                    responseCode = 'FAILED'
+                    status        = 'FAILED'
+                    success      = False
 
-                if merchant_transaction:
 
-                    return pretty_json({
-                                "success": success,
-                                "status": merchant_transaction.status,
-                                "message": message,
-                                "data": {
-                                    "merchantPublicKey": merchantPublicKey,
-                                    "merchantOrderId": merchant_order_id,
-                                    "transactionId": transaction_id,
-                                    "amount": amount,
-                                    'currency': currency,
-                                    "status": status,
-                                    "responseCode": responseCode,
-                                    "paymentInstrument": {
-                                        "type": payment_mode,
-                                    }
+                return pretty_json({
+                            "success": success,
+                            "status": merchant_transaction.status,
+                            "message": message,
+                            "data": {
+                                "merchantPublicKey": merchantPublicKey,
+                                "merchantOrderId": merchant_order_id,
+                                "transactionId": transaction_id,
+                                "amount": amount,
+                                'currency': currency,
+                                "status": status,
+                                "responseCode": responseCode,
+                                "paymentInstrument": {
+                                    "type": payment_mode,
                                 }
-                            }, 200)
+                            }
+                        }, 200)
                 
         except Exception as e:
             return pretty_json({'error': 'Server Error'}, 500)

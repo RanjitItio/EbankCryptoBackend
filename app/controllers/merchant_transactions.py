@@ -1,10 +1,10 @@
-from app.controllers.controllers import get
-from blacksheep import Request, json
-from database.db import AsyncSession, async_engine
 from blacksheep.server.controllers import APIController
-from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
-from sqlmodel import select, and_, desc, cast, Time, Date, func
+from blacksheep import Request, json
 from blacksheep.server.authorization import auth
+from database.db import AsyncSession, async_engine
+from app.controllers.controllers import get
+from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
+from sqlmodel import select, and_, desc, cast, Time, Date, func, extract
 from datetime import datetime, timedelta
 
 
@@ -292,6 +292,7 @@ class SearchMerchantProductionTransactions(APIController):
     def route(cls) -> str | None:
         return '/api/v2/merchant/search/prod/transactions/'
     
+
     @auth('userauth')
     @get()
     async def SearchMerchantProdTransactions(self, request: Request, query: str):
@@ -328,6 +329,20 @@ class SearchMerchantProductionTransactions(APIController):
                     query_as_float = float(query)  # If query is a number, try to convert
                 except ValueError:
                     query_as_float = None
+                
+                # For Month Search
+                try:
+                    query_month = datetime.strptime(search_query, "%B").month
+                except ValueError:
+                    query_month = None
+
+                if query_month:
+                    merchant_month_obj = await session.execute(select(MerchantProdTransaction).where(
+                        and_(extract('month', MerchantProdTransaction.createdAt) == query_month,
+                            MerchantProdTransaction.merchant_id == user_id)
+                    ))
+                    merchant_month = merchant_month_obj.scalars().all()
+
 
                 # Search transaction order wise
                 merchant_order_obj = await session.execute(select(MerchantProdTransaction).where(
@@ -409,6 +424,8 @@ class SearchMerchantProductionTransactions(APIController):
                     merchant_prod_transactions_obj = merchant_date
                 elif merchant_time:
                     merchant_prod_transactions_obj = merchant_time
+                elif merchant_month:
+                    merchant_prod_transactions_obj = merchant_month
                 else:
                     merchant_prod_transactions_obj = []
 

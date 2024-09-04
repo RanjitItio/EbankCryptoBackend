@@ -182,7 +182,10 @@ class UserController(APIController):
 
                         await session.commit()
                         await session.refresh(wallet)
-                        await session.refresh(merchant_secret_key)
+                        
+                        # To prevent greenlet error
+                        if user.is_merchent:
+                            await session.refresh(merchant_secret_key)
 
                         link=f"{signup_mail_sent_url}/signin/"
 

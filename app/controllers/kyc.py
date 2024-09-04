@@ -213,10 +213,12 @@ class MerchantKYCController(APIController):
                 ))
 
                 # Get the user kyc
-                is_kyc_submitted = await session.execute(select(Kycdetails).where(
+                is_kyc_submitted_obj = await session.execute(select(Kycdetails).where(
                     Kycdetails.user_id == int(user_id)
                 ))
+                is_kyc_submitted = is_kyc_submitted_obj.scalar()
                 
+
                 # If the users kyc is already exists
                 if is_kyc_submitted:
                     return json({'message': 'Kyc already applied'}, 403)

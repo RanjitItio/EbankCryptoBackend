@@ -154,7 +154,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
     pipe_id: int | None       = Field(foreign_key='pipe.id', default=None, index=True)
     transaction_fee: float    = Field(default=0.00, nullable=True) # In Percentage
-    fee_amount: float         = Field(default=0.00, nullable=True)
+    fee_amount: float         = Field(default=0.00, nullable=True) # Positive Integer
     gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
     payment_mode: str | None  = Field(default='', nullable=True)
     transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)

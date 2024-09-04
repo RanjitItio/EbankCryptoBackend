@@ -94,35 +94,51 @@ class MerchantAllProductionTransactions(APIController):
     
     @classmethod
     def route(cls) -> str:
-        return '/api/v2/merchant/all/prod/transactions/'
+        return '/api/v2/merchant/month/prod/transactions/'
     
 
     @auth('userauth')
     @get()
-    async def get_all_transactions(self, request: Request):
+    async def get_all_transactions(self, request: Request, month: str = False, currency: str = False):
         # Authenticate users
         user_identity = request.identity
         user_id       = user_identity.claims.get('user_id') if user_identity else None
 
-        now = datetime.now()
-        start_of_month = datetime(now.year, now.month, 1)
-        end_of_month = (start_of_month + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)
+        # Month wise data
+        if month:
+            req_month      = datetime.strptime(month, '%B').month
+            year           = datetime.now().year
+            start_of_month = datetime(year, req_month, 1)
+            end_of_month   = (start_of_month + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)
+        else:
+            now = datetime.now()
+            start_of_month = datetime(now.year, now.month, 1)
+            end_of_month   = (start_of_month + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)
 
         try:
             async with AsyncSession(async_engine) as session:
 
-                # Fetch transactions
-                merchant_transactions_object = await session.execute(select(MerchantProdTransaction).where(
-                    and_(MerchantProdTransaction.merchant_id == user_id,
-                         MerchantProdTransaction.createdAt >= start_of_month,
-                         MerchantProdTransaction.createdAt <= end_of_month,
-                         MerchantProdTransaction.is_completd == True
-                         )
-                    ))
-                merchant_transactions = merchant_transactions_object.scalars().all()
-
-                if not merchant_transactions:
-                    return json({'error': 'No transaction available'}, 404)
+                # Currency wise data
+                if currency:
+                    # Fetch transactions Currency wise
+                    merchant_transactions_object = await session.execute(select(MerchantProdTransaction).where(
+                        and_(MerchantProdTransaction.merchant_id == user_id,
+                            MerchantProdTransaction.createdAt >= start_of_month,
+                            MerchantProdTransaction.createdAt <= end_of_month,
+                            MerchantProdTransaction.is_completd == True,
+                            MerchantProdTransaction.currency    == currency
+                            )))
+                    merchant_transactions = merchant_transactions_object.scalars().all()
+                else:
+                    # Fetch transactions
+                    merchant_transactions_object = await session.execute(select(MerchantProdTransaction).where(
+                        and_(MerchantProdTransaction.merchant_id == user_id,
+                            MerchantProdTransaction.createdAt >= start_of_month,
+                            MerchantProdTransaction.createdAt <= end_of_month,
+                            MerchantProdTransaction.is_completd == True
+                            )
+                        ))
+                    merchant_transactions = merchant_transactions_object.scalars().all()
                 
                 return json({'msg': 'Success', 'merchant_all_prod_trasactions': merchant_transactions}, 200)
 

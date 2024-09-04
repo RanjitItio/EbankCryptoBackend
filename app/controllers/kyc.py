@@ -208,11 +208,18 @@ class MerchantKYCController(APIController):
                 user_id_expiry_date =  request_body['id_expiry_date']
 
                 # Get the user ID
-                try:
-                    user             = await session.get(Users,int(user_id))
-                    is_kyc_submitted = await session.get(Kycdetails, int(user_id))
-                except Exception as e:
-                    return json({'msg': 'unable to get user'}, 400)
+                user = await session.execute(select(Users).where(
+                    Users.id == int(user_id)
+                ))
+
+                # Get the user kyc
+                is_kyc_submitted = await session.execute(select(Kycdetails).where(
+                    Kycdetails.user_id == int(user_id)
+                ))
+                
+                # If the users kyc is already exists
+                if is_kyc_submitted:
+                    return json({'message': 'Kyc already applied'}, 403)
                 
                 if user is None:
                     return json({'msg': 'User not found'}, 404)
@@ -266,6 +273,8 @@ class MerchantKYCController(APIController):
                 
         except SQLAlchemyError as e:
             return json({"Error": str(e)}, 500)
+        
+
         
     # Update Kyc data by Admin
     @auth('userauth')

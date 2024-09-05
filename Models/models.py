@@ -9,7 +9,7 @@ from sqlalchemy import event
 
 class Group(SQLModel, table=True):
     id: int | None     = Field(primary_key=True, default=None)
-    name: str          = Field(default='None')
+    name: str          = Field(default='')
 
 
 #User Model

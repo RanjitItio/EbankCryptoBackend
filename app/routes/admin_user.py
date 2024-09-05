@@ -2,13 +2,13 @@ from blacksheep.server.controllers import APIController
 from Models.schemas import UserDeleteSchema, AdminUpdateUserSchema, AdminUserCreateSchema
 from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
-from app.docs import docs
 from app.auth import decode_token, encrypt_password, check_password
 from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
-from sqlmodel import select
 from blacksheep.server.authorization import auth
-from typing import List
+from sqlmodel import select, and_
 from datetime import datetime
+from app.docs import docs
+from typing import List
 
 
 
@@ -409,64 +409,64 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 
 
 #Search users
-@docs(responses={200: 'Search Users'})
+@docs(responses={200: 'Search Merchantss'})
 @auth('userauth')
 @get('/api/v1/admin/user/search/')
-async def get_searchedeusers(self, request: Request, query: str = ''):
+async def get_searchedeusers(request: Request, query: str = ''):
     """
-     Search users by (First name, Last name, Active, Inactive, email, phoneno, City, State, Address)
+     Search merchant users
     """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity    = request.identity
             adminID          = user_identity.claims.get("user_id") if user_identity else None
 
+            # Admin authentication
+            user_obj = await session.execute(select(Users).where(Users.id == adminID))
+            user_obj_data = user_obj.scalar()
+
+            if not user_obj_data.is_admin:
+                return json({'msg': 'Admin authorization failed'}, 400)
+            # Authentication Ends here
+
             data = query
-        
-            #Check the user is admin or Not
-            try:
-                user_obj = await session.execute(select(Users).where(Users.id == adminID))
-                user_obj_data = user_obj.scalar()
 
-                if not user_obj_data.is_admin:
-                    return json({'msg': 'Only admin can create users'}, 400)
+            # # If search contain group data
+            group_query = None
+            if query.lower ==  'merchant regular':
+                group_query_obj = await session.execute(select(Group).where(Group.name == query))
+                group_query = group_query_obj.scalar()
 
-            except Exception as e:
-                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+
+            if data.lower() == 'active':
+                searched_user_obj = await session.execute(select(Users).where(
+                    and_(Users.is_active == True,
+                     Users.is_merchent == True)
+                ))
             
-            #Authentication Ends here
-
-
-            if data == 'active' or data == 'Active':
-
-                try:
-                    searched_user_obj = await session.execute(select(Users).where(
-                        (Users.is_active   == True) | 
-                        (Users.is_verified == True) 
-                    ))
-                except Exception as e:
-                    return json({'msg': 'Active users search error', 'error': f'{str(e)}'}, 400)
+            elif data.lower() == 'inactive':
+                searched_user_obj = await session.execute(select(Users).where(
+                                and_(Users.is_active == False, 
+                                Users.is_verified    == False,
+                                Users.is_merchent    == True
+                                )))
             
-            elif data == 'inactive' or data == 'Inactive':
-
-                try:
-                    searched_user_obj = await session.execute(select(Users).where(
-                                    (Users.is_active   == False) | 
-                                    (Users.is_verified == False) 
-                                ))
-                except Exception as e:
-                    return json({'msg': 'Inactive user search error', 'error': f'{str(e)}'}, 400)
+            elif group_query:
+                searched_user_obj = await session.execute(select(Users).where(
+                    and_(Users.group == group_query.id,
+                         Users.is_merchent    == True
+                         )))
                 
             else:
                 try:
                     searched_user_obj = await session.execute(select(Users).where(
-                        (Users.first_name.ilike(data)) |
+                        and_((Users.first_name.ilike(data)) |
                         (Users.lastname.ilike(data))   |
+                        (Users.full_name.ilike(data))  |
                         (Users.email.ilike(data))      |
-                        (Users.phoneno.ilike(data))    |
-                        (Users.city.ilike(data))       |
-                        (Users.state.ilike(data))      |
-                        (Users.country.ilike(data)) 
+                        (Users.phoneno.ilike(data)),
+                        Users.is_merchent == True
+                        )
                     ))
 
                 except Exception as e:
@@ -480,6 +480,12 @@ async def get_searchedeusers(self, request: Request, query: str = ''):
                 kyc_detail     = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user.id))
                 kyc_detail_obj = kyc_detail.scalar()
 
+                merchant_group_obj = await session.execute(select(Group).where(
+                    Group.id == user.group
+                ))
+                merchant_group = merchant_group_obj.scalar()
+
+
                 users_data = {
                     "id": user.id,
                     'ip_address': user.ipaddress, 
@@ -488,10 +494,10 @@ async def get_searchedeusers(self, request: Request, query: str = ''):
                     'admin': user.is_admin,
                     'active': user.is_active,
                     'verified': user.is_verified,
-                    'group': user.group
+                    'group': user.group,
+                    'group_name': merchant_group.name
                 } 
             
-
                 combined_data.append({
                     'user_kyc_details': kyc_detail_obj,
                     'user': users_data

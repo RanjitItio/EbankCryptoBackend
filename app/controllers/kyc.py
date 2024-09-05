@@ -66,7 +66,7 @@ class MerchantKYCController(APIController):
         return str(file_path.relative_to(Path("Static")))
     
     
-    #Get all applied KYC
+    #Get all applied KYC by Admin
     @auth('userauth')
     @get()
     async def get_Merchantkyc(self, request: Request, limit: int = 20, offset: int = 0):

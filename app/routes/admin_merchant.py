@@ -216,7 +216,7 @@ async def search_all_transaction(self, request: Request, query: str = ''):
 ##############################
 @auth('userauth')
 @get('/api/admin/all/merchant/')
-async def search_all_transaction(self, request: Request, limit: int = 15, offset: int = 0):
+async def view_all_business(request: Request, limit: int = 15, offset: int = 0):
     """
      Admin will be able to View Business
     """

@@ -84,9 +84,6 @@ class UserController(APIController):
                 # If password did not Match
                 if user.password != user.password1:
                     return json({"msg":"Password is not same Please try again"}, status=403) 
-                
-                # user_group_id = None
-
               
                 # For merchant user
                 if user.is_merchent:
@@ -206,7 +203,7 @@ class UserController(APIController):
                                 </html>
                                 """
                         # Send mail
-                        send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
+                        # send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
 
                         return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
                 

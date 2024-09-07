@@ -132,9 +132,80 @@ async def get_merchantDashStats(request: Request):
                     'createdAt': transaction.createdAt,
                     'merchantOrderID': transaction.merchantOrderId,
                     'is_completed': transaction.is_completd,
+                    'transaction_fee': transaction.transaction_fee
                 })
 
             return json({'success': True, 'recent_transactions': combined_data}, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+
+
+# Merchant dashboard success transaction and withdrawal transaction chart
+@auth('userauth')
+@get('/api/v6/merchant/dash/transaction/withdrawal/chart/')
+async def merchant_dashboardTransactionWithdrawalChart(request: Request, currency: str = None):
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Authenticate user
+            user_identity = request.identity
+            user_id       = user_identity.claims.get('user_id')
+
+            if currency:
+                # Get the Currency ID
+                currency_obj = await session.execute(select(Currency).where(
+                    Currency.name == currency
+                ))
+                req_currency = currency_obj.scalar()
+
+                # Get all the merchant success transactions
+                merchant_success_transactions_obj = await session.execute(select(MerchantProdTransaction).where(
+                    and_(
+                        MerchantProdTransaction.merchant_id == user_id,
+                        MerchantProdTransaction.status      == 'PAYMENT_SUCCESS',
+                        MerchantProdTransaction.currency    == req_currency.name
+                    )
+                ))
+                merchant_success_transaction = merchant_success_transactions_obj.scalars().all()
+
+                # Get all the merchant withdrawals
+                merchant_success_withdrawals_obj = await session.execute(select(MerchantWithdrawals).where(
+                    and_(
+                        MerchantWithdrawals.merchant_id == user_id,
+                        MerchantWithdrawals.status == 'Approved',
+                        MerchantWithdrawals.currency == req_currency.id
+                    )
+                ))
+                merchant_success_withdrawals = merchant_success_withdrawals_obj.scalars().all()
+
+            else:
+                # Get all the merchant success transactions
+                merchant_success_transactions_obj = await session.execute(select(MerchantProdTransaction).where(
+                    and_(
+                        MerchantProdTransaction.merchant_id == user_id,
+                        MerchantProdTransaction.status      == 'PAYMENT_SUCCESS'
+                    )
+                ))
+                merchant_success_transaction = merchant_success_transactions_obj.scalars().all()
+
+                # Get all the merchant withdrawals
+                merchant_success_withdrawals_obj = await session.execute(select(MerchantWithdrawals).where(
+                    and_(
+                        MerchantWithdrawals.merchant_id == user_id,
+                        MerchantWithdrawals.status == 'Approved'
+                    )
+                ))
+                merchant_success_withdrawals = merchant_success_withdrawals_obj.scalars().all()
+
+            total_success_transaction_amount = sum(transaction.amount for transaction in merchant_success_transaction)
+            total_withdrawal_transaction_amount = sum(withdrawal.amount for withdrawal in merchant_success_withdrawals)
+
+            return json({
+                'success_transaction': total_success_transaction_amount,
+                'withdrawal_amount': total_withdrawal_transaction_amount
+            }, 200)
+
+    except Exception as e:
+        return json({'error': 'Server error', 'message': f'{str(e)}'}, 500)
+    

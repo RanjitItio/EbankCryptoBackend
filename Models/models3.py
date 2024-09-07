@@ -53,6 +53,7 @@ class MerchantWithdrawals(SQLModel, table=True):
     createdAt: datetime    = Field(default=datetime.now())
     status: str            = Field(default='Pending', nullable=True) # Pending, Approved, Rejected
     is_active:bool         = Field(default=False)
+    is_completed: bool     = Field(default=False, nullable=True)
     
 
     def AssigncreatedTime(self):

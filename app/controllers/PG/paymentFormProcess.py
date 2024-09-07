@@ -174,7 +174,7 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                 merchantRedirectURl  = redirect_url,
                 merchantRedirectMode = "REDIRECT",
                 merchantMobileNumber = mobile_number,
-                merchantPaymentType  = payment_type,
+                merchantPaymentType  = payment_type['type'],
                 transaction_id       = unique_transaction_id,
                 is_completd          = False,
                 gateway_res          = ''    
@@ -211,6 +211,6 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                         }
                     }
                 }, 200)
-            
+
     except Exception as e:
         return pretty_json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

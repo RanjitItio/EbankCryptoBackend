@@ -74,6 +74,7 @@ class PaymentGatewayProductionAPI(APIController):
                 decoded_payload = base64_decode(payload)
                 payload_dict    = json.loads(decoded_payload)
 
+    
                 # Get all the data from Payload
                 merchant_public_key = payload_dict.get('merchantPublicKey')
                 merchant_secret_key = payload_dict.get('merchantSecretKey') 
@@ -83,7 +84,7 @@ class PaymentGatewayProductionAPI(APIController):
                 redirect_url        = payload_dict.get('redirectUrl')
                 callback_url        = payload_dict.get('callbackUrl')
                 mobile_number       = payload_dict.get('mobileNumber')
-                payment_type        = payload_dict.get('paymentInstrument') if payload_dict.get('paymentInstrument') else None
+                payment_type        = payload_dict.get('paymentInstrument')
 
 
                 # Get the Secrect key and public key data of the merchant
@@ -408,7 +409,7 @@ class PaymentGatewayProductionAPI(APIController):
                     merchantRedirectMode = "REDIRECT",
                     merchantCallBackURL  = callback_url,
                     merchantMobileNumber = mobile_number,
-                    merchantPaymentType  = payment_type,
+                    merchantPaymentType  = payment_type['type'],
                     transaction_id       = unique_transaction_id,
                     is_completd          = False,
                     gateway_res          = ''    

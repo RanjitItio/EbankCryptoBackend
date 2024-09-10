@@ -116,7 +116,7 @@ async def get_merchantDashStats(request: Request):
             # Get last 15 transactions
             merchant_recent_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
                 MerchantProdTransaction.merchant_id == user_id
-            ).order_by(desc(MerchantProdTransaction.id)).limit(15))
+            ).order_by(desc(MerchantProdTransaction.id)).limit(5))
 
             merchant_recent_transaction = merchant_recent_transaction_obj.scalars().all()
 

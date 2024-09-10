@@ -1,6 +1,6 @@
 from blacksheep.server.controllers import APIController
 from blacksheep.exceptions import BadRequest
-from blacksheep import Request, json
+from blacksheep import Request, json, put as PUT
 from blacksheep.server.authorization import auth
 from blacksheep.server.authorization import auth
 from database.db import async_engine, AsyncSession
@@ -30,14 +30,17 @@ class MerchantKYCController(APIController):
     else:
         media_url = PRODUCTION_URL
 
+
     @classmethod
     def route(cls):
         return '/api/v1/user/kyc'
+
 
     @classmethod
     def class_name(cls):
         return "Merchant KYC"
     
+
     # Save user uploaded document
     async def save_user_document(self, request: Request):
         file_data = await request.files()
@@ -89,90 +92,92 @@ class MerchantKYCController(APIController):
                 #Authentication end here
 
                 # Count all available rows
-                count_stmt = select(func.count(Kycdetails.id))
+                count_stmt = select(func.count(Users.id)).where(Users.is_merchent == True)
                 execute_statement = await session.execute(count_stmt)
-                total_available_kyc_row_obj = execute_statement.scalar()
+                total_available_user_row_obj = execute_statement.scalar()
 
-                total_kyc_row_count = total_available_kyc_row_obj / limit
+                total_user_row_count = total_available_user_row_obj / limit
 
-                # Execute Query 
-                stmt = select(
-                    Kycdetails.id, Kycdetails.gander, Kycdetails.state,
-                    Kycdetails.status, Kycdetails.marital_status, Kycdetails.country,
-                    Kycdetails.email, Kycdetails.nationality, Kycdetails.user_id,
-                    Kycdetails.firstname, Kycdetails.phoneno, Kycdetails.id_type,
-                    Kycdetails.id_number, Kycdetails.id_expiry_date, Kycdetails.address,
-                    Kycdetails.lastname, Kycdetails.landmark, Kycdetails.lastname,
-                    Kycdetails.city, Kycdetails.uploaddocument, Kycdetails.dateofbirth,
-                    Kycdetails.zipcode,
+                user_data = []
+                kyc_data  = []
 
-                    Users.ipaddress.label('ip_address'), Users.lastlogin, Users.is_merchent,
-                    Users.is_admin, Users.is_active, Users.is_verified, Users.group,
-                ).join(
-                    Users, Users.id == Kycdetails.user_id
-                ).where(
-                    Users.is_merchent == True 
+                # Users Data
+                all_merchant_user_obj = await session.execute(select(Users).where(
+                    Users.is_merchent == True
                 ).order_by(
-                    desc(Kycdetails.id)
-                ).limit(limit).offset(offset)
+                    desc(Users.id)).limit(limit).offset(offset)
+                )
+                all_merchant_user_ = all_merchant_user_obj.scalars().all()
 
-                merchant_kyc_obj = await session.execute(stmt)
-                merchant_kyc_    = merchant_kyc_obj.all()
+                if not all_merchant_user_:
+                    return json({
+                        'message': 'No user available'
+                    }, 404)
 
-                combined_data = []
-                
-                for kyc in merchant_kyc_:
-                    group_query = select(Group).where(Group.id == kyc.group)
+
+                # All users kyc
+                for merchant_user in all_merchant_user_:
+
+                    group_query = select(Group).where(Group.id == merchant_user.group)
                     group_result = await session.execute(group_query)
                     group_data = group_result.scalar()
 
                     group_name = group_data.name if group_data else None
 
-                    user_info = {
-                        'ip_address': kyc.ip_address, 
-                        'lastlogin': kyc.lastlogin, 
-                        'merchant': kyc.is_merchent, 
-                        'admin': kyc.is_admin,
-                        'active': kyc.is_active,
-                        'verified': kyc.is_verified,
-                        'group': kyc.group,
+                    user_data.append({
+                        "user_id": merchant_user.id,
+                        "firstname": merchant_user.first_name,
+                        "lastname": merchant_user.lastname,
+                        "email": merchant_user.email,
+                        "phoneno": merchant_user.phoneno,
+                        'ip_address': merchant_user.ipaddress, 
+                        'lastlogin': merchant_user.lastlogin, 
+                        'merchant': merchant_user.is_merchent, 
+                        'admin': merchant_user.is_admin,
+                        'active': merchant_user.is_active,
+                        'verified': merchant_user.is_verified,
+                        'group': merchant_user.group,
                         'group_name': group_name,
-                        'status': 'Active' if kyc.is_active else 'Inactive',
-                        'document': f'{self.media_url}/{kyc.uploaddocument}'
-                        }
-                    
-                    kyc_details = {
-                        "gander": kyc.gander,
-                        "state":  kyc.state,
-                        "status": kyc.status,
-                        "marital_status": kyc.marital_status,
-                        "country": kyc.country,
-                        "email": kyc.email,
-                        "nationality": kyc.nationality,
-                        "user_id": kyc.user_id,
-                        "firstname": kyc.firstname,
-                        "phoneno": kyc.phoneno,
-                        "id_type": kyc.id_type,
-                        "address": kyc.address,
-                        "id_number": kyc.id_number,
-                        "id_expiry_date": kyc.id_expiry_date,
-                        "id": kyc.id,
-                        "landmark": kyc.landmark,
-                        "lastname": kyc.lastname,
-                        "city": kyc.city,
-                        "uploaddocument": kyc.uploaddocument,
-                        "dateofbirth": kyc.dateofbirth,
-                        "zipcode": kyc.zipcode
-                    }
-
-                    combined_data.append({
-                        'user_kyc_details': kyc_details,
-                        'user': user_info,
+                        'status': 'Active' if merchant_user.is_active else 'Inactive',
+                        'document': f'{self.media_url}/{merchant_user.picture}'
                     })
 
+                    merchant_kyc_obj = await session.execute(select(Kycdetails).where(
+                        Kycdetails.user_id == merchant_user.id
+                    ))
+                    merchant_kyc_ = merchant_kyc_obj.scalars().all()
+
+                    if merchant_kyc_:
+                        for kyc in merchant_kyc_:
+                            
+                            kyc_data.append({
+                                "gander": kyc.gander,
+                                "state":  kyc.state,
+                                "status": kyc.status,
+                                "marital_status": kyc.marital_status,
+                                "country": kyc.country,
+                                "email": kyc.email,
+                                "nationality": kyc.nationality,
+                                "user_id": kyc.user_id,
+                                "firstname": kyc.firstname,
+                                "phoneno": kyc.phoneno,
+                                "id_type": kyc.id_type,
+                                "address": kyc.address,
+                                "id_number": kyc.id_number,
+                                "id_expiry_date": kyc.id_expiry_date,
+                                "id": kyc.id,
+                                "landmark": kyc.landmark,
+                                "lastname": kyc.lastname,
+                                "city": kyc.city,
+                                "uploaddocument": f'{self.media_url}/{kyc.uploaddocument}',
+                                "dateofbirth": kyc.dateofbirth,
+                                "zipcode": kyc.zipcode
+                            })
+
                 return json({
-                    'all_Kyc': combined_data,
-                    'total_row_count': total_kyc_row_count
+                    'all_Kyc': kyc_data if kyc_data else [],
+                    'all_users': user_data if user_data else [],
+                    'total_row_count': total_user_row_count
                     }, 200)
             
         except Exception as e:
@@ -208,9 +213,15 @@ class MerchantKYCController(APIController):
                 user_id_expiry_date =  request_body['id_expiry_date']
 
                 # Get the user ID
-                user = await session.execute(select(Users).where(
+                user_obj = await session.execute(select(Users).where(
                     Users.id == int(user_id)
                 ))
+                user_detail = user_obj.scalar()
+
+                # Invalid user id
+                if user_detail is None:
+                    return json({'message': 'User not found'}, 404)
+                
 
                 # Get the user kyc
                 is_kyc_submitted_obj = await session.execute(select(Kycdetails).where(
@@ -223,8 +234,6 @@ class MerchantKYCController(APIController):
                 if is_kyc_submitted:
                     return json({'message': 'Kyc already applied'}, 403)
                 
-                if user is None:
-                    return json({'msg': 'User not found'}, 404)
                 
                 # Upload the document
                 try:
@@ -260,11 +269,17 @@ class MerchantKYCController(APIController):
                             id_type        = user_id_type,
                             id_number      = user_id_number,
                             id_expiry_date = datetime.strptime(user_id_expiry_date, "%Y-%m-%d").date(),
-                            uploaddocument = user_image_path if user_image_path else '' 
+                            uploaddocument = user_image_path if user_image_path else '', 
                         )
+
+                        # User kyc submitted
+                        user_detail.is_kyc_submitted = True
                     
-                        session.add(kyca)              
+                        session.add(kyca) 
+                        session.add(user_detail)             
                         await session.commit() 
+                        await session.refresh(kyca)
+                        await session.refresh(user_detail)
 
                     except Exception as e:
                         return json({'error': f'{str(e)}'}, 500)
@@ -547,46 +562,3 @@ class UserKYCController(APIController):
 
   
     
-
-
-# from blacksheep import FromFiles
-# from pathlib import Path
-# from blacksheep.exceptions import BadRequest
-# from datetime import datetime
-
-
-# class UserKYCController(APIController):
-
-#     @classmethod
-#     def route(cls):
-#         return '/file-upload'
-
-#     @classmethod
-#     def class_name(cls):
-#         return "File Upload test"
-    
-#     # @auth('userauth')
-#     @post()
-#     async def post_fileupload(self, request: Request, files: FromFiles):
-#             try:
-#                 async with AsyncSession(async_engine) as session:
-#                     # image_part = await request.form()
-#                     # image = image_part['image']
-
-#                     # # if image_part is None:
-#                     # #     raise ValueError("No file with the name 'image' was uploaded.")
-
-#                     # # file_name = image_part
-
-#                     # print(image)
-#                     current_time = datetime.now()
-#                     formattedtime = current_time.strftime("%H:%M %p")
-#                     ip = request.original_client_ip
-                    
-#                     user_identity = request.identity
-#                     user_id = user_identity.claims.get("user_id") if user_identity else None
-
-#                     return json({'msg': formattedtime, 'ip': ip, 'user_id': user_id})
-                
-#             except Exception as e:
-#                 return json({'error': f'{str(e)}'},500)

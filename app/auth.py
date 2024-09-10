@@ -177,6 +177,24 @@ def send_welcome_email(recipient_email, subject, body):
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 
 
+async def send_email(recipient_email, subject, body):
+    smtp_server = EMAIL_HOST
+    smtp_port = int(EMAIL_PORT)  # For TLS
+   
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_USERNAME
+    msg['To'] = recipient_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'html'))
+
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        
+        server.starttls()  
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
+
+
 
 def encrypt_password_reset(user_id: int):
     serializer = URLSafeTimedSerializer(SECRET_KEY)

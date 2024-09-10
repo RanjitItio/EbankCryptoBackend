@@ -2,15 +2,32 @@ from blacksheep.server.controllers import APIController
 from Models.schemas import UserDeleteSchema, AdminUpdateUserSchema, AdminUserCreateSchema
 from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
-from app.auth import decode_token, encrypt_password, check_password
+from app.auth import encrypt_password, send_email
 from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
 from blacksheep.server.authorization import auth
 from sqlmodel import select, and_
 from datetime import datetime
 from app.docs import docs
 from typing import List
+from decouple import config
 
 
+
+SERVER_MODE = config('IS_DEVELOPMENT')
+DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
+PRODUCTION_URL  = config('PRODUCTION_URL_MEDIA')
+
+
+if SERVER_MODE == 'True':
+    media_url = DEVELOPMENT_URL
+else:
+    media_url = PRODUCTION_URL
+
+
+if SERVER_MODE == 'True':
+    url = 'http://localhost:5173'
+else:
+    url = 'https://react-payment.oyefin.com'
 
 
 
@@ -157,21 +174,31 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
 
 
 
-#Update user by Admin
+#Update user kyc by Admin
 @docs(responses={200: 'Update user profile and kyc status'})
 @auth('userauth')
 @put('/api/v1/admin/update/user/')
 async def update_user(self, request: Request, user_update_schema: FromJSON[AdminUpdateUserSchema]):
     """
-     Update the user profile and kyc, Only admin can access the url
-     The status filed should contain thress type of value(Active, Inactive, Suspended) and
-     the group field should contain (Default User, Merchant Regular)
+     Update the merchant user profile and kyc, Only admin can access the url
     """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user as Admin
             user_identity    = request.identity  
             adminID          = user_identity.claims.get("user_id") if user_identity else None
+
+            # Admin authentication
+            try:
+                user_obj      = await session.execute(select(Users).where(Users.id == adminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can create users'}, 400)
+
+            except Exception as e:
+                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+            #Autnentication ends here
 
             # Get the payload values
             value = user_update_schema.value
@@ -197,19 +224,6 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             else:
                 merchant = False
 
-
-            #Check the user is admin or Not
-            try:
-                user_obj      = await session.execute(select(Users).where(Users.id == adminID))
-                user_obj_data = user_obj.scalar()
-
-                if not user_obj_data.is_admin:
-                    return json({'msg': 'Only admin can create users'}, 400)
-
-            except Exception as e:
-                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
-            #Autnentication ends here
-            
 
             #Get the user by user ID
             try:
@@ -258,24 +272,19 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             try:
                 # if value.group == 'Default User':
                 if value.status == 'Active':
-                    #Update user
-                    try:
-                        user_data_obj.first_name   = value.first_name
-                        user_data_obj.lastname     = value.last_name
-                        user_data_obj.phoneno      = value.phoneno
-                        user_data_obj.email        = value.email
-                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
-                        user_data_obj.is_active    = True
-                        user_data_obj.is_verified  = True
-                        user_data_obj.is_suspended = False
-                        user_data_obj.group        = value.group
-                        user_data_obj.is_merchent  = merchant
+                    #Update user data
+                    user_data_obj.first_name   = value.first_name
+                    user_data_obj.lastname     = value.last_name
+                    user_data_obj.phoneno      = value.phoneno
+                    user_data_obj.email        = value.email
+                    user_data_obj.full_name    = value.first_name + ' ' + value.last_name
+                    user_data_obj.is_active    = True
+                    user_data_obj.is_verified  = True
+                    user_data_obj.is_suspended = False
+                    user_data_obj.group        = value.group
+                    user_data_obj.is_merchent  = merchant
 
-                        session.add(user_data_obj)
-                        await session.commit()
-
-                    except Exception as e:
-                        return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
+                    session.add(user_data_obj)
                     
                     #Update Kyc status
                     if kyc_detail:
@@ -299,8 +308,34 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                             session.add(kyc_detail)
                             await session.commit()
                             await session.refresh(kyc_detail)
+                            await session.refresh(user_data_obj)
+
                         except Exception as e:
                             return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+                        
+                        # Send mail to merchant
+
+                        link = f'{url}/signin/'
+
+                        body = f"""
+                              <html>
+                                <body>
+                                    <b>Dear {user_data_obj.first_name} {user_data_obj.lastname},</b>
+
+                                    <p>We are pleased to inform you that your KYC verification has been successfully completed. 
+                                    Your details have been authenticated, and your account is now active</p>
+                                    <p>You can now <a href="{link}">Login</a> to our system using your credentials. 
+                                    Please note that your login details are confidential, and we advise you to keep them secure.</p>
+
+                                    <p>If you have any questions or need assistance, feel free to reach out to us.</p>
+                                    <p>Thank you for choosing Itio Innovex Pvt. Ltd. We look forward to providing you with the best possible experience.</p>
+
+                                    <p><b>Best Regards,</b><br>
+                                    <b>Itio Innovex Pvt. Ltd.</b></p>
+                                </body>
+                                </html>
+                                """
+                        await send_email(user_data_obj.email, "KYC Verification Successful - Login Credentials Activated", body)
     
                 #If the status is inactive
                 elif value.status == 'Inactive':
@@ -474,20 +509,22 @@ async def get_searchedeusers(request: Request, query: str = ''):
 
             all_users: List[Users] = searched_user_obj.scalars().all()
 
-            combined_data = []
+            user_data = []
+            kyc_data  = []
 
             for user in all_users:
-                kyc_detail     = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user.id))
-                kyc_detail_obj = kyc_detail.scalar()
+                group_query = select(Group).where(Group.id == user.group)
+                group_result = await session.execute(group_query)
+                group_data = group_result.scalar()
 
-                merchant_group_obj = await session.execute(select(Group).where(
-                    Group.id == user.group
-                ))
-                merchant_group = merchant_group_obj.scalar()
+                group_name = group_data.name if group_data else None
 
-
-                users_data = {
-                    "id": user.id,
+                user_data.append({
+                    "user_id": user.id,
+                    "firstname": user.first_name,
+                    "lastname": user.lastname,
+                    "email": user.email,
+                    "phoneno": user.phoneno,
                     'ip_address': user.ipaddress, 
                     'lastlogin': user.lastlogin, 
                     'merchant': user.is_merchent, 
@@ -495,15 +532,47 @@ async def get_searchedeusers(request: Request, query: str = ''):
                     'active': user.is_active,
                     'verified': user.is_verified,
                     'group': user.group,
-                    'group_name': merchant_group.name
-                } 
-            
-                combined_data.append({
-                    'user_kyc_details': kyc_detail_obj,
-                    'user': users_data
+                    'group_name': group_name,
+                    'status': 'Active' if user.is_active else 'Inactive',
+                    'document': f'{media_url}/{user.picture}'
                 })
 
-            return json({'all_Kyc': combined_data}, 200)
+                merchant_kyc_obj = await session.execute(select(Kycdetails).where(
+                    Kycdetails.user_id == user.id
+                ))
+                merchant_kyc_ = merchant_kyc_obj.scalars().all()
+
+                if merchant_kyc_:
+                    for kyc in merchant_kyc_:
+                        
+                        kyc_data.append({
+                            "gander": kyc.gander,
+                            "state":  kyc.state,
+                            "status": kyc.status,
+                            "marital_status": kyc.marital_status,
+                            "country": kyc.country,
+                            "email": kyc.email,
+                            "nationality": kyc.nationality,
+                            "user_id": kyc.user_id,
+                            "firstname": kyc.firstname,
+                            "phoneno": kyc.phoneno,
+                            "id_type": kyc.id_type,
+                            "address": kyc.address,
+                            "id_number": kyc.id_number,
+                            "id_expiry_date": kyc.id_expiry_date,
+                            "id": kyc.id,
+                            "landmark": kyc.landmark,
+                            "lastname": kyc.lastname,
+                            "city": kyc.city,
+                            "uploaddocument": f'{media_url}/{kyc.uploaddocument}',
+                            "dateofbirth": kyc.dateofbirth,
+                            "zipcode": kyc.zipcode
+                        })
+
+            return json({
+                    'all_Kyc': kyc_data if kyc_data else [],
+                    'all_users': user_data if user_data else [],
+                    }, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

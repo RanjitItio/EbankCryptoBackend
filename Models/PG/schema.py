@@ -92,3 +92,14 @@ class MerchantCreateRefundSchema:
     comment: Optional[str] = field(default='')
 
 
+
+@dataclass
+class UppdateUserProfileSchema:
+    user_id: int
+    first_name: str
+    last_name: str
+    contact_number : str
+    email: str
+    group: int
+
+

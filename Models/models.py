@@ -21,22 +21,23 @@ class Users(SQLModel, table=True):
     email: str                     = Field(index=True, unique=True)
     phoneno: str 
     password: str
-    # default_wallets: Optional[int] = None
-    # address1: str                  = Field(default='Address1')
-    # address2: str                  = Field(default='Address2')
-    # city: str                      = Field(default='City')
-    # state: str                     = Field(default='State')
-    # country: str                   = Field(default='Country')
     picture: str                   = Field(default='')
     is_merchent: bool              = Field(default=False)
     is_verified: bool              = Field(default=False,nullable=True)
     is_active: bool                = Field(default=False ,nullable=True)
+    is_kyc_submitted: bool         = Field(default=False, nullable=True)
     is_admin: bool                 = Field(default=False, nullable=True)
     is_suspended: bool             = Field(default=False, nullable=True)
     lastlogin: datetime            = Field(nullable=True)
     ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
     login_count: int               = Field(default=0, nullable=True)
     group: int                     = Field(foreign_key='group.id', nullable=True)
+    # default_wallets: Optional[int] = None
+    # address1: str                  = Field(default='Address1')
+    # address2: str                  = Field(default='Address2')
+    # city: str                      = Field(default='City')
+    # state: str                     = Field(default='State')
+    # country: str                   = Field(default='Country')
     # dogecoin_address: str          = Field(default='Doge Coin Address')
     # bitcoin_address: str           = Field(default='Bitcoin Address')
     # litcoin_address: str           = Field(default='Litcoin Address')
@@ -201,7 +202,7 @@ class Kycdetails(SQLModel, table=True):
     id_number: str
     id_expiry_date: date = Field(default=date.today())
     uploaddocument: str
-    status: str = Field(default='Pending', nullable=True)
+    status: str = Field(default='Pending', nullable=True)  # Approved
    
 
 class RequestMoney(SQLModel, table=True):

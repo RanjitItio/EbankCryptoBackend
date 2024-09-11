@@ -468,10 +468,9 @@ async def get_searchedeusers(request: Request, query: str = ''):
 
             # # If search contain group data
             group_query = None
-            if query.lower ==  'merchant regular':
-                group_query_obj = await session.execute(select(Group).where(Group.name == query))
-                group_query = group_query_obj.scalar()
-
+            if query.lower() ==  'merchant regular':
+                group_query_obj = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
+                group_query     = group_query_obj.scalar()
 
             if data.lower() == 'active':
                 searched_user_obj = await session.execute(select(Users).where(
@@ -491,7 +490,7 @@ async def get_searchedeusers(request: Request, query: str = ''):
                     and_(Users.group == group_query.id,
                          Users.is_merchent    == True
                          )))
-                
+            
             else:
                 try:
                     searched_user_obj = await session.execute(select(Users).where(
@@ -511,6 +510,8 @@ async def get_searchedeusers(request: Request, query: str = ''):
 
             user_data = []
             kyc_data  = []
+
+            print(searched_user_obj)
 
             for user in all_users:
                 group_query = select(Group).where(Group.id == user.group)

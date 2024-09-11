@@ -35,14 +35,15 @@ class UserLoginController(APIController):
                 except Exception as e:
                     return json({'msg': f'{str(e)}'}, 400)
                 
-                # Check kyc is exist for the user
-                merchnat_kyc_obj = await session.execute(select(Kycdetails).where(
-                    Kycdetails.user_id == first_user.id
-                ))
-                merchnat_kyc_ = merchnat_kyc_obj.scalar()
                 
                 # Password validation
                 if first_user and check_password(user.password,first_user.password):
+
+                    # Check kyc is exist for the user
+                    merchnat_kyc_obj = await session.execute(select(Kycdetails).where(
+                        Kycdetails.user_id == first_user.id
+                    ))
+                    merchnat_kyc_ = merchnat_kyc_obj.scalar()
 
                     # If kyc not submitted
                     if not first_user.is_kyc_submitted and not first_user.is_admin and not merchnat_kyc_:

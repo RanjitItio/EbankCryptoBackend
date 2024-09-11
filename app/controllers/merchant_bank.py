@@ -52,14 +52,10 @@ class MerchantBankAccountController(APIController):
                 # await save_merchant_bank_doc(data, request)
 
                 #Get the user
-                try:
-                    merchant_obj = await session.execute(select(Users).where(
-                        Users.id == user_id
-                    ))
-                    merchant = merchant_obj.scalar()
-
-                except Exception as e:
-                    return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
+                merchant_obj = await session.execute(select(Users).where(
+                    Users.id == user_id
+                ))
+                merchant = merchant_obj.scalar()
 
                 if not merchant:
                     return json({'msg': 'Requested merchant not found'}, 404)
@@ -75,6 +71,7 @@ class MerchantBankAccountController(APIController):
                 except Exception as e:
                     return json({'msg': 'Currency Error'}, 400)
                 
+                # Document processing
                 if data:
                     doc_path = await save_merchant_bank_doc(data, request)
 
@@ -87,6 +84,18 @@ class MerchantBankAccountController(APIController):
                         path = doc_path
                 else:
                     path = ''
+
+                # Bank account number validation
+                account_number_validation_obj = await session.execute(select(MerchantBankAccount).where(
+                    and_(
+                        MerchantBankAccount.acc_no == acc_no,
+                        MerchantBankAccount.user   == merchant.id
+                    )
+                ))
+                account_number_validation = account_number_validation_obj.scalar()
+
+                if account_number_validation:
+                    return json({'message': 'Bank account already exists'}, 400)
                 
 
                 merchant_bank_account = MerchantBankAccount(

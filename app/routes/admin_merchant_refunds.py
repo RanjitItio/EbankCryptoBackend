@@ -269,7 +269,7 @@ async def ExportMerchantRefunds(request: Request):
 # Search Merchant Refund Transactions
 @auth('userauth')
 @get('/api/v6/admin/merchant/refund/search/')
-async def SearchMerchantRefunds(request: Request,query: str):
+async def SearchMerchantRefunds(request: Request, query: str):
     try:
         async with AsyncSession(async_engine) as session:
             # Admin Authentication
@@ -287,14 +287,14 @@ async def SearchMerchantRefunds(request: Request,query: str):
 
             query_date = None
             query_time = None
-            instant_refund_query = None
+            query_as_float = None
 
             try:
                 query_as_float = float(query)  # If query is a number, try to convert
             except ValueError:
-                query_as_float = None
+                pass
 
-            try:
+            try:    
                 query_date = datetime.strptime(query, "%Y-%m-%d").date()
             except ValueError:
                 pass
@@ -303,11 +303,6 @@ async def SearchMerchantRefunds(request: Request,query: str):
                 query_time = datetime.strptime(query, "%H:%M:%S.%f").time()
             except ValueError:
                 pass
-
-            if query == 'Yes':
-                instant_refund_query = True
-            elif query == 'No':
-                instant_refund_query = False
 
 
             # Search user full name
@@ -332,12 +327,9 @@ async def SearchMerchantRefunds(request: Request,query: str):
             refund_amount_obj = await session.execute(
                 select(MerchantRefund).where(
                         MerchantRefund.amount == query_as_float
-                ) if query_as_float is not None else select(MerchantRefund).where(
-                        MerchantRefund.amount == 0.00
                 )
             )
             refund_amount = refund_amount_obj.scalars().all()
-
 
              # Search status wise
             refund_status_obj = await session.execute(
@@ -348,8 +340,6 @@ async def SearchMerchantRefunds(request: Request,query: str):
             stmt = select(
                 MerchantRefund.id,
                 MerchantRefund.merchant_id,
-                # MerchantRefund.instant_refund,
-                # MerchantRefund.instant_refund_amount,
                 MerchantRefund.is_completed,
                 MerchantRefund.amount,
                 MerchantRefund.comment,
@@ -387,9 +377,6 @@ async def SearchMerchantRefunds(request: Request,query: str):
             elif refund_amount:
                 conditions.append(MerchantRefund.amount.in_([wa.amount for wa in refund_amount]))
 
-            # elif instant_refund:
-            #     conditions.append(MerchantRefund.instant_refund.in_([wa.instant_refund for wa in instant_refund]))
-
             elif refund_status:
                 conditions.append(MerchantRefund.status.in_([ws.status for ws in refund_status]))
 
@@ -408,6 +395,7 @@ async def SearchMerchantRefunds(request: Request,query: str):
             merchant_refunds_data = []
 
             for refunds in merchant_refunds:
+                
                 merchant_refunds_data.append({
                     'id': refunds.id,
                     "currency": refunds.currency_name,
@@ -415,8 +403,6 @@ async def SearchMerchantRefunds(request: Request,query: str):
                     "merchant_id": refunds.merchant_id,
                     'merchant_name': refunds.merchant_name,
                     'merchant_email': refunds.merchant_email,
-                    # 'instant_refund': refunds.instant_refund,
-                    # 'instant_refund_amount': refunds.instant_refund_amount,
                     'is_completed': refunds.is_completed,
                     'transaction_id': refunds.transaction_id,
                     'amount': refunds.amount,

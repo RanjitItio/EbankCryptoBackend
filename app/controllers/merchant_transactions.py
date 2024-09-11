@@ -273,7 +273,23 @@ class ExportMerchantTransactions(APIController):
                 if not merchant_transactions:
                     return json({'error': 'No transaction available'}, 404)
                 
-                return json({'success': True, 'export_merchant_all_prod_trasactions': merchant_transactions}, 200)
+                combined_data = []
+                
+                for transaction in merchant_transactions:
+                    combined_data.append({
+                        'transaction_amount': transaction.amount,
+                        'transaction_currency': transaction.currency,
+                        'transaction_fee': transaction.fee_amount,
+                        'redirectUrl': transaction.merchantRedirectURl,
+                        'payment_mode': transaction.payment_mode,
+                        'transaction_id': transaction.transaction_id,
+                        'callbackUrl': transaction.merchantCallBackURL,
+                        'transaction_status': transaction.status,
+                        'time': transaction.createdAt,
+                        'merchant_order_id': transaction.merchantOrderId
+                    })
+                
+                return json({'success': True, 'export_merchant_all_prod_trasactions': combined_data}, 200)
             
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

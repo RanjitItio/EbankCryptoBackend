@@ -1,4 +1,4 @@
-from blacksheep import Request, json
+from blacksheep import Request, json, get as GET
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from app.controllers.controllers import get, post
@@ -243,3 +243,72 @@ class MerchantPendingWithdrawalController(APIController):
                 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+
+
+# Export all the merchant withdrawal transactions
+@auth('userauth')
+@GET('/api/v3/merchant/export/withdrawals/')
+async def ExportWithDrawals(request: Request):
+    user_identity = request.identity
+    user_id       = user_identity.claims.get('user_id')
+
+    try:
+        async with AsyncSession(async_engine) as session:
+
+            # Get all the Withdrawal request raise by the merchant
+            merchantWithdrawalRequests = await session.execute(select(MerchantWithdrawals).where(
+                MerchantWithdrawals.merchant_id == user_id
+            ).order_by(desc(MerchantWithdrawals.id)))
+            merchantWithdrawal = merchantWithdrawalRequests.scalars().all()
+
+            if not merchantWithdrawal:
+                return json({'error': 'No withdrawal request found'}, 404)
+            
+            combined_data = []
+
+
+            for withdrawals in merchantWithdrawal:
+                # Get the bank account linked to the merchant
+                merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
+                    MerchantBankAccount.id == withdrawals.bank_id
+                ))
+                merchant_bank_account = merchant_bank_account_obj.scalar()
+
+                # Get the withdrawal currency and Bank Currecy
+                merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
+                    Currency.id == withdrawals.currency
+                ))
+                merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
+
+                # Get the merchant Bank Currency
+                merchant_bank_currency_obj = await session.execute(select(Currency).where(
+                    Currency.id == withdrawals.bank_currency
+                ))
+                merchant_bank_currency = merchant_bank_currency_obj.scalar()
+
+                # Get user Details
+                merchant_user_obj = await session.execute(select(Users).where(
+                    Users.id == withdrawals.merchant_id
+                ))
+                merchant_user = merchant_user_obj.scalar()
+
+
+                combined_data.append({
+                    'merchant_name': merchant_user.full_name,
+                    'merchant_email': merchant_user.email,
+                    'bank_account': merchant_bank_account.bank_name,
+                    'bank_account_number': merchant_bank_account.acc_no,
+                    'bankCurrency': merchant_bank_currency.name,
+                    'withdrawalAmount': withdrawals.amount,
+                    'withdrawalCurrency': merchant_withdrawal_currency.name,
+                    'time': withdrawals.createdAt,
+                    'status':   withdrawals.status,
+                })
+
+            return json({'success': True,'ExportmerchantWithdrawalRequests': combined_data}, 200)
+                        
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    

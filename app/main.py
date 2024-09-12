@@ -35,7 +35,7 @@ def configure_application(
 
     app.use_authorization().add(Policy(('userauth'), AuthenticatedRequirement())).add(AdminsPolicy())
 
-    app.serve_files('Static', root_path='media', cache_time=90000)
+    app.serve_files('Static', root_path='media', cache_time=90000, extensions={'.pdf', '.png', '.jpg', '.jpeg', '.svg', '.webp'})
 
     app.controllers_router = controller_router
 

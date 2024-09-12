@@ -34,7 +34,7 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
             
             # Get all the Production transactions
             merchant_transactions_obj = await session.execute(select(MerchantProdTransaction).order_by(
-                (MerchantProdTransaction.id).desc()
+                desc(MerchantProdTransaction.id)
             ).limit(limit).offset(offset))
             merchant_transactions = merchant_transactions_obj.scalars().all()
 

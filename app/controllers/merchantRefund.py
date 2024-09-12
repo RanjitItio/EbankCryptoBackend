@@ -302,10 +302,10 @@ async def search_merchant_refunds(request: Request, query: str):
             merchant_transaction = merchant_transaction_obj.scalars().all()
 
             # Search Transaction Amount wise
-            merchant_refund_amount_obj = await session.execute(select(MerchantProdTransaction).where(
+            merchant_refund_amount_obj = await session.execute(select(MerchantRefund).where(
                 and_(
                     MerchantRefund.amount == query_as_float,
-                    MerchantProdTransaction.merchant_id == user_id
+                    MerchantRefund.merchant_id == user_id
                     )
                 ))
             merchant_refund_amount = merchant_refund_amount_obj.scalars().all()
@@ -318,7 +318,7 @@ async def search_merchant_refunds(request: Request, query: str):
 
 
             # Search transaction status wise
-            merchant_refund_status_obj = await session.execute(select(MerchantProdTransaction).where(
+            merchant_refund_status_obj = await session.execute(select(MerchantRefund).where(
                 and_(
                     MerchantRefund.status == search_query,
                     MerchantRefund.merchant_id == user_id
@@ -361,6 +361,8 @@ async def search_merchant_refunds(request: Request, query: str):
                 Currency, Currency.id == MerchantRefund.currency
             ).join(
                 MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
+            ).where(
+                MerchantRefund.merchant_id == user_id
             ).order_by(
                 desc(MerchantRefund.id)
             )
@@ -381,7 +383,7 @@ async def search_merchant_refunds(request: Request, query: str):
             elif query_date:
                 conditions.append(cast(MerchantRefund.createdAt, Date) == query_date)
 
-            elif query_date:
+            elif query_time:
                 conditions.append(cast(MerchantRefund.createdAt, Time) == query_time)
 
             if conditions:

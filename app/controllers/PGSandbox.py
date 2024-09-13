@@ -75,7 +75,9 @@ class PaymentGatewaySandboxAPI(APIController):
                 redirect_url        = payload_dict.get('redirectUrl')
                 callback_url        = payload_dict.get('callbackUrl')
                 mobile_number       = payload_dict.get('mobileNumber')
+                business_name       = payload_dict.get('BusinessName')
                 payment_type        = payload_dict['paymentInstrument']['type']
+
 
                 # If Header value is not present
                 if not header_value:
@@ -124,6 +126,7 @@ class PaymentGatewaySandboxAPI(APIController):
                             }
                         }
                     }, 400)
+
 
                 # If Payment type is not present in payload
                 if not payment_type:
@@ -264,12 +267,6 @@ class PaymentGatewaySandboxAPI(APIController):
                 exact_amount = amount/100
                 unique_transaction_id = generate_unique_id()
 
-                # Encode the merchant ID
-                encoded_merchant_public_key = generate_base64_encode(merchant_public_key)
-                encoded_amount              = generate_base64_encode(exact_amount)
-                encodedMerchantOrderID      = generate_base64_encode(merchant_order_id)
-                encodedCurrency             = generate_base64_encode(currency)
-
                 
                 merchant_sandbox_transaction = MerchantSandBoxTransaction(
                     merchant_id          = merchant_id,
@@ -285,13 +282,22 @@ class PaymentGatewaySandboxAPI(APIController):
                     transaction_id       = unique_transaction_id,
                     is_completd          = False,
                     gateway_res          = '' ,  
+                    business_name        = business_name
                 )
                 
                 # Save the transaction into database
                 session.add(merchant_sandbox_transaction)
                 await session.commit()
                 await session.refresh(merchant_sandbox_transaction)
-                
+
+                # Encode the merchant ID
+                encoded_merchant_public_key = generate_base64_encode(merchant_public_key)
+                encoded_amount              = generate_base64_encode(exact_amount)
+                encodedOrderID              = generate_base64_encode(merchant_sandbox_transaction.merchantOrderId)
+                encodedCurrency             = generate_base64_encode(currency)
+                encodedBusinessName         = generate_base64_encode(business_name)
+
+
                 return pretty_json({
                         "success": True,
                         "status": "PAYMENT_INITIATED",
@@ -306,7 +312,7 @@ class PaymentGatewaySandboxAPI(APIController):
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
-                                    "url": f"{checkout_url}/merchant/payment/sb/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedMerchantOrderID},{encodedCurrency}",
+                                    "url": f"{checkout_url}/merchant/payment/sb/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedOrderID},{encodedCurrency},{encodedBusinessName}",
                                 "method": "GET"
                                 }
                             }

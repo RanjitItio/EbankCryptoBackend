@@ -24,7 +24,7 @@ else:
 # Process payment form transactions
 async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amount, payload_dict,
                         payload, currency, payment_type, mobile_number, merchant_secret_key, 
-                        merchant_order_id, redirect_url):
+                        merchant_order_id, redirect_url, business_name):
     try:
         async with AsyncSession(async_engine) as session:
             INDEX = '1'
@@ -129,7 +129,6 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                     "status": "PAYMENT_PROCESSING",
                     "message":  "Invalid Currency: Only USD Accepted",
                 }}, 400)
-            
 
             
             # Check Merchant pipe
@@ -177,7 +176,8 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                 merchantPaymentType  = payment_type['type'],
                 transaction_id       = unique_transaction_id,
                 is_completd          = False,
-                gateway_res          = ''    
+                gateway_res          = '',
+                business_name        = business_name
             )
                 
             session.add(merchant_prod_transaction)
@@ -191,6 +191,7 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
             encoded_amount              = generate_base64_encode(exact_amount)
             encodedTransactionID        = generate_base64_encode(merchant_prod_transaction.transaction_id)
             encodedCurrency             = generate_base64_encode(currency)
+            encodedBusinessName         = generate_base64_encode(business_name)
 
             return pretty_json({
                     "success": True,
@@ -206,7 +207,7 @@ async def ProcessPaymentFormTransaction(header_value, merchant_public_key, amoun
                         "instrumentResponse": {
                             "type": "PAY_PAGE",
                             "redirectInfo": {
-                                "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedTransactionID},{encodedCurrency}",
+                                "url": f"{checkout_url}/merchant/payment/checkout/?token={encoded_merchant_public_key},{encoded_amount},{encodedTransactionID},{encodedCurrency},{encodedBusinessName}",
                             }
                         }
                     }

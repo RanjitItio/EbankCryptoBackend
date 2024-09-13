@@ -20,7 +20,7 @@ currency_converter_api = config('CURRENCY_CONVERTER_API')
 RAPID_API_KEY          = config('RAPID_API_KEY')
 RAPID_API_HOST         = config('RAPID_API_HOST')
 
-
+# All are UAT Transaction
 
 class TransactionController(APIController):
 

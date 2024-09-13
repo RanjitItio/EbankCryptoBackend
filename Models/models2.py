@@ -139,6 +139,7 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
     merchantCallBackURL: str  = Field(default='', nullable=True)
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
+    business_name: str        = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
 
 
@@ -168,6 +169,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     merchantCallBackURL: str  = Field(default='', nullable=True)
     merchantMobileNumber: str = Field(default='', nullable=True)
     merchantPaymentType: str  = Field(default='', nullable=True)
+    business_name: str        = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
     is_refunded: bool         = Field(default=False, nullable=True)
     

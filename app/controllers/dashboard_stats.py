@@ -132,7 +132,8 @@ async def get_merchantDashStats(request: Request):
                     'createdAt': transaction.createdAt,
                     'merchantOrderID': transaction.merchantOrderId,
                     'is_completed': transaction.is_completd,
-                    'transaction_fee': transaction.transaction_fee
+                    'transaction_fee': transaction.transaction_fee,
+                    'business_name': transaction.business_name
                 })
 
             return json({'success': True, 'recent_transactions': combined_data}, 200)

@@ -86,7 +86,7 @@ class MerchantProductionTransactions(APIController):
         
 
 
-# All transactions made by merchant in production without limit
+# All transactions made by merchant in production without limit(Merchant dashbaord total transaction)
 class MerchantAllProductionTransactions(APIController):
 
     @classmethod
@@ -119,6 +119,8 @@ class MerchantAllProductionTransactions(APIController):
         try:
             async with AsyncSession(async_engine) as session:
 
+                combined_data = []
+
                 # Currency wise data
                 if currency:
                     # Fetch transactions Currency wise
@@ -140,8 +142,16 @@ class MerchantAllProductionTransactions(APIController):
                             )
                         ))
                     merchant_transactions = merchant_transactions_object.scalars().all()
-                
-                return json({'msg': 'Success', 'merchant_all_prod_trasactions': merchant_transactions}, 200)
+
+
+                for transaction in merchant_transactions:
+                    combined_data.append({
+                        'amount': transaction.amount,
+                        'transaction_id': transaction.transaction_id,
+                        'createdAt': transaction.createdAt
+                    })
+
+                return json({'msg': 'Success', 'merchant_all_prod_trasactions': combined_data}, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'msg': f'{str(e)}'}, 500)

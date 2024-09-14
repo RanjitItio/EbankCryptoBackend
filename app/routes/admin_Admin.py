@@ -2,7 +2,6 @@ from blacksheep import Request, get, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Group
-from URLs.admin_urls import all_admin_users
 from sqlmodel import select, desc
 
 
@@ -11,7 +10,7 @@ from sqlmodel import select, desc
 
 # Get all the Admin users
 @auth('userauth')
-@get(f'{all_admin_users}')
+@get('/api/v2/admin/users/')
 async def AdminUsers(request: Request):
     try:
         async with AsyncSession(async_engine) as session:
@@ -36,7 +35,6 @@ async def AdminUsers(request: Request):
                 Users.full_name,
                 Users.email,
                 Users.phoneno,
-                Users.address1,
                 Users.is_admin,
                 Users.is_active,
 

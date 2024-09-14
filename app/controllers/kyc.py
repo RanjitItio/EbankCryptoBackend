@@ -69,10 +69,10 @@ class MerchantKYCController(APIController):
         return str(file_path.relative_to(Path("Static")))
     
     
-    #Get all applied KYC and user data by Admin
+    #Get all user data by Admin
     @auth('userauth')
     @get()
-    async def get_Merchantkyc(self, request: Request, limit: int = 20, offset: int = 0):
+    async def get_Merchantkyc(self, request: Request, limit: int = 15, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

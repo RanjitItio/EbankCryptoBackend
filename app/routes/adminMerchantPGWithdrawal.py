@@ -41,7 +41,7 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                           MerchantWithdrawals.currency,
                           MerchantWithdrawals.bank_currency,
                           MerchantWithdrawals.status,
-                          MerchantWithdrawals.is_active,
+                          MerchantWithdrawals.is_completed,
 
                           MerchantBankAccount.bank_name,
 
@@ -99,7 +99,7 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                         'withdrawalCurrency': merchant_withdrawal_currency.name,
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
-                        'is_active': withdrawals.is_active,
+                        'is_completed': withdrawals.is_completed,
                         'account_balance': merchant_account_balance_.amount,
                         'account_currency': merchant_account_balance_.currency
                     })
@@ -177,7 +177,7 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                # Update withdrawal status
                if status == 'Approved':
                     merchant_withdrawals.status    = status
-                    merchant_withdrawals.is_active = True
+                    merchant_withdrawals.is_completed = True
                else:
                     merchant_withdrawals.status = status
 
@@ -273,7 +273,7 @@ async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
                           MerchantWithdrawals.currency,
                           MerchantWithdrawals.bank_currency,
                           MerchantWithdrawals.status,
-                          MerchantWithdrawals.is_active,
+                          MerchantWithdrawals.is_completed,
                           MerchantBankAccount.bank_name,
                           Users.full_name,
                           Users.email,
@@ -344,7 +344,7 @@ async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
                          "withdrawalAmount": mw.amount,
                          "withdrawalCurrency": withdrawal_currency.name,
                          "status": mw.status,
-                         "is_active": mw.is_active,
+                         "is_completed": mw.is_completed,
                          "bank_account": mw.bank_name,
                          "bankCurrency": bank_currency.name,
                          "full_name": mw.full_name,
@@ -392,7 +392,7 @@ async def AdminMerchantExportWithdrawalRequests(request: Request):
                           MerchantWithdrawals.currency,
                           MerchantWithdrawals.bank_currency,
                           MerchantWithdrawals.status,
-                          MerchantWithdrawals.is_active,
+                          MerchantWithdrawals.is_completed,
                           MerchantBankAccount.bank_name,
                           Users.full_name,
                           Users.email,
@@ -442,7 +442,7 @@ async def AdminMerchantExportWithdrawalRequests(request: Request):
                         'withdrawalCurrency': merchant_withdrawal_currency.name,
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
-                        'is_active': withdrawals.is_active,
+                        'is_completed': withdrawals.is_completed,
                         'account_balance': merchant_account_balance_.amount,
                         'account_currency': merchant_account_balance_.currency
                     })

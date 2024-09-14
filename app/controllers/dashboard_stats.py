@@ -42,9 +42,10 @@ async def get_merchantDashStats(request: Request, currency: str):
             merchant_withdrawal_requests_obj = await session.execute(select(MerchantWithdrawals).where(
                 and_(
                     MerchantWithdrawals.merchant_id == user_id,
-                    MerchantWithdrawals.currency    == currency_name.id
+                    MerchantWithdrawals.currency    == currency_name.id,
+                    MerchantWithdrawals.is_completed == True
                     )
-            ))
+                ))
             merchant_withdrawal_requests = merchant_withdrawal_requests_obj.scalars().all()
 
 

@@ -85,7 +85,7 @@ class MerchantWithdrawalController(APIController):
                     amount           = withdrawalAmount,
                     bank_currency    = merchantBankCurrency,
                     currency         = account_currency.id,
-                    is_active        = False
+                    is_completed     = False
                 )
 
                 session.add(merchant_withdrawal_request)
@@ -165,7 +165,7 @@ class MerchantWithdrawalController(APIController):
                         'withdrawalCurrency': merchant_withdrawal_currency.name,
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
-                        'is_active': withdrawals.is_active
+                        'is_completed': withdrawals.is_completed
                     })
 
                 return json({'success': True,'total_row_count': total_withdrawal_rows_count, 'merchantWithdrawalRequests': combined_data}, 200)
@@ -205,7 +205,7 @@ class MerchantPendingWithdrawalController(APIController):
                               MerchantWithdrawals.merchant_id,
                               MerchantWithdrawals.amount,
                               MerchantWithdrawals.status,
-                              MerchantWithdrawals.is_active,
+                              MerchantWithdrawals.is_completed,
                               MerchantWithdrawals.createdAt,
 
                               MerchantBankAccount.bank_name,
@@ -236,7 +236,7 @@ class MerchantPendingWithdrawalController(APIController):
                         'withdrawalCurrency': withdrawals.name,
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
-                        'is_active': withdrawals.is_active
+                        'is_completed': withdrawals.is_completed
                     })
 
                 return json({'success': True, 'merchantPendingWithdrawals': combined_data}, 200)

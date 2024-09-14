@@ -45,11 +45,11 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
                 session.add(merchantAccountBalance)
                 await session.commit()
                 await session.refresh(merchantAccountBalance)
-
-            # Update Merchant Account Balance If Exists
-            merchantAccountBalance.amount      += merchant_account_balance
-            merchantAccountBalance.merchant_id = merchantID
-            merchantAccountBalance.currency    = currency
+            else:
+                # Update Merchant Account Balance If Exists
+                merchantAccountBalance.amount      += merchant_account_balance
+                merchantAccountBalance.merchant_id = merchantID
+                merchantAccountBalance.currency    = currency
 
             session.add(merchantAccountBalance)
             session.add(existing_collected_fees)

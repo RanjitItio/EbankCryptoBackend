@@ -368,7 +368,10 @@ class PaymentGatewayProductionAPI(APIController):
 
                 # Merchant order ID unique check
                 merchant_order_id_validation_obj = await session.execute(select(MerchantProdTransaction).where(
-                    MerchantProdTransaction.merchantOrderId == merchant_order_id
+                    and_(
+                        MerchantProdTransaction.merchantOrderId == merchant_order_id,
+                        MerchantProdTransaction.merchant_id     == merchant_key.user_id
+                        )
                 ))
                 merchant_order_id_validation_ = merchant_order_id_validation_obj.scalar()
 

@@ -197,15 +197,14 @@ class CreateMerchantPaymentButton(APIController):
                 transaction_amount = 0
 
                 for button in payment_button_:
-
                     # Get success transactions made through the button without refunded
                     merchantButtonTransactionObj = await session.execute(select(MerchantProdTransaction).where(
-                        and_(MerchantProdTransaction.merchantOrderId == button.button_id,
-                             MerchantProdTransaction.merchant_id     == button.merchant_id,
-                             MerchantProdTransaction.is_refunded     == False,
-                             MerchantProdTransaction.status          == 'PAYMENT_SUCCESS'
-                             )
-                        ))
+                        and_(
+                            MerchantProdTransaction.merchantOrderId == button.button_id,
+                            MerchantProdTransaction.merchant_id     == button.merchant_id,
+                            MerchantProdTransaction.is_refunded     == False,
+                            MerchantProdTransaction.status          == 'PAYMENT_SUCCESS'
+                        )))
                     merchantButtonTransaction = merchantButtonTransactionObj.scalars().all()
 
                     if merchantButtonTransaction:
@@ -237,9 +236,11 @@ class CreateMerchantPaymentButton(APIController):
                         'emailLabel': button.emailLabel,
                         'phoneNoLable': button.phoneNoLable,
                         'cretedAt': button.cretedAt,
-                        'total_sales': transaction_amount,
+                        'total_sales': transaction_amount if transaction_amount else 0,
                         'status': button.is_active,
                     })
+
+                    transaction_amount = 0
 
                 return json({'success': True, 'merchant_payment_buttons': combined_data}, 200)
             

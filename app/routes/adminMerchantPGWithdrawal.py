@@ -148,7 +148,7 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                     return json({'message': 'No Withdrawal request found with given information'}, 404)
                
                # Approved Withdrawals
-               if merchant_withdrawals.status == 'Approved':
+               if merchant_withdrawals.is_completed == True:
                     return json({'message': 'Already updated, Can not perform this action'}, 400)
                
           
@@ -172,12 +172,13 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                if account_balance_amount < merchant_withdrawals.amount:
                     return json({'message': 'Insufficient balance to withdrawal'}, 400)
                
-               merchant_account_balance.amount -= merchant_withdrawals.amount
                
                # Update withdrawal status
                if status == 'Approved':
                     merchant_withdrawals.status    = status
                     merchant_withdrawals.is_completed = True
+                    merchant_account_balance.amount -= merchant_withdrawals.amount
+
                else:
                     merchant_withdrawals.status = status
 

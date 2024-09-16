@@ -42,11 +42,12 @@ class MerchantWithdrawalController(APIController):
 
                 # Check the merchant bank account is exist and active or not
                 merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
-                    and_(MerchantBankAccount.id         == merchantBank,
+                    and_(
+                          MerchantBankAccount.id         == merchantBank,
                           MerchantBankAccount.is_active == True,
                           MerchantBankAccount.currency  == merchantBankCurrency
                          )
-                ))
+                    ))
                 merchant_bank_account = merchant_bank_account_obj.scalar()
 
                 if not merchant_bank_account:
@@ -58,7 +59,10 @@ class MerchantWithdrawalController(APIController):
                 
                 # Get the merchant Account Balance
                 merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
-                    MerchantAccountBalance.currency == accountCurrency
+                    and_(
+                        MerchantAccountBalance.currency == accountCurrency,
+                        MerchantAccountBalance.merchant_id == int(user_id)
+                        )
                 ))
                 merchant_account_balance_ = merchant_account_balance_obj.scalar()
 
@@ -67,7 +71,7 @@ class MerchantWithdrawalController(APIController):
                 
                 # Withdrawal balance is lesser than Account balance or not
                 merchant_account_balance = merchant_account_balance_.amount
-
+                
                 if withdrawalAmount >= merchant_account_balance:
                     return json({'error': 'Donot have sufficient balance in Account'}, 400)
                 

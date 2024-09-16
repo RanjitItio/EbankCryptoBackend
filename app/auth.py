@@ -195,7 +195,7 @@ async def send_email(recipient_email, subject, body):
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
 
 
-
+# Encrypt Password Reset Token
 def encrypt_password_reset(user_id: int):
     serializer = URLSafeTimedSerializer(SECRET_KEY)
 
@@ -207,6 +207,7 @@ def encrypt_password_reset(user_id: int):
     return token
 
 
+# Decode password reset token
 def verify_password_reset_token(token: str, max_age: int = 900):
 
     serializer = URLSafeTimedSerializer(SECRET_KEY)

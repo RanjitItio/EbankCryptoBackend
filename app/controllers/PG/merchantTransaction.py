@@ -1,6 +1,6 @@
 from database.db import AsyncSession, async_engine
 from Models.models2 import MerchantAccountBalance, CollectedFees, MerchantPIPE
-from sqlmodel import select
+from sqlmodel import select, and_
 
 
 # Update merchant Account Balance
@@ -30,8 +30,11 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
 
             # Get the Account balance of the merchant if exists or Create one
             merchantAccountBalanceObj = await session.execute(select(MerchantAccountBalance).where(
-                MerchantAccountBalance.merchant_id == merchantID
-            ))
+                and_(
+                    MerchantAccountBalance.merchant_id == merchantID,
+                    MerchantAccountBalance.currency    == currency
+                    )
+                ))
             merchantAccountBalance = merchantAccountBalanceObj.scalar()
 
             # If Account does not exists then create one
@@ -47,9 +50,7 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
                 await session.refresh(merchantAccountBalance)
             else:
                 # Update Merchant Account Balance If Exists
-                merchantAccountBalance.amount      += merchant_account_balance
-                merchantAccountBalance.merchant_id = merchantID
-                merchantAccountBalance.currency    = currency
+                merchantAccountBalance.amount  += merchant_account_balance
 
             session.add(merchantAccountBalance)
             session.add(existing_collected_fees)

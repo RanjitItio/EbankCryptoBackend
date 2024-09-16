@@ -61,7 +61,7 @@ class UserResetPasswdMailSendController(APIController):
                 # if first_user :
                 password_reset_token = encrypt_password_reset(first_user.id)
 
-                reseturl = f"{mail_send_url}reset-password/?token={password_reset_token}"
+                reseturl = f"{mail_send_url}reset/password/?token={password_reset_token}"
 
                 body = f"""
                         <html>
@@ -114,18 +114,18 @@ class UserResetPasswdController(APIController):
         """
         try:
             async with AsyncSession(async_engine) as session:
-                token = schema.token
+                token     = schema.token
                 password1 = schema.password1
                 password2 = schema.password2
                 user_id   = verify_password_reset_token(token)
 
                 try:
-                    existing_user = await session.execute(select(Users).where(Users.id == user_id))
+                    existing_user = await session.execute(select(Users).where(Users.id == int(user_id)))
                     first_user = existing_user.scalars().first()
 
                     if not first_user:
                         return json({'msg': 'Invalid token or user does not exist'}, 404)
-                    
+
                 except Exception as e:
                     return json({'msg': 'User fetch error', 'error': f'{str(e)}'}, 400)
                 
@@ -136,6 +136,7 @@ class UserResetPasswdController(APIController):
 
                 session.add(first_user)
                 await session.commit()
+                await session.refresh(first_user)
 
                 return json({'msg': 'Password has been reset successfully'}, 200)
                 

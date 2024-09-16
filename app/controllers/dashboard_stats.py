@@ -36,7 +36,6 @@ async def get_merchantDashStats(request: Request, currency: str):
                      )
             ))
             merchant_account_balance = merchant_account_balance_obj.scalars().all()
-            
 
             # Get merchant withdrawals
             merchant_withdrawal_requests_obj = await session.execute(select(MerchantWithdrawals).where(
@@ -49,7 +48,7 @@ async def get_merchantDashStats(request: Request, currency: str):
             merchant_withdrawal_requests = merchant_withdrawal_requests_obj.scalars().all()
 
 
-            # Get merchant withdrawals
+            # Get merchant pending withdrawals
             merchant_pending_withdrawal_requests_obj = await session.execute(select(MerchantWithdrawals).where(
                 and_(
                     MerchantWithdrawals.merchant_id == user_id,
@@ -67,6 +66,7 @@ async def get_merchantDashStats(request: Request, currency: str):
                  )
             ))
             merchant_refund_requests = merchant_refund_requests_obj.scalars().all()
+
 
             # Count total amount for all the requests
             total_merchant_withdrawals     = sum(withdrawals.amount for withdrawals in merchant_withdrawal_requests)

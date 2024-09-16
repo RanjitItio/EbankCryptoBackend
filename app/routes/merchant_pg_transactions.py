@@ -110,7 +110,8 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
 
             if not is_admin:
                 return json({'error': 'Unauthorized access'}, 403)
-            
+            # Admin authentication ends here
+
             TransactionID = schema.transaction_id
             merchantID    = schema.merchant_id
 
@@ -118,7 +119,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             try:
                 merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
                     and_(MerchantProdTransaction.transaction_id == TransactionID, 
-                        MerchantProdTransaction.merchant_id    == merchantID
+                        MerchantProdTransaction.merchant_id     == merchantID
                         )
                 ))
                 merchant_transaction = merchant_transaction_obj.scalar()

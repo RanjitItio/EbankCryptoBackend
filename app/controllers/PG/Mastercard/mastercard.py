@@ -13,14 +13,16 @@ is_development = config('IS_DEVELOPMENT')
 
 # Webhook url according to the environment
 if is_development == 'True':
-    notification_url = 'https://d5ff-122-176-92-114.ngrok-free.app'
+    notification_url = 'https://6624-122-176-92-114.ngrok-free.app'
 else:
     notification_url = 'https://python-uat.oyefin.com'
+
 
 
 authorization_value = f'merchant.{MERCHANT_ID}:{MERCHANT_PASSWORD}'
 # base64_encoded_authorization_header = generate_base64_encode(authorization_value)
 base64_encoded_authorization_header = 'bWVyY2hhbnQuR0xBRENPUklHS0VOOjRkM2Y4ZTA3YjJjNjI1ZDc3OWI4MWM2NzgwODZjYzFk'
+
 
 
 # Create Session
@@ -149,7 +151,7 @@ def Initiate_Authentication(transaction_id, sessionID, currency):
             'error': response.json(),
             'status_code ': response.status_code
         }
-    
+
 
 
 def deduct_amount(transaction_id, sessionID):
@@ -212,7 +214,7 @@ def Mastercard_Transaction_Status(transactionID):
 
 
 
-# Send Master card Webhook Response to Client
+# Webhook Payload
 class MasterCardWebhookPayload:
     def __init__(self, success: bool, status: str, message: str, data: dict) -> None:
         self.success = success
@@ -221,6 +223,7 @@ class MasterCardWebhookPayload:
         self.data    = data
 
 
+# Send Master card Webhook Response to Client
 async def send_mastercard_webhook(url: str, payload: MasterCardWebhookPayload):
     async with httpx.AsyncClient() as client:
         response = await client.post(url, json={
@@ -229,6 +232,7 @@ async def send_mastercard_webhook(url: str, payload: MasterCardWebhookPayload):
             "message": payload.message,
             "data": payload.data
         })
+
         return response
 
 

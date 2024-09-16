@@ -845,9 +845,9 @@ class ReceiveMasterCardWebhook(APIController):
                         MerchantProdTransaction.transaction_id == transaction_id
                     ))
                     merchant_transaction  = merchant_transaction_obj.scalar()
-
+                    
                     merchant_webhook_url  = merchant_transaction.merchantCallBackURL
-                    merchant_redirect_url = merchant_transaction.merchantRedirectURl   # Merchant Redirect url
+                    merchant_redirect_url = merchant_transaction.merchantRedirectURl # Merchant Redirect url
                     merchant_order_id     = merchant_transaction.merchantOrderId   # Merchant Order ID
                     transactionId         = merchant_transaction.transaction_id # Transaction ID
                     transactionTime       = merchant_transaction.createdAt   # Transaction Time
@@ -909,10 +909,9 @@ class ReceiveMasterCardWebhook(APIController):
                                         "merchantPublicKey": merchantPublicKey,
                                         "merchantOrderId": merchant_order_id,
                                         'transactionID': transactionId,
-                                        'time': transactionTime,
+                                        'time': str(transactionTime),
                                         "paymentInstrument": {
-                                            "type": "Card",
-                                            "cardType": "DEBIT_CARD",
+                                            "type": "Card"
                                         }
                                     }
                                 }
@@ -986,12 +985,9 @@ class ReceiveMasterCardWebhook(APIController):
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
                                     'transactionID': transactionId,
-                                    'time': transactionTime,
-                                    "instrumentResponse": {
-                                        "type": "PAY_PAGE",
-                                            "redirectInfo": {
-                                            "url": merchant_redirect_url,
-                                        }
+                                    'time': str(transactionTime),
+                                    "paymentInstrument": {
+                                        "type": "Card"
                                     }
                                 }
                             }
@@ -1018,17 +1014,18 @@ class ReceiveMasterCardWebhook(APIController):
                 # If webhook response is declined after authentication
                 elif gateway_code == 'DECLINED' and authentication_status == 'AUTHENTICATION_UNSUCCESSFUL' and result == 'FAILURE':
 
-                    # Get merchant Public key and secret keys
-                    merchant_key_obj = await session.execute(select(UserKeys).where(
-                        UserKeys.user_id == merchant_transaction.merchant_id
-                    ))
-                    merchant_key_ = merchant_key_obj.scalar()
+                    if merchant_transaction:
+                        # Get merchant Public key and secret keys
+                        merchant_key_obj = await session.execute(select(UserKeys).where(
+                            UserKeys.user_id == merchant_transaction.merchant_id
+                        ))
+                        merchant_key_ = merchant_key_obj.scalar()
 
-                    if not merchant_key_:
-                        return pretty_json({'msg': 'Merchant donot have any assigned key'}, 400)
-                    
-                    # Merchant Public Key
-                    merchantPublicKey = merchant_key_.public_key
+                        if not merchant_key_:
+                            return pretty_json({'msg': 'Merchant donot have any assigned key'}, 400)
+                        
+                        # Merchant Public Key
+                        merchantPublicKey = merchant_key_.public_key
 
                     if merchant_webhook_url:
                         webhook_payload_dict = {
@@ -1038,13 +1035,10 @@ class ReceiveMasterCardWebhook(APIController):
                                 "data": {
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
-                                    'transactionID': transactionId,
-                                    'time': transactionTime,
-                                    "instrumentResponse": {
-                                        "type": "PAY_PAGE",
-                                            "redirectInfo": {
-                                            "url": merchant_redirect_url,
-                                        }
+                                    'transactionID': transaction_id,
+                                    'time': str(transactionTime),
+                                    "paymentInstrument": {
+                                        "type": "Card"
                                     }
                                 }
                             }
@@ -1053,7 +1047,6 @@ class ReceiveMasterCardWebhook(APIController):
                             success       = webhook_payload_dict['success'],
                             status        = webhook_payload_dict["status"],
                             message       = webhook_payload_dict["message"],
-                            transactionID = webhook_payload_dict['transactionID'],
                             data          = webhook_payload_dict["data"]
                         )
 
@@ -1082,6 +1075,7 @@ class ReceiveMasterCardWebhook(APIController):
                     # Merchant Public Key
                     merchantPublicKey = merchant_key_.public_key
 
+                    # print('transactionId, test', transactionId)
                     # # send webhook response to merchant about successful transaction 
                     if merchant_webhook_url:
                         webhook_payload_dict = {
@@ -1092,12 +1086,9 @@ class ReceiveMasterCardWebhook(APIController):
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
                                     'transactionID': transactionId,
-                                    'time': transactionTime,
-                                    "instrumentResponse": {
-                                        "type": "PAY_PAGE",
-                                            "redirectInfo": {
-                                            "url": merchant_redirect_url,
-                                        }
+                                    'time': str(transactionTime),
+                                   "paymentInstrument": {
+                                        "type": "Card"
                                     }
                                 }
                             }
@@ -1127,6 +1118,7 @@ class ReceiveMasterCardWebhook(APIController):
                     return pretty_json({'msg': 'success'}, 200)
 
         except Exception as e:
+            print('error', f'{str(e)}')
             return pretty_json({'error': 'Server error', 'msg': f'{str(e)}'}, 500)
         
 

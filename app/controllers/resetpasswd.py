@@ -20,7 +20,7 @@ IS_DEVELOPMENT = config('IS_DEVELOPMENT')
 if IS_DEVELOPMENT == 'True':
     mail_send_url = 'http://localhost:5173/'
 else:
-    mail_send_url = 'https://react-uat.oyefin.com/'
+    mail_send_url = 'https://react-payment.oyefin.com/'
 
 
 

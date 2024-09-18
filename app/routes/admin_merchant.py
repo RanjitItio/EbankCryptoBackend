@@ -1,592 +1,866 @@
-from blacksheep import json, Request, get, put
+from blacksheep.server.controllers import APIController
+from Models.schemas import UserDeleteSchema, AdminUpdateUserSchema, AdminUserCreateSchema
+from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
+from app.auth import encrypt_password, send_email
+from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
 from blacksheep.server.authorization import auth
-from Models.models import Users, MerchantGroup, BusinessProfile, Currency
-from datetime import datetime, date
-import uuid
-from blacksheep.exceptions import BadRequest
-from pathlib import Path
+from sqlmodel import select, and_, desc
+from datetime import datetime
+from app.docs import docs
+from typing import List
 from decouple import config
-from sqlalchemy import desc
-from sqlmodel import select, func
-import re
 
 
-is_development  = config('IS_DEVELOPMENT')
-development_url = config('DEVELOPMENT_URL_MEDIA')
-production_url  = config('PRODUCTION_URL_MEDIA')
 
 
-if is_development == 'True':
-    url = development_url
+SERVER_MODE = config('IS_DEVELOPMENT')
+DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
+PRODUCTION_URL  = config('PRODUCTION_URL_MEDIA')
+
+
+if SERVER_MODE == 'True':
+    media_url = DEVELOPMENT_URL
 else:
-    url = production_url
+    media_url = PRODUCTION_URL
 
 
-async def save_business_logo(request: Request):
-    file_data = await request.files()
-
-    for part in file_data:
-        file_bytes = part.data
-        original_file_name  = part.file_name.decode()
-
-    file_extension = original_file_name.split('.')[-1]
-
-    file_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()}.{file_extension}"
-
-    if not file_name:
-        return BadRequest("File name is missing")
-
-    file_path = Path("Static/Merchant") / file_name
-
-    try:
-        with open(file_path, mode="wb") as user_files:
-            user_files.write(file_bytes)
-
-    except Exception:
-        file_path.unlink()
-        raise
-    
-    return str(file_path.relative_to(Path("Static")))
+if SERVER_MODE == 'True':
+    url = 'http://localhost:5173'
+else:
+    url = 'https://react-payment.oyefin.com'
 
 
-#Update Business by Admin
+
+#Delete User by Admin
+@docs(responses={200: 'All the data related to user (Transactions, Wallet, Kyc) will be deleted'})
 @auth('userauth')
-@put('/api/admin/merchant/update/')
-async def search_all_transaction(self, request: Request, query: str = ''):
+@post('/api/v1/admin/del/user/')
+async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSchema]):
     """
-     Admin will be able to Update Business Details
+     Delete the user and its related Data, Only admin can access the path, Provide user_id which is to be deleted
     """
+
     try:
         async with AsyncSession(async_engine) as session:
-            user_identity = request.identity
-            AdminID       = user_identity.claims.get('user_id') if user_identity else None
+            user_identity   = request.identity
+            adminID          = user_identity.claims.get("user_id") if user_identity else None
 
-            request_body = await request.form()
-
-            #Request Payload Validation##
-            if not request_body:
-                return json({'msg': 'Missing request payload'}, 400)
-            
-            required_fields = ['bsn_name', 'bsn_url', 'currency', 'group', 'fee', 'merchant_id', 'status']
-
-            missing_fields = [field for field in required_fields if field not in request_body]
-
-            if missing_fields:
-                return json({'msg': f'Missing fields: {", ".join(missing_fields)}'}, 400)
-            ##Request Payload validation##
-
-            # Get payload data
-            business_name = request_body['bsn_name']
-            business_url  = request_body['bsn_url']
-            currency_name = request_body['currency']
-            group_name    = request_body['group']
-            merchant_id   = request_body['merchant_id']
-            status        = request_body['status']
-            fee           = request_body['fee']
-            logo          = await request.files()
-
-
-            merchant_id  = int(merchant_id)
-            fee          = float(fee)
-
-            #Check the user is Admin or not
-            try:
-                admin_obj      = await session.execute(select(Users).where(Users.id == AdminID))
-                admin_obj_data = admin_obj.scalar()
-
-                if not admin_obj_data.is_admin:
-                    return json({'msg': 'Only admin can update the Merchant details'}, 401)
-                
-            except Exception as e:
-                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
-            #Admin Check Finish
-
-            #Get the merchant with requested merchant ID
-            try:
-                merchant_obj      = await session.execute(select(BusinessProfile).where(BusinessProfile.id == merchant_id))
-                merchant_obj_data = merchant_obj.scalar()
-
-            except Exception as e:
-                return json({'msg': 'Merchant error', 'error': f'{str(e)}'}, 400)
-            
-            
-            #Get the Currency ID
-            try:
-                currency_obj = await session.execute(select(Currency).where(Currency.name == currency_name))
-                currency_obj = currency_obj.scalar()
-
-                if not currency_obj:
-                    return json({'msg': 'requested currency not found'}, 404)
-                
-                currency_id = currency_obj.id
-            except Exception as e:
-                return json({'msg': 'Currency error', 'error': f"{str(e)}"}, 400)
-                
-            #Get the merchant Group ID
-            try:
-                merchant_grp_obj = await session.execute(select(MerchantGroup).where(MerchantGroup.name == group_name))
-                merchant_grp_obj = merchant_grp_obj.scalar()
-
-                if not merchant_grp_obj:
-                    return json({'msg': 'requested group not found'}, 404)
-                
-                merchant_group_id = merchant_grp_obj.id
-
-            except Exception as e:
-                return json({'msg': 'Group error', 'error': f"{str(e)}"}, 400)
-            
-            #Check Admin is sending logo or not
-            if logo:
-                try:
-                    business_logo_path = await save_business_logo(request)
-                except Exception as e:
-                    return json({'msg': f'Image upload error {str(e)}'}, 400)
-            else:
-                business_logo_path = merchant_obj_data.logo
-
-            # Admin approved the Business
-            if status == 'Approved':
-                try:
-                    merchant_obj_data.bsn_name  = business_name
-                    merchant_obj_data.bsn_url   = business_url
-                    merchant_obj_data.currency  = currency_id
-                    merchant_obj_data.group     = merchant_group_id
-                    merchant_obj_data.fee       = fee
-                    merchant_obj_data.logo      = business_logo_path
-                    merchant_obj_data.status    = status
-                    merchant_obj_data.is_active = True
-
-                    session.add(merchant_obj_data)
-                    await session.commit()
-                    await session.refresh(merchant_obj_data)
-
-                except Exception as e:
-                    return json({'msg': 'Merchant update error', 'error': f'{str(e)}'}, 400)
-
-            # If status == Moderation
-            elif status == 'Moderation': 
-
-                try:
-                    merchant_obj_data.bsn_name  = business_name
-                    merchant_obj_data.bsn_url   = business_url
-                    merchant_obj_data.currency  = currency_id
-                    merchant_obj_data.group     = merchant_group_id
-                    merchant_obj_data.fee       = fee
-                    merchant_obj_data.logo      = business_logo_path
-                    merchant_obj_data.status    = status
-                    merchant_obj_data.is_active = False
-
-                    session.add(merchant_obj_data)
-                    await session.commit()
-                    await session.refresh(merchant_obj_data)
-
-                except Exception as e:
-                    return json({'msg': 'Merchant update error', 'error': f'{str(e)}'}, 400)
-                
-            # For status is Cancelled or Rejected
-            else:
-                try:
-                    merchant_obj_data.bsn_name  = business_name
-                    merchant_obj_data.bsn_url   = business_url
-                    merchant_obj_data.currency  = currency_id
-                    merchant_obj_data.group     = merchant_group_id
-                    merchant_obj_data.fee       = fee
-                    merchant_obj_data.logo      = business_logo_path
-                    merchant_obj_data.status    = 'Cancelled'
-                    merchant_obj_data.status    = status
-                    merchant_obj_data.is_active = False
-
-                    session.add(merchant_obj_data)
-                    await session.commit()
-                    await session.refresh(merchant_obj_data)
-
-                except Exception as e:
-                    return json({'msg': 'Merchant update error', 'error': f'{str(e)}'}, 400)
-                
-            return json({'msg': 'Merchant data updated Successfully'}, 200)
+            user      = delete_user.value
+            user_id   = user.user_id
         
-    except Exception as e:
-        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
-    
-
-
-
-#View all Businesses by Admin
-##############################
-@auth('userauth')
-@get('/api/admin/all/merchant/')
-async def view_all_business(request: Request, limit: int = 15, offset: int = 0):
-    """
-     Admin will be able to View Business
-    """
-    try:
-        async with AsyncSession(async_engine) as session:
-            user_identity = request.identity
-            AdminID       = user_identity.claims.get('user_id') if user_identity else None
-
-            #Check the user is Admin or not
+            #Check the user is admin or Not
             try:
-                admin_obj      = await session.execute(select(Users).where(Users.id == AdminID))
-                admin_obj_data = admin_obj.scalar()
+                user_obj = await session.execute(select(Users).where(Users.id == adminID))
+                user_obj_data = user_obj.scalar()
 
-                if not admin_obj_data.is_admin:
-                    return json({'msg': 'Only admin can update the Merchant details'}, 401)
-                
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can create users'}, 400)
+
             except Exception as e:
-                return json({'msg': 'Admin authentication error', 'error': f'{str(e)}'}, 400)
-            #Admin Verification Complete
+                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+            #Autnentication ends here
+
 
             try:
-                merchant_obj = await session.execute(select(BusinessProfile).order_by(desc(BusinessProfile.id)).limit(limit).offset(offset))
-                merchant_obj_data = merchant_obj.scalars().all()
-
-                if not merchant_obj_data:
-                    return json({'msg': 'No merchant available to show'}, 404)
-                
-            except Exception as e:
-                return json({'msg': 'Merchant fetch error', 'error': f'{str(e)}'}, 400)
-            
-            # Count Availabe Business rows
-            count_stmt          = select(func.count(BusinessProfile.id))
-            total_business_row_obj = await session.execute(count_stmt)
-            total_business_row     = total_business_row_obj.scalar()
-
-            total_business_row_count = total_business_row / limit
-
-            #Get The users
-            try:
-                user_obj      = await session.execute(select(Users))
-                user_obj_data = user_obj.scalars().all()
+                user_obj = await session.execute(select(Users).where(Users.id == user_id))
+                user_data = user_obj.scalar()
                 
             except Exception as e:
                 return json({'msg': 'User fetch error', 'error': f'{str(e)}'}, 400)
             
-
-            #Get The Merchant Groups
+            if not user_data:
+                return json({'msg': 'Requested user not found'}, 404)
+            
+            #Get the kyc related to the user
             try:
-                group_obj      = await session.execute(select(MerchantGroup))
-                group_obj_data = group_obj.scalars().all()
+                user_kyc     = await session.execute(select(Kycdetails).where(Kycdetails.user_id == user_id))
+                user_kyc_obj = user_kyc.scalars()
+
+                if not user_kyc_obj:
+                    return json({'msg': 'Kyc of user not available'}, 404)
                 
             except Exception as e:
-                return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
-            
-            #Get The Merchant Groups
+                return json({'msg': 'Kyc fetch error', 'error': f'{str(e)}'}, 400)
+        
+            #Get all the transaction related to that user
             try:
-                currency_obj      = await session.execute(select(Currency))
-                currency_obj_data = currency_obj.scalars().all()
-                
+                sender_transactions     = await session.execute(select(Transection).where(Transection.user_id == user_id))
+                sender_transactions_obj = sender_transactions.scalars().all()
             except Exception as e:
-                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
+                return json({'msg': 'User transaction fetch error', 'error': f'{str(e)}'}, 400)
+
+            #Get the users available Receiver transaction details
+            try:
+                receiver_transaction     = await session.execute(select(Transection).where(Transection.txdrecever == user_id))
+                receiver_transaction_obj = receiver_transaction.scalars().all()
+            except Exception as e:
+                return json({'msg': 'Receiver user fetch error', 'error': f'{str(e)}'}, 400)
             
+            #Get the wallets related to the user
+            try:
+                user_wallets     = await session.execute(select(Wallet).where(Wallet.user_id == user_id))
+                user_wallets_obj = user_wallets.scalars().all()
+            except Exception as e:
+                return json({'msg': 'Wallet fetch error', 'error': f'{str(e)}'}, 400)
             
-            user_dict     = {user.id: user for user in user_obj_data}  # Users data 
-            group_dict    = {grp.id: grp for grp in group_obj_data}    # Group Name
-            currency_dict = {cur.id: cur for cur in currency_obj_data}  # Currency Data
+            #Delete the Transaction related to the Selected wallet
+            try:
+                for wallet in user_wallets_obj:
+                    user_selected_wallet     = await session.execute(select(Transection).where(Transection.wallet_id == wallet.id))
+                    user_selected_wallet_obj = user_selected_wallet.scalar_one_or_none()
 
-            combined_data = []
+                    if user_selected_wallet_obj:
+                        await session.delete(user_selected_wallet_obj)
+                        await session.commit()
 
-            for merchant in merchant_obj_data:
-                user_id   = merchant.user
-                merchant_user = user_dict.get(user_id)
+            except Exception as e:
+                return json({'msg': 'Selected wallet Transaction error', 'error': f'{str(e)}'}, 500)
+            
 
-                group_id   = merchant.group
-                group_data = group_dict.get(group_id)
+            if user_kyc_obj:
+                try:
+                    for kyc in user_kyc_obj:
+                        await session.delete(kyc)
+                        await session.commit()
 
-                currency_id   = merchant.currency
-                currency_data = currency_dict.get(currency_id)
+                except Exception as e:
+                    return json({'msg': 'Error while deleting the user kyc', 'error': f'{str(e)}'}, 400)
+        
+            if receiver_transaction_obj:
+                #Set the receiver field to None of Transactions
+                try:
+                    for receivers in receiver_transaction_obj:
+                        receivers.txdrecever = None
 
-                user_data = {
-                    'full_name': merchant_user.full_name,
-                    'id': merchant_user.id
+                        session.add(receivers)
+                    await session.commit()
+                except Exception as e:
+                    return json({'msg': 'Receiver user error', 'error': f'{str(e)}'}, 404)
+            
+            if user_wallets_obj:
+                # Delete the Wallets
+                try:
+                    for wallet in user_wallets_obj:
+                        await session.delete(wallet)
 
-                } if merchant_user else None
+                    await session.commit()
 
-                combined_data.append(
-                    {
-                        'user': user_data,
-                        'group': group_data,
-                        'currency': currency_data,
-                        'merchant': {
-                            'id':           merchant.id,
-                            'bsn_url':      merchant.bsn_url,
-                            'user':         merchant.user,
-                            # 'merchant_id':  merchant.merchant_id,
-                            'logo':         f"{url}{merchant.logo}",
-                            'group':        merchant.group,
-                            'created_time': merchant.created_time,
-                            'is_active':    merchant.is_active,
-                            'bsn_name':     merchant.bsn_name,
-                            'currency':     merchant.currency,
-                            'bsn_msg':      merchant.bsn_msg,
-                            'fee':          merchant.fee,
-                            'created_date': merchant.created_date,
-                            'status':       merchant.status
-                        }
-                    }
-                )
+                except Exception as e:
+                    return json({'msg': 'wallet delete error', 'error': f'{str(e)}'}, 400)
+            
+            if sender_transactions_obj:
+                # Delete the Transactions
+                try:
+                    for transaction in sender_transactions_obj:
+                        await session.delete(transaction)
 
-            return json({
-                    'msg': 'Merchant data fetched successfully', 
-                    'data': combined_data,
-                    'total_business_count': total_business_row_count
-                    }, 200)
+                    await session.commit()
+                except Exception as e:
+                    return json({'msg': 'Transaction delete error', 'error': f'{str(e)}'}, 400)
+            
+            #Delete the user
+            try:
+                await session.delete(user_data)
+                await session.commit()
+            except Exception as e:
+                return json({'msg': 'Error while deleting the user', 'error': f'{str(e)}'}, 400)
 
+
+            return json({'msg': 'User Deleted successfully'}, 200)
+        
     except Exception as e:
-        return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
+        return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
     
 
 
-# Search Business Data
+
+#Update user kyc by Admin
+@docs(responses={200: 'Update user profile and kyc status'})
 @auth('userauth')
-@get('/api/v2/admin/search/merchant/')
-async def search_merchant(self, request: Request, query: str):
-    user_identity   = request.identity
-    AdminID         = user_identity.claims.get("user_id") if user_identity else None
-
-    searched_text = query
-
+@put('/api/v1/admin/update/user/')
+async def update_user(self, request: Request, user_update_schema: FromJSON[AdminUpdateUserSchema]):
+    """
+     Update the merchant user profile and kyc, Only admin can access the url
+    """
     try:
         async with AsyncSession(async_engine) as session:
+            # Authenticate user as Admin
+            user_identity    = request.identity  
+            adminID          = user_identity.claims.get("user_id") if user_identity else None
 
-            # Admin Authentication
-            user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+            # Admin authentication
+            try:
+                user_obj      = await session.execute(select(Users).where(Users.id == adminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can create users'}, 400)
+
+            except Exception as e:
+                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+            #Autnentication ends here
+
+            # Get the payload values
+            value = user_update_schema.value
+
+            # Get the datetime value and convert into datetime format
+            dob_str  = value.dob
+            dob_date = datetime.strptime(dob_str, '%Y-%m-%d').date()
+
+            # Get the group
+            group_obj = await session.execute(select(Group).where(
+                Group.id == value.group
+            ))
+            user_group = group_obj.scalar()
+
+            # Assign user is merchant or not according to the group
+            if user_group:
+                if user_group.name == 'Default User':
+                    merchant = False
+                elif user_group.name == 'Merchant Regular':
+                    merchant = True
+                else:
+                    merchant = False
+            else:
+                merchant = False
+
+
+            #Get the user by user ID
+            try:
+                user_data     = await session.execute(select(Users).where(Users.id == value.user_id))
+                user_data_obj = user_data.scalar()
+            except Exception as e:
+                return json({'msg': 'User data fetch error', 'error': f'{str(e)}'}, 400)
+            
+        
+            #chek the provided mail ID exists or not
+            try:
+                existing_mail     = await session.execute(select(Users).where(Users.email == value.email))
+                existing_mail_obj = existing_mail.scalar()
+            except Exception as e:
+                return json({'msg': 'Mail fetch error', 'error': f'{str(e)}'}, 400)
+            
+
+            #Chek the provided Mobile number exists or not
+            try:
+                existing_mobile_number     = await session.execute(select(Users).where(Users.phoneno == value.phoneno))
+                existing_mobile_number_obj = existing_mobile_number.scalar()
+
+            except Exception as e:
+                return json({'msg': 'Mail fetch error', 'error': f'{str(e)}'}, 400)
+            
+            # If the same mobile number exists for another user
+            if existing_mail_obj:
+                if existing_mail_obj.email != user_data_obj.email:
+                    return json({'msg': 'Provided mail ID already exists'}, 200)
+            
+            # If the same Email ID exists for another user
+            if existing_mobile_number_obj:
+                if existing_mobile_number_obj.phoneno != user_data_obj.phoneno:
+                    return json({'msg': 'Provided Mobile No already exists'}, 200)
+            
+
+            #Get the Kyc details of the user
+            try:
+                stmt       = select(Kycdetails).where(Kycdetails.user_id == value.user_id)
+                result     = await session.execute(stmt)
+                kyc_detail = result.scalar()
+            except Exception as e:
+                return json({'msg': 'Unable to locate kyc', 'error': f'{str(e)}'}, 400)
+            
+            #Update the user data
+            try:
+                # if value.group == 'Default User':
+                if value.status == 'Active':
+                    #Update user data
+                    user_data_obj.first_name   = value.first_name
+                    user_data_obj.lastname     = value.last_name
+                    user_data_obj.phoneno      = value.phoneno
+                    user_data_obj.email        = value.email
+                    user_data_obj.full_name    = value.first_name + ' ' + value.last_name
+                    user_data_obj.is_active    = True
+                    user_data_obj.is_verified  = True
+                    user_data_obj.is_suspended = False
+                    user_data_obj.group        = value.group
+                    user_data_obj.is_merchent  = merchant
+
+                    session.add(user_data_obj)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
+                        try:
+                            kyc_detail.status      = 'Approved'
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
+
+                            session.add(kyc_detail)
+                            await session.commit()
+                            await session.refresh(kyc_detail)
+                            await session.refresh(user_data_obj)
+
+                        except Exception as e:
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+                        
+                        # Send mail to merchant
+
+                        link = f'{url}/signin/'
+
+                        body = f"""
+                              <html>
+                                <body>
+                                    <b>Dear {user_data_obj.first_name} {user_data_obj.lastname},</b>
+
+                                    <p>We are pleased to inform you that your KYC verification has been successfully completed. 
+                                    Your details have been authenticated, and your account is now active</p>
+                                    <p>You can now <a href="{link}">Login</a> to our system using your credentials. 
+                                    Please note that your login details are confidential, and we advise you to keep them secure.</p>
+
+                                    <p>If you have any questions or need assistance, feel free to reach out to us.</p>
+                                    <p>Thank you for choosing Itio Innovex Pvt. Ltd. We look forward to providing you with the best possible experience.</p>
+
+                                    <p><b>Best Regards,</b><br>
+                                    <b>Itio Innovex Pvt. Ltd.</b></p>
+                                </body>
+                                </html>
+                                """
+                        await send_email(user_data_obj.email, "KYC Verification Successful - Login Credentials Activated", body)
+    
+                #If the status is inactive
+                elif value.status == 'Inactive':
+
+                    #Update user data according to Inactive status
+                    try:
+                        user_data_obj.first_name  = value.first_name
+                        user_data_obj.lastname    = value.last_name
+                        user_data_obj.phoneno     = value.phoneno
+                        user_data_obj.email       = value.email
+                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
+                        user_data_obj.is_active   = False
+                        user_data_obj.is_verified = False
+                        user_data_obj.group       = value.group
+                        user_data_obj.is_merchent  = merchant
+
+                        session.add(user_data_obj)
+                        await session.commit()
+
+                    except Exception as e:
+                        return json({'msg': 'Error while updating inactive user data', 'error': f'{str(e)}'}, 400)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
+                        try:
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
+
+                            session.add(kyc_detail)
+                            await session.commit()
+                            await session.refresh(kyc_detail)
+                        except Exception as e:
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+
+                elif value.status == 'Suspended':
+                    try:
+                        user_data_obj.first_name   = value.first_name
+                        user_data_obj.lastname     = value.last_name
+                        user_data_obj.phoneno      = value.phoneno
+                        user_data_obj.email        = value.email
+                        user_data_obj.full_name    = value.first_name + ' ' + value.last_name
+                        user_data_obj.is_active    = True
+                        user_data_obj.is_verified  = True
+                        user_data_obj.is_suspended = True
+                        user_data_obj.group        = value.group
+                        user_data_obj.is_merchent  = merchant
+
+                        session.add(user_data_obj)
+                        await session.commit()
+
+                    except Exception as e:
+                        return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
+                    
+                    #Update Kyc status
+                    if kyc_detail:
+                        date_format = "%Y-%m-%d"
+                        date_of_birth = datetime.strptime(value.dob, date_format).date()
+
+                        try:
+                            kyc_detail.status      = 'Approved'
+                            kyc_detail.dateofbirth = dob_date
+                            kyc_detail.gander      = value.gender
+                            kyc_detail.state       = value.state
+                            kyc_detail.city        = value.city
+                            kyc_detail.landmark    = value.landmark
+                            kyc_detail.address     = value.address
+                            kyc_detail.firstname   = value.first_name
+                            kyc_detail.lastname    = value.last_name
+                            kyc_detail.email       = value.email
+                            kyc_detail.phoneno     = value.phoneno
+                            kyc_detail.dateofbirth = date_of_birth
+
+                            session.add(kyc_detail)
+                            await session.commit()
+                            await session.refresh(kyc_detail)
+                        except Exception as e:
+                            return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
+                        
+                else:
+                    # In any condition if No status or any Invalid status provided in payload
+                    return json({'msg': 'Please provide valid user status'}, 400)
+
+            except Exception as e:
+                return json({'msg': 'User update error', 'error': f'{str(e)}'}, 400)
+
+            # SUccess Response
+            return json({'msg': 'User data updated successfully'}, 200)
+        
+    # For any internal error response
+    except Exception as e:
+        return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+    
+
+
+
+#Search Merchant users
+@docs(responses={200: 'Search Merchantss'})
+@auth('userauth')
+@get('/api/v1/admin/user/search/')
+async def get_searchedeusers(request: Request, query: str = ''):
+    """
+     Search merchant users
+    """
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity    = request.identity
+            adminID          = user_identity.claims.get("user_id") if user_identity else None
+
+            # Admin authentication
+            user_obj = await session.execute(select(Users).where(Users.id == adminID))
             user_obj_data = user_obj.scalar()
 
             if not user_obj_data.is_admin:
-                return json({'msg': 'Only admin can view the Transactions'}, 400)
-            # Admin Authentication ends
+                return json({'msg': 'Admin authorization failed'}, 400)
+            # Authentication Ends here
+
+            data = query
+
+            # # If search contain group data
+            group_query = None
+            if query.lower() ==  'merchant regular':
+                group_query_obj = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
+                group_query     = group_query_obj.scalar()
+
+            if data.lower() == 'active':
+                searched_user_obj = await session.execute(select(Users).where(
+                    and_(
+                        Users.is_active == True,
+                        Users.is_merchent == True)
+                    ))
             
-            # Convert to int if starts with integer
-            if re.fullmatch(r'\d+', searched_text):
-                parsed_value = int(searched_text)
-
-            # Convert to dateime format if format is in date format
-            elif re.fullmatch(r'\d{4}-\d{2}-\d{2}', searched_text):
-                parsed_value = datetime.strptime(searched_text, '%Y-%m-%d').date()
-
+            elif data.lower() == 'inactive':
+                searched_user_obj = await session.execute(select(Users).where(
+                                and_(
+                                    Users.is_active == False, 
+                                    Users.is_verified    == False,
+                                    Users.is_merchent    == True
+                                )))
+            
+            elif group_query:
+                searched_user_obj = await session.execute(select(Users).where(
+                    and_(
+                         Users.group == group_query.id,
+                         Users.is_merchent    == True
+                    )))
+            
             else:
-                parsed_value = searched_text
-
-            # Get all user
-            try:
-                all_user_obj      = await session.execute(select(Users))
-                all_user_obj_data = all_user_obj.scalars().all()
-
-                user_search_id   = None
-                
-            except Exception as e:
-                return json({'msg': 'User not found'}, 400)
-            
-            # Get all currency
-            try:
-                currency_obj      = await session.execute(select(Currency))
-                currency_data     = currency_obj.scalars().all()
-
-                currency_id      = None
-
-            except Exception as e:
-                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
-            
-            # Get all merchant groups
-            try:
-                merchant_grp_obj  = await session.execute(select(MerchantGroup))
-                merchant_grp_data = merchant_grp_obj.scalars().all()
-
-                merchant_grp_id = None
-
-            except Exception as e:
-                return json({'msg': 'Currency fetch error', 'error': f'{str(e)}'}, 400)
-            
-            # Empty query
-            if parsed_value == ' ':
                 try:
-                    merchant_profile_obj = select(BusinessProfile).order_by((BusinessProfile.id).desc)
-                    
-                    searched_profile = await session.execute(merchant_profile_obj)
-
-                    merchant_list = searched_profile.scalars().all()
-
-                except Exception as e:
-                    return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
-            
-            # Date Query Conditions
-            elif isinstance(parsed_value, date):
-                try:
-                    merchant_profile_obj = select(BusinessProfile).where(
-                        BusinessProfile.created_date == parsed_value).order_by((BusinessProfile.id).desc())
-                    
-                    searched_profile = await session.execute(merchant_profile_obj)
-
-                    merchant_list = searched_profile.scalars().all()
-
-                except Exception as e:
-                    return json({'msg': 'Created date fetch error', 'error': f'{str(e)}'}, 400)
-            
-            # String Query conditions
-            elif isinstance(parsed_value, str):
-
-                for user in all_user_obj_data:
-                    if user.full_name == parsed_value:
-                        user_search_id = user.id
-
-                for currency in currency_data:
-                    if currency.name == parsed_value:
-                        currency_id   = currency.id
-
-                for grp in merchant_grp_data:
-                    if grp.name == parsed_value:
-                        merchant_grp_id = grp.id
-
-                if user_search_id:
-                    merchant_profile_obj = select(BusinessProfile).where(
-                        BusinessProfile.user == user_search_id).order_by((BusinessProfile.id).desc())
-                    
-                    searched_profile = await session.execute(merchant_profile_obj)
-                    merchant_list = searched_profile.scalars().all()
-
-                elif currency_id:
-                    merchant_profile_obj = select(BusinessProfile).where(
-                        BusinessProfile.currency == currency_id).order_by((BusinessProfile.id).desc())
-                    
-                    searched_profile = await session.execute(merchant_profile_obj)
-                    merchant_list    = searched_profile.scalars().all()
-                
-                elif merchant_grp_id:
-                    merchant_profile_obj = select(BusinessProfile).where(
-                        BusinessProfile.group == merchant_grp_id).order_by((BusinessProfile.id).desc())
-                    
-                    searched_profile = await session.execute(merchant_profile_obj)
-                    merchant_list    = searched_profile.scalars().all()
-
-                else:
-                    try:
-                        merchant_profile_obj = select(BusinessProfile).where(
-                            (BusinessProfile.bsn_name.ilike(parsed_value))  |
-                            (BusinessProfile.bsn_url.ilike(parsed_value))  |
-                            (BusinessProfile.status.ilike(parsed_value))  
+                    searched_user_obj = await session.execute(select(Users).where(
+                        and_(
+                        (Users.first_name.ilike(data)) |
+                        (Users.lastname.ilike(data))   |
+                        (Users.full_name.ilike(data))  |
+                        (Users.email.ilike(data))      |
+                        (Users.phoneno.ilike(data)),
+                        Users.is_merchent == True
                         )
+                    ))
 
-                        searched_profile = await session.execute(merchant_profile_obj)
+                except Exception as e:
+                    return json({'msg': 'Search error', 'error': f'{str(e)}'}, 400)
 
-                        merchant_list = searched_profile.scalars().all()
+            all_users: List[Users] = searched_user_obj.scalars().all()
+
+            user_data = []
+            kyc_data  = []
+
+
+            for user in all_users:
+                group_query = select(Group).where(Group.id == user.group)
+                group_result = await session.execute(group_query)
+                group_data = group_result.scalar()
+
+                group_name = group_data.name if group_data else None
+
+                user_data.append({
+                    "user_id": user.id,
+                    "firstname": user.first_name,
+                    "lastname": user.lastname,
+                    "email": user.email,
+                    "phoneno": user.phoneno,
+                    'ip_address': user.ipaddress, 
+                    'lastlogin': user.lastlogin, 
+                    'merchant': user.is_merchent, 
+                    'admin': user.is_admin,
+                    'active': user.is_active,
+                    'verified': user.is_verified,
+                    'group': user.group,
+                    'group_name': group_name,
+                    'status': 'Active' if user.is_active else 'Inactive',
+                    'document': f'{media_url}/{user.picture}'
+                })
+
+                merchant_kyc_obj = await session.execute(select(Kycdetails).where(
+                    Kycdetails.user_id == user.id
+                ))
+                merchant_kyc_ = merchant_kyc_obj.scalars().all()
+
+                if merchant_kyc_:
+                    for kyc in merchant_kyc_:
+                        
+                        kyc_data.append({
+                            "gander": kyc.gander,
+                            "state":  kyc.state,
+                            "status": kyc.status,
+                            "marital_status": kyc.marital_status,
+                            "country": kyc.country,
+                            "email": kyc.email,
+                            "nationality": kyc.nationality,
+                            "user_id": kyc.user_id,
+                            "firstname": kyc.firstname,
+                            "phoneno": kyc.phoneno,
+                            "id_type": kyc.id_type,
+                            "address": kyc.address,
+                            "id_number": kyc.id_number,
+                            "id_expiry_date": kyc.id_expiry_date,
+                            "id": kyc.id,
+                            "landmark": kyc.landmark,
+                            "lastname": kyc.lastname,
+                            "city": kyc.city,
+                            "uploaddocument": f'{media_url}/{kyc.uploaddocument}',
+                            "dateofbirth": kyc.dateofbirth,
+                            "zipcode": kyc.zipcode
+                        })
+
+            return json({
+                    'all_Kyc': kyc_data if kyc_data else [],
+                    'all_users': user_data if user_data else [],
+                    }, 200)
+        
+    except Exception as e:
+        return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+    
+
+
+
+
+#Add new user by Admin
+@docs(responses={200: 'Create new user, Only for Admin'})
+@auth('userauth')
+@post('/api/v1/admin/add/user/')
+async def create_newuser(self, request: Request, user_create_schema: FromJSON[AdminUserCreateSchema]):
+    """
+    The group field will have (Default User, Merchant) and status field should have (Active, Inactive)
+    """
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity    = request.identity
+            adminID          = user_identity.claims.get("user_id") if user_identity else None
+
+            data = user_create_schema.value
+        
+            #Check the user is admin or Not
+            try:
+                user_obj = await session.execute(select(Users).where(Users.id == adminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Only admin can create users'}, 400)
+
+            except Exception as e:
+                return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
+
+
+            #Check the user is Default user or merchant
+            if data.group == 'Default User':
+                try:
+                    existing_user = await session.execute(select(Users).where(Users.email == data.email))
+                    first_user    = existing_user.scalars().first()
+                except Exception as e:
+                    return json({'error': f'user fetch error {str(e)}'})
+                
+                try:
+                    existing_mobieno = await session.execute(select(Users).where(Users.phoneno == data.phoneno))
+                    mobileno = existing_mobieno.scalars().first()
+                except Exception as e:
+                    return json({'msg': 'Mobile no fetche error', 'error': f'{str(e)}'}, 400)
+                
+                if first_user:
+                    return json({'msg': f"{first_user.email} already exists"}, 400)
+                
+                if mobileno:
+                    return json({'msg': f"This {mobileno.phoneno} number already exists"}, 400)
+            
+                if data.password != data.confirm_password:
+                    return json({"msg":"Password did not match"} ,status=403) 
+                
+                #Create the user if the status is active
+                if data.status == 'Active':
+                    try:
+                        user_instance = Users(
+                            first_name   = data.first_name,
+                            lastname     = data.last_name,
+                            email        = data.email,
+                            phoneno      = data.phoneno,
+                            password     = encrypt_password(data.password),
+                            is_verified  = True,
+                            is_active    = True
+                            )
+                        
+                        session.add(user_instance)
+                        await session.commit()
+                        await session.refresh(user_instance)
 
                     except Exception as e:
-                        return json({'msg': 'Merchant profile search error in string', 'error': f'{str(e)}'}, 400)
+                        return json({'msg': f'user create error {str(e)}'})
                     
-            user_dict  = {user.id: user for user in all_user_obj_data}
-            group_dict = {grp.id: grp for grp in merchant_grp_data}
-            currency_dict = {cur.id: cur for cur in currency_data}
+                    #Create wallets for the user
+                    try:
+                        initial_balance = 0.0
+                        userID          = user_instance.id
+                        user_first_name = user_instance.first_name
+                        user_last_name  = user_instance.lastname
 
-            combined_data = []
+                        try:                
+                            all_currency = await session.execute(select(Currency))
+                            currency_list = all_currency.scalars().all()
+                        except Exception as e:
+                            return json({'error': f'Currency error {str(e)}'})
 
-            for merchant in merchant_list:
-                user_id   = merchant.user
-                user      = user_dict.get(user_id)
+                        if currency_list:
+                            for currency_obj in currency_list:
+                                wallet = Wallet(
+                                    user_id = userID,
+                                    currency = currency_obj.name,
+                                    balance=initial_balance,
+                                    currency_id = currency_obj.id
+                                )
+                                session.add(wallet)
 
-                group_id   = merchant.group
-                group_data = group_dict.get(group_id)
+                            await session.commit()
+                            await session.refresh(wallet)
 
-                currency_id   = merchant.currency
-                currency_data = currency_dict.get(currency_id)
-
-                user_data = {
-                    'full_name': user.full_name,
-                    'id': user.id
-
-                } if user else None
+                            # return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+                        
+                    except Exception as e:
+                        return json({'msg': f'Wallet create error {str(e)}'}, 400)
+                    
                 
-                combined_data.append(
-                    {
-                        'user': user_data,
-                        'group': group_data,
-                        'currency': currency_data,
-                        'merchant': {
-                            'id':           merchant.id,
-                            'bsn_url':      merchant.bsn_url,
-                            'user':         merchant.user,
-                            'logo':         f"{url}{merchant.logo}",
-                            'group':        merchant.group,
-                            'created_time': merchant.created_time,
-                            'is_active':    merchant.is_active,
-                            'bsn_name':     merchant.bsn_name,
-                            'currency':     merchant.currency,
-                            'bsn_msg':      merchant.bsn_msg,
-                            'fee':          merchant.fee,
-                            'created_date': merchant.created_date,
-                            'status':       merchant.status
-                        }
-                    }
-                )
+                elif data.status == 'Inactive':
 
-            return json({'msg': 'merchant data fetched successfully', 'data': combined_data}, 200)
+                    #Create Inactive user
+                    try:
+                        user_instance = Users(
+                            first_name   = data.first_name,
+                            lastname     = data.last_name,
+                            email        = data.email,
+                            phoneno      = data.phoneno,
+                            password     = encrypt_password(data.password),
+                            is_verified  = False,
+                            is_active    = False
+                            )
+                        
+                        session.add(user_instance)
+                        await session.commit()
+                        await session.refresh(user_instance)
+
+                    except Exception as e:
+                        return json({'msg': f'user create error {str(e)}'})
+                    
+                    #Create wallets for the user
+                    try:
+                        initial_balance = 0.0
+                        userID          = user_instance.id
+                        user_first_name = user_instance.first_name
+                        user_last_name  = user_instance.lastname
+
+                        try:                
+                            all_currency = await session.execute(select(Currency))
+                            currency_list = all_currency.scalars().all()
+                        except Exception as e:
+                            return json({'error': f'Currency error {str(e)}'})
+
+                        if currency_list:
+                            for currency_obj in currency_list:
+                                wallet = Wallet(
+                                    user_id = userID,
+                                    currency = currency_obj.name,
+                                    balance=initial_balance,
+                                    currency_id = currency_obj.id
+                                )
+                                session.add(wallet)
+
+                            await session.commit()
+                            await session.refresh(wallet)
+
+                            # return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+                        
+                    except Exception as e:
+                        return json({'msg': f'Wallet create error {str(e)}'}, 400)
+                    
+                else: 
+                    return json({'msg': 'User did not get created'}, 200)
+            
+
+            #Create Merchant according to the status
+            elif data.group == 'Merchant':
+                return json({'msg': 'In progress'}, 200)
+            
+            else:
+                return json({'msg': 'Please provide a valid user type Merchant or Default user'}, 404)
+
+            # return json({'msg': 'User created Successfully', 'data': data}, 200)
+            return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+        
+    except Exception as e:
+        return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+
+
+ 
+@get('/api/all/groups/')
+async def get_groups(self, request: Request):
+    try:
+        async with AsyncSession(async_engine) as session:
+            try:
+                all_groups    = await session.execute(select(Group))
+                all_group_obj = all_groups.scalars().all()
+
+            except Exception as e:
+                return json({'msg': 'Group fetch error', 'error': f'{str(e)}'}, 400)
+            
+            return json({'msg': 'Group data fetched successfully', 'data': all_group_obj}, 200)
 
     except Exception as e:
         return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)
-    
 
 
 
-# Export All Business by Admin
+# Export all merchant user data
 @auth('userauth')
-@get('/api/v2/admin/export/business/')
-async def exportMerchantBusiness(request: Request):
+@get('/api/v1/admin/export/merchants/')
+async def export_merchant_data(request: Request):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
-            admin_id       = user_identity.claims.get('user_id') if user_identity else None
-            
-            combined_data = []
+            adminID = user_identity.claims.get('user_id')
 
-            # Admin Authentication
-            admin_obj = await session.execute(select(Users).where(Users.id == admin_id))
-            admin_obj_data = admin_obj.scalar()
+            user_obj = await session.execute(select(Users).where(Users.id == adminID))
+            user_obj_data = user_obj.scalar()
 
-            if not admin_obj_data.is_admin:
+            if not user_obj_data.is_admin:
                 return json({'msg': 'Admin authorization failed'}, 401)
-            # Admin Authentication ends
+            # Admin authentication ends here
 
-            # Execute join query
-            stmt = select(
-                BusinessProfile.id,
-                BusinessProfile.bsn_name.label('business_name'),
-                BusinessProfile.bsn_url.label('business_url'),
-                BusinessProfile.bsn_msg.label('message'),
-                BusinessProfile.created_date,
-                BusinessProfile.created_time,
-                BusinessProfile.status,
+            user_data = []
+            kyc_data  = []
 
-                Currency.name.label('business_currency'),
-
-                Users.full_name.label('merchant_name'),
-                Users.email.label('merchant_email')
-
-            ).join(
-                Currency, Currency.id == BusinessProfile.currency
-            ).join(
-                Users, Users.id == BusinessProfile.user
+            # Get all the Merchant users
+            all_merchant_user_obj = await session.execute(select(Users).where(
+                Users.is_merchent == True
+            ).order_by(
+                desc(Users.id))
             )
+            all_merchant_user_ = all_merchant_user_obj.scalars().all()
 
-            merchant_business_obj = await session.execute(stmt)
-            merchant_business     = merchant_business_obj.fetchall()
+            if not all_merchant_user_:
+                return json({
+                    'message': 'No user available'
+                }, 404)
+            
+            # Gather all the merchant data and its kyc
+            for merchant_user in all_merchant_user_:
+                group_query = select(Group).where(Group.id == merchant_user.group)
+                group_result = await session.execute(group_query)
+                group_data = group_result.scalar()
 
-            for business in merchant_business:
-                combined_data.append({
-                    'business_id': business.id,
-                    'business_name': business.business_name,
-                    'business_url':  business.business_url,
-                    'message':  business.message,
-                    'created_date': business.created_date,
-                    'created_time': business.created_time,
-                    'status': business.status,
-                    'business_currency': business.business_currency,
-                    'merchant_name': business.merchant_name,
-                    'merchant_email': business.merchant_email
+                group_name = group_data.name if group_data else None
+
+                user_data.append({
+                    "user_id": merchant_user.id,
+                    "firstname": merchant_user.first_name,
+                    "lastname": merchant_user.lastname,
+                    "email": merchant_user.email,
+                    "phoneno": merchant_user.phoneno,
+                    'lastlogin': merchant_user.lastlogin, 
+                    'group_name': group_name,
+                    'status': 'Active' if merchant_user.is_active else 'Inactive',
                 })
 
-            return json({'success': True, 'merchant_business_export': combined_data}, 200)
+                merchant_kyc_obj = await session.execute(select(Kycdetails).where(
+                    Kycdetails.user_id == merchant_user.id
+                ))
+                merchant_kyc_ = merchant_kyc_obj.scalars().all()
+
+                if merchant_kyc_:
+                    for kyc in merchant_kyc_:
+                        kyc_data.append({
+                            "gender": kyc.gander,
+                            "state":  kyc.state,
+                            "status": kyc.status,
+                            "marital_status": kyc.marital_status,
+                            "country": kyc.country,
+                            "email": kyc.email,
+                            "nationality": kyc.nationality,
+                            "firstname": kyc.firstname,
+                            "lastname": kyc.lastname,
+                            "phoneno": kyc.phoneno,
+                            "id_type": kyc.id_type,
+                            "address": kyc.address,
+                            "id_number": kyc.id_number,
+                            "id_expiry_date": kyc.id_expiry_date,
+                            "landmark": kyc.landmark,
+                            "city": kyc.city,
+                            "dateofbirth": kyc.dateofbirth,
+                            "zipcode": kyc.zipcode
+                        })
+            
+            return json({
+                'success': True,
+                'all_Kyc': kyc_data if kyc_data else [],
+                'all_users': user_data if user_data else []
+                }, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
-    
-

@@ -146,7 +146,7 @@ async def get_merchantDashStats(request: Request):
 
 # Merchant dashboard success transaction and withdrawal transaction chart
 @auth('userauth')
-@get('/api/v6/merchant/dash/transaction/withdrawal/chart/')
+@get('/api/v6/merchant/dash/transaction/withdrawal/refund/chart/')
 async def merchant_dashboardTransactionWithdrawalChart(request: Request, currency: str = None):
     try:
         async with AsyncSession(async_engine) as session:
@@ -181,6 +181,16 @@ async def merchant_dashboardTransactionWithdrawalChart(request: Request, currenc
                 ))
                 merchant_success_withdrawals = merchant_success_withdrawals_obj.scalars().all()
 
+                # Get all the merchant success Refunds
+                merchant_success_refund_obj = await session.execute(select(MerchantRefund).where(
+                    and_(
+                        MerchantRefund.merchant_id == user_id,
+                        MerchantRefund.is_completed == True,
+                        MerchantRefund.currency     == req_currency.id
+                    )
+                ))
+                merchant_success_refunds = merchant_success_refund_obj.scalars().all()
+
             else:
                 # Get all the merchant success transactions
                 merchant_success_transactions_obj = await session.execute(select(MerchantProdTransaction).where(
@@ -200,12 +210,25 @@ async def merchant_dashboardTransactionWithdrawalChart(request: Request, currenc
                 ))
                 merchant_success_withdrawals = merchant_success_withdrawals_obj.scalars().all()
 
-            total_success_transaction_amount = sum(transaction.amount for transaction in merchant_success_transaction)
+                # Get all the merchant success Refunds
+                merchant_success_refund_obj = await session.execute(select(MerchantRefund).where(
+                    and_(
+                        MerchantRefund.merchant_id == user_id,
+                        MerchantRefund.is_completed == True
+                    )
+                ))
+                merchant_success_refunds = merchant_success_refund_obj.scalars().all()
+
+
+            total_success_transaction_amount    = sum(transaction.amount for transaction in merchant_success_transaction)
             total_withdrawal_transaction_amount = sum(withdrawal.amount for withdrawal in merchant_success_withdrawals)
+            total_refund_transaction_amount     = sum(refund.amount for refund in merchant_success_refunds)
+
 
             return json({
                 'success_transaction': total_success_transaction_amount,
-                'withdrawal_amount': total_withdrawal_transaction_amount
+                'withdrawal_amount': total_withdrawal_transaction_amount,
+                'refund_amount': total_refund_transaction_amount
             }, 200)
 
     except Exception as e:

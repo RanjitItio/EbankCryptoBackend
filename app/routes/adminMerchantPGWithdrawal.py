@@ -56,10 +56,10 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
             merchant_withdrawals_object = await session.execute(stmt)
             merchant_withdrawals        = merchant_withdrawals_object.all()
 
-
             if not merchant_withdrawals:
                  return json({'error': 'No withdrawal request found'}, 404)
             
+            # Count total rows in the table
             count_stmt = select(func.count(MerchantWithdrawals.id))
             total_withdrawals_obj = await session.execute(count_stmt)
             total_withdrawal_rows = total_withdrawals_obj.scalar()
@@ -100,8 +100,8 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
                         'is_completed': withdrawals.is_completed,
-                        'account_balance': merchant_account_balance_.amount,
-                        'account_currency': merchant_account_balance_.currency
+                        'account_balance': merchant_account_balance_.amount if merchant_account_balance_ else None,
+                        'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
                     })
 
             return json({

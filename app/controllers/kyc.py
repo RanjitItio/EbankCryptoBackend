@@ -101,7 +101,7 @@ class MerchantKYCController(APIController):
                 user_data = []
                 kyc_data  = []
 
-                # Users Data
+                # Get all Merchant Data
                 all_merchant_user_obj = await session.execute(select(Users).where(
                     Users.is_merchent == True
                 ).order_by(

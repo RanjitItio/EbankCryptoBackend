@@ -89,7 +89,7 @@ class MerchantRefund(SQLModel, table=True):
     instant_refund: bool         = Field(default=False)
     instant_refund_amount: float = Field(default=0.00)
     createdAt: datetime          = Field(datetime.now())
-    status: str                  = Field(default='Pending', nullable=True)
+    status: str                  = Field(default='Pending', nullable=True) ## 
     is_completed: bool           = Field(default=False)
 
 

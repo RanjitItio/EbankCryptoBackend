@@ -46,7 +46,6 @@ def configure_application(
     
     
     # docs.bind_app(app)
-
     app.use_cors(
     allow_methods="*",
     allow_origins="*",
@@ -60,6 +59,59 @@ def configure_application(
 
 
 app = configure_application(*configure_services(load_settings()))
+
+
+
+# def configure_crypto_application(
+#     services: Container,
+#     settings: Settings,
+# ) -> Application:
+#     crypto_fiat_app = Application(
+#         services=services, show_error_details=settings.app.show_error_details
+#     )
+
+#     configure_error_handlers(crypto_fiat_app)
+
+#     configure_authentication(crypto_fiat_app, settings)
+    
+#     configure_docs(crypto_fiat_app, settings)
+
+#     crypto_fiat_app.use_authentication().add(UserAuthHandler())
+
+#     crypto_fiat_app.use_authorization().add(Policy(('userauth'), AuthenticatedRequirement())).add(AdminsPolicy())
+
+#     crypto_fiat_app.serve_files('Static', root_path='media', cache_time=90000, extensions={'.pdf', '.png', '.jpg', '.jpeg', '.svg', '.webp'})
+
+
+#     crypto_fiat_app.controllers_router = crypto_fiat_controller_router
+
+#     use_gzip_compression(crypto_fiat_app)
+
+#     if not is_development:
+#         crypto_fiat_app.middlewares.append(HSTSMiddleware())
+    
+    
+#     # docs.bind_app(app)
+
+#     crypto_fiat_app.use_cors(
+#     allow_methods="*",
+#     allow_origins="*",
+#     allow_headers="*",
+#     allow_credentials=True,
+#     max_age=900,
+#     )
+  
+
+#     return crypto_fiat_app
+
+
+# app = configure_application(*configure_services(load_settings()))
+# crypto_fiat_app = configure_crypto_application(*configure_services(load_settings()))
+
+# app.mount_registry.auto_events(True)
+
+# app.mount("/crypto", crypto_fiat_app)
+
 
 
 

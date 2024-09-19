@@ -2,7 +2,7 @@ from blacksheep import Request, get, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Group
-from sqlmodel import select, desc, and_
+from sqlmodel import select, desc, and_, func
 from typing import List
 
 
@@ -11,7 +11,7 @@ from typing import List
 # Get all the Admin users
 @auth('userauth')
 @get('/api/v2/admin/users/')
-async def AdminUsers(request: Request, limit: int = 15, offset: int = 0):
+async def AdminUsers(request: Request, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -28,6 +28,12 @@ async def AdminUsers(request: Request, limit: int = 15, offset: int = 0):
             if not adminUser.is_admin:
                 return json({'message': 'Admin authorization failed'}, 401)
             # Admin authentication ends here
+
+            count_stmt     = select(func.count(Users.id)).select_from(Users).where(Users.is_admin == True)
+            total_rows_obj = await session.execute(count_stmt)
+            total_rows     = total_rows_obj.scalar()
+
+            total_rows_count = total_rows / limit
 
             # Execute Join query to get user data
             stmt = select(
@@ -65,7 +71,11 @@ async def AdminUsers(request: Request, limit: int = 15, offset: int = 0):
                     'status': admin_user.is_active
                 })
 
-            return json({'success': True, 'all_admin_users': combined_data}, 200)
+            return json({
+                'success': True, 
+                'all_admin_users': combined_data,
+                'total_rows': total_rows_count
+                }, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

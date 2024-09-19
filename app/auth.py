@@ -141,7 +141,7 @@ def decrypt_password_reset_token(token):
         return "Invalid token"
 
 
-def send_password_reset_email( recipient_email, subject, body):
+def send_password_reset_email(recipient_email, subject, body):
     smtp_server = EMAIL_HOST
     smtp_port = int(EMAIL_PORT)  # For TLS
    

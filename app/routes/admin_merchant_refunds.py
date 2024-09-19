@@ -124,14 +124,23 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                merchantID    = schema.merchant_id
                refundID      = schema.refund_id
                transactionID = schema.transaction_id
-               status        =  schema.status
+               status        = schema.status
 
+               # Get the transaction related to the Refund
+               merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                        and_(MerchantProdTransaction.transaction_id == transactionID,
+                                MerchantProdTransaction.merchant_id == merchantID
+                                )
+                ))
+               merchant_transaction = merchant_transaction_obj.scalar()
+               
                # Get the Merchant refund transaction
                merchantRefundTransactionObj = await session.execute(select(MerchantRefund).where(
-                    and_(MerchantRefund.merchant_id == merchantID,
+                    and_(
+                        MerchantRefund.merchant_id == merchantID,
                         MerchantRefund.id == refundID
-                         )
-               ))
+                        )
+                    ))
                merchantRefundTransaction = merchantRefundTransactionObj.scalar()
 
                ## If the transaction already approved
@@ -142,19 +151,6 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                merchantRefundTransaction.status = status
 
                if status == 'Approved':
-                    merchantRefundTransaction.is_completed = True
-
-                    # Get the transaction related to the Refund
-                    merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                            and_(MerchantProdTransaction.transaction_id == transactionID,
-                                 MerchantProdTransaction.merchant_id == merchantID
-                                 )
-                    ))
-                    merchant_transaction = merchant_transaction_obj.scalar()
-
-                    # Update the transaction as refunded
-                    merchant_transaction.is_refunded = True
-
                     # Get the Merchant account balance
                     merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
                          and_(MerchantAccountBalance.merchant_id == merchantID,
@@ -162,9 +158,16 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                     ))
                     merchant_account_balance = merchant_account_balance_obj.scalar()
 
+                    if merchant_account_balance.amount < merchantRefundTransaction.amount:
+                        return json({'message': 'Donot have sufficient balance in account'}, 400)
+
+                    merchantRefundTransaction.is_completed = True
+
+                    # Update the transaction as refunded
+                    merchant_transaction.is_refunded = True
+
                     # Deduct the merchant Account balance
                     merchant_account_balance.amount -= merchantRefundTransaction.amount
-
                     
                     session.add(merchant_transaction)
                     session.add(merchant_account_balance)

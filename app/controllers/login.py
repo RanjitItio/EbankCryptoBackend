@@ -29,15 +29,14 @@ class UserLoginController(APIController):
         
         try:
             async with AsyncSession(async_engine) as session:
-                try:
-                    existing_user = await session.execute(select(Users).where(Users.email == user.email))
-                    first_user = existing_user.scalars().first()
-                except Exception as e:
-                    return json({'msg': f'{str(e)}'}, 400)
-                
+                existing_user = await session.execute(select(Users).where(Users.email == user.email))
+                first_user = existing_user.scalars().first()
                 
                 # Password validation
                 if first_user and check_password(user.password,first_user.password):
+
+                    if not first_user.is_merchent:
+                        return json({'message': 'Only PG users allowed'}, 400)
 
                     # Check kyc is exist for the user
                     merchnat_kyc_obj = await session.execute(select(Kycdetails).where(
@@ -97,7 +96,7 @@ class UserLoginController(APIController):
                     return json({'msg': 'Invalid credentials'}, 400)
 
         except SQLAlchemyError as e:
-            return json({"Error": str(e)})
+            return json({"Error": str(e)}, 500)
 
 
 

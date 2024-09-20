@@ -89,7 +89,7 @@ class MerchantKYCController(APIController):
                     
                 except Exception as e:
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
-                #Authentication end here
+                #Authentication ends
 
                 # Count all available rows
                 count_stmt = select(func.count(Users.id)).where(Users.is_merchent == True)
@@ -428,137 +428,7 @@ class MerchantKYCController(APIController):
 
 
 
-#View all the available applied KYC of merchants
-class UserKYCController(APIController):
 
-    SERVER_MODE     = config('IS_DEVELOPMENT')
-    DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
-    PRODUCTION_URL  = config('PRODUCTION_URL_MEDIA')
-
-
-    if SERVER_MODE == 'True':
-        media_url = DEVELOPMENT_URL
-    else:
-        media_url = PRODUCTION_URL
-
-    @classmethod
-    def route(cls):
-        return '/api/v2/kyc/user/'
-
-    @classmethod
-    def class_name(cls):
-        return "User's KYC"
-    
-    # Save user document
-    async def save_user_document(self, request: Request):
-        file_data = await request.files()
-    
-        for part in file_data:
-            file_bytes = part.data
-            original_file_name  = part.file_name.decode()
-
-        file_extension = original_file_name.split('.')[-1]
-
-        file_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4()}.{file_extension}"
-
-        if not file_name:
-            return BadRequest("File name is missing")
-
-        file_path = Path("Static/User") / file_name
-
-        try:
-            with open(file_path, mode="wb") as user_files:
-                user_files.write(file_bytes)
-
-        except Exception:
-            file_path.unlink()
-            raise
-        
-        return str(file_path.relative_to(Path("Static")))
-    
-    
-    #Get all applied KYC of user(Non Merchant)
-    @auth('userauth')
-    @get()
-    async def get_UserKyc(self, request: Request, limit: int = 50, offset: int = 0):
-        try:
-            async with AsyncSession(async_engine) as session:
-                user_identity = request.identity
-                user_id       = user_identity.claims.get('user_id') if user_identity else None
-
-                limit  = limit
-                offset = offset
-               
-                # Admin Authnetication
-                try:
-                    user_object      = select(Users).where(Users.id == user_id)
-                    save_to_db       = await session.execute(user_object)
-                    user_object_data = save_to_db.scalar()
-
-                    if user_object_data.is_admin == False:
-                        return json({'msg': 'Only admin can view all the KYC'}, 400)
-                    
-                except Exception as e:
-                    return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
-                #Authentication ends
-
-                # Get the users(Non Merchant)
-                users_data_obj = await session.execute(select(Users).where(
-                    Users.is_merchent == False
-                ).order_by(
-                    desc(Users.id)
-                ))
-                users_data = users_data_obj.scalars().all()
-                
-                user_dict = {user.id: user for user in users_data}
-
-                kyc_data = []
-
-                for user in users_data:
-                    # Get the KYC related to the users
-                    kyc_query  = select(Kycdetails).where(Kycdetails.user_id == user.id)
-                    kyc_result = await session.execute(kyc_query)
-                    kyc_detail = kyc_result.scalar()
-
-                    if kyc_detail:
-                        kyc_data.append(kyc_detail)
-
-                    combined_data = []
-
-                    # Append the data in combined_data
-                    for kyc_detail in kyc_data:
-                        user_id = kyc_detail.user_id
-                        user_data = user_dict.get(user_id)
-
-                        if user_data:
-                            group_query = select(Group).where(Group.id == user_data.group)
-                            group_result = await session.execute(group_query)
-                            group_data = group_result.scalar()
-
-                            group_name = group_data.name if group_data else None
-
-                            user_info = {
-                                'ip_address': user_data.ipaddress,
-                                'lastlogin': user_data.lastlogin,
-                                'merchant': user_data.is_merchent,
-                                'admin': user_data.is_admin,
-                                'active': user_data.is_active,
-                                'verified': user_data.is_verified,
-                                'group': user_data.group,
-                                'group_name': group_name,
-                                'status': 'Active' if user_data.is_active else 'Inactive',
-                                'document': f'{self.media_url}/{kyc_detail.uploaddocument}'
-                            }
-
-                            combined_data.append({
-                                'user_kyc_details': kyc_detail,
-                                'user': user_info
-                                })
-
-                return json({'allKyc': combined_data}, 200)
-            
-        except Exception as e:
-            return json({'msg': 'Server error','error': f'{str(e)}'}, 500)
 
   
     

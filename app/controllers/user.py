@@ -151,75 +151,41 @@ class UserController(APIController):
                         )
 
                         session.add(merchant_secret_key)
+                        await session.commit()
+                        await session.refresh(merchant_secret_key)
 
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'}, 400)
             
-                try:
-                    initial_balance = 0.0
-                    userID          = user_instance.id
-                    user_first_name = user_instance.first_name
-                    user_last_name  = user_instance.lastname
+                userID          = user_instance.id
+                user_first_name = user_instance.first_name
+                user_last_name  = user_instance.lastname
 
-                    try:                
-                        all_currency = await session.execute(select(Currency))
-                        currency_list = all_currency.scalars().all()
-                    except Exception as e:
-                        return json({'error': f'Currency error {str(e)}'}, 400)
-                    
-                    # Assign wallet
-                    if currency_list:
-                        for currency_obj in currency_list:
-                            wallet = Wallet(
-                                user_id     = userID,
-                                currency    = currency_obj.name,
-                                balance     = initial_balance,
-                                currency_id = currency_obj.id
-                            )
-                            session.add(wallet)
+                link=f"{signup_mail_sent_url}/signin/"
 
-                        await session.commit()
-                        await session.refresh(wallet)
-                        
-                        # To prevent greenlet error
-                        if user.is_merchent:
-                            await session.refresh(merchant_secret_key)
+                body = f"""
+                        <html>
+                        <body>
+                            <b>Dear {user_first_name} {user_last_name},</b>
+                            <p>Welcome aboard! We are thrilled to have you join our community at Itio Innovex Pvt. Ltd.!</p>
+                            <p>To complete your registration and activate your account, please verify your email address by clicking the link below:</p>
+                            <a href="{link}">Verify Your Email Address</a>
+                            <p>If the button above doesn’t work, you can copy and paste the following URL into your web browser:</p>
+                            <p><a href="{link}">{link}</a></p>
+                            <p>Thank you for choosing Itio Innovex Pvt. Ltd. We look forward to providing you with the best possible experience.</p>
 
-                        link=f"{signup_mail_sent_url}/signin/"
-
-                        body = f"""
-                              <html>
-                                <body>
-                                    <b>Dear {user_first_name} {user_last_name},</b>
-                                    <p>Welcome aboard! We are thrilled to have you join our community at Itio Innovex Pvt. Ltd.!</p>
-                                    <p>To complete your registration and activate your account, please verify your email address by clicking the link below:</p>
-                                    <a href="{link}">Verify Your Email Address</a>
-                                    <p>If the button above doesn’t work, you can copy and paste the following URL into your web browser:</p>
-                                    <p><a href="{link}">{link}</a></p>
-                                    <p>Thank you for choosing Itio Innovex Pvt. Ltd. We look forward to providing you with the best possible experience.</p>
-
-                                    <p><b>Best Regards,</b><br>
-                                    <b>Itio Innovex Pvt. Ltd.</b></p>
-                                </body>
-                                </html>
-                                """
-                        
-                        # Send mail
-                        send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
-
-                        return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+                            <p><b>Best Regards,</b><br>
+                            <b>Itio Innovex Pvt. Ltd.</b></p>
+                        </body>
+                        </html>
+                        """
                 
-                except Exception as e:
-                    return json({'msg': f'Wallet create error {str(e)}'}, 400)
+                # Send mail
+                send_welcome_email(user.email,"Welcome! Please Verify Your Email Address", body)
 
-                # if wall:
-                #     print("done done done done done done done")
-
-                # link=f"www.example.com/{encrypt_password_reset_token(user_instance.id)}"
-                # send_password_reset_email(user.email,"confirm mail",link)
+                return json({'msg': f'User created successfully {user_first_name} {user_last_name} of ID {userID}'}, 201)
+                 
                 
-                # return json({'msg': f'User created successfully {user_instance.first_name} {user_instance.lastname} of ID {user_instance.id}'}, 201)
-        
         except Exception as e:
             return json({"Error": str(e)}, 500)
 

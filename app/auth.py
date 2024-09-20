@@ -105,7 +105,7 @@ async def is_authenticated(id):
             return False
 
 
-
+# Encrypt Users password into Hash
 def encrypt_password(password: str) -> str:
     
     salt = bcrypt.gensalt()
@@ -113,9 +113,8 @@ def encrypt_password(password: str) -> str:
     return hashed_password.decode('utf-8')
 
 
-
+# Validate password while Loging in
 def check_password(plain_password: str, hashed_password: str) -> bool:
-    
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
@@ -223,6 +222,7 @@ def verify_password_reset_token(token: str, max_age: int = 900):
     except Exception as e:
         raise ValueError("Invalid or expired token") from e
 
+
 # Generate Unique Merchant Public Key
 async def generate_merchant_unique_public_key():
     while True:
@@ -239,7 +239,7 @@ async def generate_merchant_unique_public_key():
                    
                 
 
-#Generate Merchant Secret Key
+# Generate Merchant Secret Key
 async def generate_merchant_secret_key(merchant_id):
     try:
         async with AsyncSession(async_engine) as session:

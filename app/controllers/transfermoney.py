@@ -13,8 +13,8 @@ from blacksheep.server.authorization import auth
 
 
 
-
-#User will be able to Transfer money to Another user
+# Not used anywhere
+# User will be able to Transfer money to Another user
 class TransferMoneyController(APIController):
     
     @classmethod
@@ -24,7 +24,7 @@ class TransferMoneyController(APIController):
     @classmethod
     def class_name(cls):
         return "Transfer Money"
-    
+
 
     @auth('userauth')
     @post()

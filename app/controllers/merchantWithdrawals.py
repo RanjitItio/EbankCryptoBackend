@@ -6,8 +6,10 @@ from database.db import AsyncSession, async_engine
 from Models.models import MerchantBankAccount, Currency, Users
 from Models.models3 import MerchantWithdrawals
 from Models.models2 import MerchantAccountBalance
-from Models.PG.schema import CreateMerchantWithdrawlSchma
+from Models.PG.schema import CreateMerchantWithdrawlSchma, FilterWithdrawalTransactionSchema
 from sqlmodel import select, and_, desc, func
+from datetime import timedelta, datetime
+import calendar
 
 
 
@@ -316,3 +318,142 @@ async def ExportWithDrawals(request: Request):
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
     
+
+
+# Filter Merchant Withdrawals
+class FilterMerchantWithdrawalsController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter Merchant Withdrawals'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v3/filter/merchant/fiat/withdrawals/'
+    
+    # Convert text to datetime format
+    @staticmethod
+    def get_date_range(currenct_time_date: str):
+        now = datetime.now()
+
+        if currenct_time_date == 'Today':
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'Yesterday':
+            start_date = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(hours=23, minutes=59, seconds=59)
+        elif currenct_time_date == 'ThisWeek':
+            start_date = now - timedelta(days=now.weekday())
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'ThisMonth':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'PreviousMonth':
+            first_day_last_month = (now.replace(day=1) - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = first_day_last_month.replace(day=1)
+            end_date = first_day_last_month.replace(day=calendar.monthrange(first_day_last_month.year, first_day_last_month.month)[1], hour=23, minute=59, second=59)
+        else:
+            raise ValueError(f"Unsupported date range: {currenct_time_date}")
+        
+        return start_date, end_date
+    
+
+    @auth('userauth')
+    @post()
+    async def filter_merchant_withdrawals(self, request: Request, schema: FilterWithdrawalTransactionSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                combined_data = []
+
+                # Get the payload Data
+                date_time           = schema.date
+                bankName            = schema.bank_name
+                withdrawal_currency = schema.withdrawal_currency
+                withdrawal_amount   = float(schema.withdrawal_amount)
+
+                start_date, end_date = self.get_date_range(date_time)
+
+                # Get The merchant bank Account
+                merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
+                    and_(
+                        MerchantBankAccount.bank_name == bankName,
+                        MerchantBankAccount.user      == user_id
+                        )
+                ))
+                merchant_bank_account  = merchant_bank_account_obj.scalar()
+
+                # Get the currency ID
+                currency_obj = await session.execute(select(Currency).where(
+                    Currency.name == withdrawal_currency
+                ))
+                currency = currency_obj.scalar()
+
+                # get the merchant withdrawal transaction
+                merchant_withdrawal_transaction_obj = await session.execute(select(MerchantWithdrawals).where(
+                    and_(
+                        MerchantWithdrawals.bank_id     == merchant_bank_account.id,
+                        MerchantWithdrawals.currency    == currency.id,
+                        MerchantWithdrawals.amount      == withdrawal_amount,
+                        MerchantWithdrawals.merchant_id == user_id,
+                        MerchantWithdrawals.createdAt   >= start_date,
+                        MerchantWithdrawals.createdAt   <= end_date,
+                    )
+                ))
+                merchant_withdrawal_transaction = merchant_withdrawal_transaction_obj.scalars().all()
+
+                if not merchant_withdrawal_transaction:
+                    return json({'error': 'No withdrawal request found'}, 404)
+                
+
+                for withdrawals in merchant_withdrawal_transaction:
+                    # Get the bank account linked to the merchant
+                    merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
+                        MerchantBankAccount.id == withdrawals.bank_id
+                    ))
+                    merchant_bank_account = merchant_bank_account_obj.scalar()
+
+                    # Get the withdrawal currency and Bank Currecy
+                    merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.currency
+                    ))
+                    merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
+
+                    # Get the merchant Bank Currency
+                    merchant_bank_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.bank_currency
+                    ))
+                    merchant_bank_currency = merchant_bank_currency_obj.scalar()
+
+                    # Get user Details
+                    merchant_user_obj = await session.execute(select(Users).where(
+                        Users.id == withdrawals.merchant_id
+                    ))
+                    merchant_user = merchant_user_obj.scalar()
+
+
+                    combined_data.append({
+                        'id': withdrawals.id,
+                        'merchant_id': withdrawals.merchant_id,
+                        'merchant_name': merchant_user.full_name,
+                        'merchant_email': merchant_user.email,
+                        'bank_account': merchant_bank_account.bank_name,
+                        'bank_account_number': merchant_bank_account.acc_no,
+                        'bankCurrency': merchant_bank_currency.name,
+                        'withdrawalAmount': withdrawals.amount,
+                        'withdrawalCurrency': merchant_withdrawal_currency.name,
+                        'createdAt': withdrawals.createdAt,
+                        'status':   withdrawals.status,
+                        'is_completed': withdrawals.is_completed
+                    })
+
+                return json({
+                    'success': True,
+                    'merchantWithdrawalRequests': combined_data
+                    }, 200)
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

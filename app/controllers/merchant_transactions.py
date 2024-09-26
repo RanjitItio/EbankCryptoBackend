@@ -2,10 +2,12 @@ from blacksheep.server.controllers import APIController
 from blacksheep import Request, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
-from app.controllers.controllers import get
+from app.controllers.controllers import get, post
 from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
 from sqlmodel import select, and_, desc, cast, Time, Date, func, extract
 from datetime import datetime, timedelta
+import calendar
+from Models.PG.schema import FilterTransactionSchema
 
 
 
@@ -45,7 +47,7 @@ class MerchantProductionTransactions(APIController):
                     return json({'error': 'No transaction available'}, 404)
                 
                 # Count total rows
-                count_stmt     = select(func.count(MerchantProdTransaction.id)).where(
+                count_stmt = select(func.count(MerchantProdTransaction.id)).where(
                     MerchantProdTransaction.merchant_id == user_id
                     )
                 total_rows_obj = await session.execute(count_stmt)
@@ -208,17 +210,17 @@ class MerchantAccountBalance(APIController):
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
 
-
+# Export Merchant Transactions
 class ExportMerchantTransactions(APIController):
 
     @classmethod
     def route(cls) -> str | None:
         return '/api/v2/merchant/export/transactions/'
-    
+
     @classmethod
     def class_name(cls) -> str:
         return 'Export Merchant Transactions'
-    
+
 
     @auth('userauth')
     @get()
@@ -460,3 +462,110 @@ class SearchMerchantProductionTransactions(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
+
+
+
+## Filter Merchant Transactions
+class FilterMerchantTransactionController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter Merchant Transactions'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/filter/merchant/transaction/'
+    
+    @staticmethod
+    def get_date_range(currenct_time_date: str):
+        now = datetime.now()
+
+        if currenct_time_date == 'Today':
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'Yesterday':
+            start_date = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(hours=23, minutes=59, seconds=59)
+        elif currenct_time_date == 'ThisWeek':
+            start_date = now - timedelta(days=now.weekday())
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'ThisMonth':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'PreviousMonth':
+            first_day_last_month = (now.replace(day=1) - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = first_day_last_month.replace(day=1)
+            end_date = first_day_last_month.replace(day=calendar.monthrange(first_day_last_month.year, first_day_last_month.month)[1], hour=23, minute=59, second=59)
+        else:
+            raise ValueError(f"Unsupported date range: {currenct_time_date}")
+        
+        return start_date, end_date
+    
+
+    @auth('userauth')
+    @post()
+    async def filter_merchant_transaction(self, request: Request, schema: FilterTransactionSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                combined_data = []
+
+                # Get payload data
+                currenct_time_date = schema.date
+                orderID            = schema.order_id
+                transactionID      = schema.transaction_id
+                businessName       = schema.business_name
+
+                start_date, end_date = self.get_date_range(currenct_time_date)
+
+                # Get the transaction according to the input
+                merchant_pg_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    and_(
+                        MerchantProdTransaction.merchantOrderId == orderID,
+                        MerchantProdTransaction.transaction_id  == transactionID,
+                        MerchantProdTransaction.business_name   == businessName,
+                        MerchantProdTransaction.createdAt       >= start_date,
+                        MerchantProdTransaction.createdAt       <= end_date,
+                        MerchantProdTransaction.merchant_id     == user_id
+                    )
+                ))
+                merchant_pg_transaction = merchant_pg_transaction_obj.scalars().all()
+
+                if not merchant_pg_transaction:
+                    return json({'message': 'No transaction available'}, 404)
+                
+                for transaction in merchant_pg_transaction:
+
+                    combined_data.append({
+                        "id": transaction.id,
+                        "merchant_id": transaction.merchant_id,
+                        "currency": transaction.currency,
+                        "merchantMobileNumber": transaction.merchantMobileNumber,
+                        "payment_mode": transaction.payment_mode,
+                        "status": transaction.status,
+                        "merchantPaymentType": transaction.merchantPaymentType,
+                        "amount":transaction.amount,
+                        "is_completd": transaction.is_completd,
+                        "createdAt": transaction.createdAt,
+                        "is_refunded": transaction.is_refunded,
+                        "merchantOrderId": transaction.merchantOrderId,
+                        "pipe_id": transaction.pipe_id,
+                        "merchantRedirectURl": transaction.merchantRedirectURl,
+                        "gateway_res": transaction.gateway_res,
+                        "transaction_fee": transaction.transaction_fee,
+                        "merchantRedirectMode": transaction.merchantRedirectMode,
+                        "transaction_id": transaction.transaction_id,
+                        "merchantCallBackURL": transaction.merchantCallBackURL,
+                        "business_name": transaction.business_name
+                    })
+
+                return json({
+                    'success': True,
+                    'merchant_prod_trasactions': combined_data
+                    }, 200)
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

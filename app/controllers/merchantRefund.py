@@ -6,10 +6,11 @@ from database.db import AsyncSession, async_engine
 from Models.models3 import MerchantRefund
 from Models.models2 import MerchantProdTransaction
 from Models.models import Currency
-from Models.PG.schema import MerchantCreateRefundSchema
+from Models.PG.schema import MerchantCreateRefundSchema, FilterMerchantRefundSchema
 from sqlmodel import select, and_, desc, func, cast, Date, Time, or_
 from blacksheep import get as GET
 from datetime import datetime, timedelta
+import calendar
 
 
 
@@ -446,3 +447,127 @@ async def MerchantSuccessRefundChart(request: Request):
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+
+
+
+# Merchant Refund Transaction Filter
+class FilterMerchantRefunds(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return "Merchant Filter Transactions"
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/filter/merchant/fiat/refund/'
+    
+    # Convert text to datetime format
+    @staticmethod
+    def get_date_range(currenct_time_date: str):
+        now = datetime.now()
+
+        if currenct_time_date == 'Today':
+            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'Yesterday':
+            start_date = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(hours=23, minutes=59, seconds=59)
+        elif currenct_time_date == 'ThisWeek':
+            start_date = now - timedelta(days=now.weekday())
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'ThisMonth':
+            start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now
+        elif currenct_time_date == 'PreviousMonth':
+            first_day_last_month = (now.replace(day=1) - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = first_day_last_month.replace(day=1)
+            end_date = first_day_last_month.replace(day=calendar.monthrange(first_day_last_month.year, first_day_last_month.month)[1], hour=23, minute=59, second=59)
+        else:
+            raise ValueError(f"Unsupported date range: {currenct_time_date}")
+        
+        return start_date, end_date
+    
+
+    @auth('userauth')
+    @post()
+    async def filter_merchant_refund(self, request: Request, schema: FilterMerchantRefundSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                combined_data = []
+
+                # Get the payload data
+                date_time     = schema.date
+                transactionId = schema.transaction_id
+                refundAmount  = float(schema.refund_amount)
+
+                start_date, end_date = self.get_date_range(date_time)
+
+                # Get the transaction ID
+                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    MerchantProdTransaction.transaction_id == transactionId
+                ))
+                merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
+
+                # Get all the refund made by the merchant
+                stmt = select(
+                    MerchantRefund.id,
+                    MerchantRefund.merchant_id,
+                    MerchantRefund.instant_refund,
+                    MerchantRefund.instant_refund_amount,
+                    MerchantRefund.is_completed,
+                    MerchantRefund.amount,
+                    MerchantRefund.comment,
+                    MerchantRefund.createdAt,
+                    MerchantRefund.status,
+
+                    Currency.name.label('currency_name'),
+                    MerchantProdTransaction.transaction_id,
+                    MerchantProdTransaction.currency.label('transaction_currency'),
+                    MerchantProdTransaction.amount.label('transaction_amount'),
+
+                    ).join(
+                        Currency, Currency.id == MerchantRefund.currency
+                    ).join(
+                        MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
+                    ).where(
+                        and_(
+                            MerchantRefund.merchant_id    == user_id,
+                            MerchantRefund.transaction_id == merchant_prod_transaction.id,
+                            MerchantRefund.amount         == refundAmount,
+                            MerchantRefund.createdAt      >= start_date,
+                            MerchantRefund.createdAt      <= end_date,
+                            )
+                    )
+                
+                merchant_refunds_obj = await session.execute(stmt)
+                merchant_refunds     = merchant_refunds_obj.fetchall()
+
+                if not merchant_refunds:
+                    return json({'message': 'No refund requests available'}, 404)
+                
+                for refunds in merchant_refunds:
+                    combined_data.append({
+                        'id': refunds.id,
+                        "currency": refunds.currency_name,
+                        "transaction_currency": refunds.transaction_currency,
+                        "merchant_id": refunds.merchant_id,
+                        'is_completed': refunds.is_completed,
+                        'transaction_id': refunds.transaction_id,
+                        'amount': refunds.amount,
+                        'transaction_amount': refunds.transaction_amount,
+                        'createdAt': refunds.createdAt,
+                        'status': refunds.status
+                    })
+
+                return json({
+                    'success': True, 
+                    'merchant_refunds': combined_data
+                    }, 200)
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

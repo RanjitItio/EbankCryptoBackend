@@ -252,24 +252,24 @@ class BusinessProfile(SQLModel, table=True):
 
 
 
-#Business Transaction Table
+# Business Transaction Table
 class MerchantTransactions(SQLModel, table=True):
-    id: int | None     = Field(default = None, primary_key=True)
+    id: int | None       = Field(default = None, primary_key=True)
     merchant: int | None = Field(foreign_key = 'businessprofile.id')
-    product: str       = Field(default='-')
-    order_id: str      = Field(default='-')
-    amount: int        = Field(default=0)
-    fee: float         = Field(default=0.0, nullable=True)
-    currency: int      = Field(foreign_key = 'currency.id')
-    credit_amt: int    = Field(default=0)
-    pay_mode: str      = Field(default='-')
-    payer: str         = Field(default='-', nullable=True)
-    status: str        = Field(default='Pending')
-    is_completed: bool = Field(default=False, nullable=True)
-    custome: str       = Field(default='-', nullable=True)
-    created_date: date = Field(default=date.today(), nullable=True)
-    created_time: str  = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True) 
-    ipg_trans_id: int  = Field(default='', nullable=True)      
+    product: str         = Field(default='-')
+    order_id: str        = Field(default='-')
+    amount: int          = Field(default=0)
+    fee: float           = Field(default=0.0, nullable=True)
+    currency: int        = Field(foreign_key = 'currency.id')
+    credit_amt: int      = Field(default=0)
+    pay_mode: str        = Field(default='-')
+    payer: str           = Field(default='-', nullable=True)
+    status: str          = Field(default='Pending')
+    is_completed: bool   = Field(default=False, nullable=True)
+    custome: str         = Field(default='-', nullable=True)
+    created_date: date   = Field(default=date.today(), nullable=True)
+    created_time: str    = Field(default=datetime.now().strftime('%H:%M:%S'), nullable=True) 
+    ipg_trans_id: int    = Field(default='', nullable=True)      
 
 
     def assign_current_date(self):

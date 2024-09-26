@@ -88,9 +88,7 @@ class CreateMerchantWithdrawlSchma:
 class MerchantCreateRefundSchema:
     transaction_id: int
     refund_amt: float
-    # instant_refund: bool
     comment: Optional[str] = field(default='')
-
 
 
 @dataclass
@@ -103,3 +101,25 @@ class UppdateUserProfileSchema:
     group: int
 
 
+@dataclass
+class FilterTransactionSchema:
+    date: str
+    order_id: str
+    transaction_id: str
+    business_name: str
+
+
+@dataclass
+class FilterWithdrawalTransactionSchema:
+    date: str
+    bank_name: str
+    withdrawal_currency: str
+    withdrawal_amount: float
+
+
+
+@dataclass
+class FilterMerchantRefundSchema:
+    date: str
+    transaction_id: str
+    refund_amount: float

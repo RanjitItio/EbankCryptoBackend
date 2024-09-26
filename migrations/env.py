@@ -7,6 +7,7 @@ from sqlmodel import SQLModel
 from Models.models import *
 from Models.models2 import *
 from Models.models3 import *
+from Models.models4 import *
 from alembic import context
 
 

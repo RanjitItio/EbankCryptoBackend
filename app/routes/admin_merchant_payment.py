@@ -7,7 +7,7 @@ from Models.Merchant.schema import AdminMerchantPaymentUpdateSchema
 
 
 
-
+# UAT Transaction of Businesses which has been removed
 #Admin will be able to view the Transactions of the Business
 @auth('userauth')
 @get('/api/v4/admin/merchant/payments/')

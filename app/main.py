@@ -16,7 +16,13 @@ from blacksheep.server.compression import use_gzip_compression
 from app.CryptoFiatController.authentication import (
     CryptoFiatUserRegisterController, CryptoFiatUserLoginController
     )
+from app.CryptoFiatController.deposit import DepositController
+from app.CryptoFiatController.SendMoney import TransferMoneyController
+from app.CryptoFiatController.Transactions import UserFiatTransactionController
 from app.CryptoFiatAdminControllers.admin_users import CryptoUserKYCController
+from app.CryptoFiatAdminControllers.admin_transaction_deposit import AllDepositController
+from app.CryptoFiatAdminControllers.admin_transaction_transfer import AllTransferTransactions
+
 
 
 

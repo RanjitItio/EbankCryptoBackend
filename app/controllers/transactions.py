@@ -20,8 +20,9 @@ currency_converter_api = config('CURRENCY_CONVERTER_API')
 RAPID_API_KEY          = config('RAPID_API_KEY')
 RAPID_API_HOST         = config('RAPID_API_HOST')
 
-# All are UAT Transaction
 
+
+# All are UAT Transaction
 class TransactionController(APIController):
 
     @classmethod
@@ -31,6 +32,7 @@ class TransactionController(APIController):
     @classmethod
     def class_name(cls):
         return "Transaction"
+    
     
     #Get all the Transactions by Admin
     @auth('userauth')
@@ -121,7 +123,7 @@ class TransactionController(APIController):
     #Update Transaction by Admin
     @auth('userauth')
     @put()
-    async def update_transactio(self, request: Request, input: FromJSON[UpdateTransactionSchema]):
+    async def update_transaction(self, request: Request, input: FromJSON[UpdateTransactionSchema]):
         try:
             async with AsyncSession(async_engine) as session:
                 data = input.value
@@ -259,7 +261,7 @@ class TransactionController(APIController):
                             #     return json({'msg': 'Transaction is completed'}, 400)
                             
                         #====================================
-                        #If the Transaction type is Transfer
+                        # If the Transaction type is Transfer
                         #====================================
                         elif transaction_data.txdtype == 'Transfer':
                             receiver_detail        = transaction_data.rec_detail
@@ -482,7 +484,7 @@ class TransactionController(APIController):
                                         return json({'msg': 'Recipient currency error', 'error': f'{str(e)}'}, 400)
                                     
                                     if sender_wallet_transfer_obj.balance <= transaction_data.totalamount:
-                                        return json({'msg': 'Sender do not have sufficient wallet balance'})
+                                        return json({'msg': 'Sender do not have sufficient wallet balance'}, 400)
 
                                     if sender_wallet_transfer_obj.balance >= transaction_data.totalamount:
                                         #Convert currency using API
@@ -541,7 +543,7 @@ class TransactionController(APIController):
                                         return json({'msg': 'Transfer Transaction updated successfully', 'is_completed': True}, 200)
                                     
                             else:
-                                return json({'msg': 'Recipient payment mode does not exists please update New transaction'}, 404)
+                                return json({'msg': 'Recipient payment mode does not exists please update New transaction'}, 400)
 
                         else:
                             return json({'msg': 'Working in Withdraw and Request money'})
@@ -585,6 +587,7 @@ class TransactionController(APIController):
 
 
 #Get all transaction of user in User dashboard section
+# Not used anywhere
 class SpecificUserTransaction(APIController):
 
     @classmethod
@@ -664,7 +667,7 @@ class SpecificUserTransaction(APIController):
                 return json({'msg': 'Transaction data fetched successfully', 'all_transactions': combined_data})
                 
         except Exception as e:
-            return json({'error': f'{str(e)}'})
+            return json({'error': f'{str(e)}'}, 500)
         
 
 

@@ -6,9 +6,9 @@ from Models.models import Users,  Transection, Currency, ReceiverDetails, Wallet
 from app.docs import docs
 from decouple import config
 from httpx import AsyncClient
-import re
 from Models.Admin.AllTransaction.schema import AdminAllTransactionFilterSchema
 from datetime import datetime
+import re
 
 
 
@@ -110,7 +110,6 @@ async def each_transaction_details(self, request: Request, transaction_id: int):
             receiver_details_data = receiver_details_dict.get(receiver_details_id, None)
 
             # print(receiver_details_data)
-
             if receiver_details_data:
                 sender_currency      = currency_data.name
                 receiver_currency_id = receiver_details_data.currency

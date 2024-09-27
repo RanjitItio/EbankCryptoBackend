@@ -530,8 +530,9 @@ class FilterMerchantTransactionController(APIController):
                     start_date, end_date = self.get_date_range(currenct_time_date)
                     conditions.append(
                         and_(
-                            MerchantProdTransaction.createdAt       >= start_date,
-                            MerchantProdTransaction.createdAt       <= end_date,)
+                            MerchantProdTransaction.merchant_id == user_id,
+                            MerchantProdTransaction.createdAt  >= start_date,
+                            MerchantProdTransaction.createdAt  <= end_date,)
                         )
                 
                 # Filter order ID wise

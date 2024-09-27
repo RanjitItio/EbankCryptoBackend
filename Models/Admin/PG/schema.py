@@ -17,4 +17,46 @@ class AdminUpdateMerchantRefundSchema:
     transaction_id: str
     status: str
 
+
+@dataclass
+class AllTransactionFilterSchema:
+    date: str  = field(default=None)
+    transaction_id: str = field(default=None)
+    transaction_amount: float = field(default=None)
+    business_name: str = field(default=None)
     
+
+@dataclass
+class AllSandboxTransactionFilterSchema:
+    date: str = field(default=None)
+    transaction_id: str = field(default=None)
+    transaction_amount: float = field(default=None)
+    business_name: str = field(default=None)
+
+
+@dataclass
+class FilterMerchantWithdrawalsSchema:
+    date: str = field(default=None)
+    email: str = field(default=None)
+    currency: str = field(default=None)
+    amount: float = field(default=None)
+
+
+
+@dataclass
+class FilterMerchantRefunds:
+    date: str = field(default=None)
+    email: str = field(default=None)
+    currency: str = field(default=None)
+    amount: float = field(default=None)
+
+
+
+@dataclass
+class FilterBusinsessPage:
+    date: str = field(default=None)
+    merchant_name: str = field(default=None)
+    business_name: str = field(default=None)
+    status: str = field(default=None)
+
+

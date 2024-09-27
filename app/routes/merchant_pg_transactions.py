@@ -7,6 +7,8 @@ from sqlmodel import and_, select, cast, Date, Time, func, desc
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
+from app.dateFormat import get_date_range
+from Models.Admin.PG.schema import AllTransactionFilterSchema
 
 
 
@@ -587,3 +589,126 @@ async def merchant_pg_transaction(request: Request, query: int, limit: int = 15,
         
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+
+
+# Filter All production transaction
+@auth('userauth')
+@post('/api/v2/admin/filter/merchant/transaction/')
+async def filter_merchant_pg_production_transaction(request: Request, schema: AllTransactionFilterSchema):
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            user_id       = user_identity.claims.get('user_id')
+
+            # Authenticate Admin
+            admin_user_obj = await session.execute(select(Users).where(
+                Users.id == user_id
+            ))
+            admin_user = admin_user_obj.scalar()
+
+            if not admin_user.is_admin:
+                return json({'message': 'Admin authorization failed'}, 401)
+            # Admin authentication ends
+
+            combined_data = []
+
+            # Get The payload data
+            date_time          = schema.date
+            transactionID      = schema.transaction_id
+            transaction_amount = schema.transaction_amount
+            business_name      = schema.business_name
+
+            if date_time:
+                # Convert according to date time format
+                start_date, end_date = get_date_range(date_time)
+
+            conditions = []
+
+            stmt = select(
+                MerchantProdTransaction
+            )
+
+            ## Filter according to the Input date time
+            if date_time:
+                conditions.append(
+                    and_(
+                        MerchantProdTransaction.createdAt >= start_date,
+                        MerchantProdTransaction.createdAt <= end_date
+                    )
+                )
+            
+            ## Filter according to transaction ID
+            if transactionID:
+
+                conditions.append(
+                    MerchantProdTransaction.transaction_id == transactionID
+                )
+            
+            ## Filter according to transaction Amount
+            if transaction_amount:
+                transaction_amount = float(schema.transaction_amount)
+                conditions.append(
+                    MerchantProdTransaction.amount == transaction_amount
+                )
+            
+            ## Filter according to business Name
+            if business_name:
+                conditions.append(
+                    MerchantProdTransaction.business_name == business_name
+                )
+            
+            if conditions:
+                statement = stmt.where(and_(*conditions))
+
+                merchant_transactions_obj = await session.execute(statement)
+                merchant_transactions     = merchant_transactions_obj.scalars().all()
+
+                if not merchant_transactions:
+                    return json({'message': 'No transaction found'}, 404)
+            else:
+                return json({'message': 'No data found'}, 404)
+
+            # Get all the users
+            user_obj   = await session.execute(select(Users))
+            users      = user_obj.scalars().all()
+
+            users_dict = {user.id: user for user in users}
+
+
+            # Loop through the transaction
+            for transactions in merchant_transactions:
+                user_id = users_dict.get(transactions.merchant_id)
+
+                combined_data.append({
+                    'id': transactions.id,
+                    'merchant': {
+                        'merchant_id': user_id.id,
+                        'merchant_name': user_id.full_name
+                    },
+                    'gatewayRes': transactions.gateway_res,
+                    'payment_mode': transactions.payment_mode,
+                    'transaction_id': transactions.transaction_id,
+                    'currency': transactions.currency,
+                    'status':   transactions.status,
+                    'amount':   transactions.amount,
+                    'createdAt': transactions.createdAt,
+                    'merchantOrderId': transactions.merchantOrderId,
+                    'merchantRedirectURl': transactions.merchantRedirectURl,
+                    'merchantCallBackURL': transactions.merchantCallBackURL,
+                    'merchantMobileNumber': transactions.merchantMobileNumber,
+                    'merchantPaymentType':  transactions.merchantPaymentType,
+                    'is_completed':          transactions.is_completd,
+                    'transaction_fee': transactions.transaction_fee,
+                    'business_name': transactions.business_name
+                })
+
+            return json({
+                'success': True, 
+                'message': 'Transaction fetched successfuly', 
+                'AdminmerchantPGTransactions': combined_data
+                }, 200)
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    

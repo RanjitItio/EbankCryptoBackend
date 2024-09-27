@@ -1,13 +1,13 @@
-from blacksheep import get, put, Request, json
+from blacksheep import get, put, post, Request, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Currency
 from Models.models2 import MerchantProdTransaction, MerchantAccountBalance
 from Models.models3 import MerchantRefund
-from Models.Admin.PG.schema import AdminUpdateMerchantRefundSchema
+from Models.Admin.PG.schema import AdminUpdateMerchantRefundSchema, FilterMerchantRefunds
 from sqlmodel import select, and_, desc, func, cast, Date, Time, or_
 from datetime import datetime
-
+from app.dateFormat import get_date_range
 
 
 
@@ -46,8 +46,6 @@ async def Admin_Merchant_Refunds(request: Request, limit: int = 10, offset: int 
             stmt = select(
                 MerchantRefund.id,
                 MerchantRefund.merchant_id,
-                # MerchantRefund.instant_refund,
-                # MerchantRefund.instant_refund_amount,
                 MerchantRefund.is_completed,
                 MerchantRefund.amount,
                 MerchantRefund.comment,
@@ -418,3 +416,138 @@ async def SearchMerchantRefunds(request: Request, query: str):
 
     except Exception as e:
          return json({'error':'Server Error', 'message': f'{str(e)}'}, 500) 
+    
+
+
+@auth('userauth')
+@post('/api/v6/admin/filter/merchant/refunds/')
+async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefunds):
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            admin_id       = user_identity.claims.get('user_id')
+
+            # Authenticate admin
+            admin_user_obj = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            admin_user = admin_user_obj.scalar()
+
+            if not admin_user.is_admin:
+                return json({'message': 'Admin authorization failed'}, 401)
+            # Admin authentication ends
+
+            # Get the payload data
+            date_time       = schema.date
+            merchant_mail   = schema.email
+            refund_currency = schema.currency
+            refund_amount   = schema.amount
+
+            conditions = []
+            combined_data = []
+
+            # Select data
+            stmt = select(
+                MerchantRefund.id,
+                MerchantRefund.merchant_id,
+                MerchantRefund.is_completed,
+                MerchantRefund.amount,
+                MerchantRefund.comment,
+                MerchantRefund.createdAt,
+                MerchantRefund.status,
+
+                Currency.name.label('currency_name'),
+                MerchantProdTransaction.transaction_id,
+                MerchantProdTransaction.currency.label('transaction_currency'),
+                MerchantProdTransaction.amount.label('transaction_amount'),
+                Users.full_name.label('merchant_name'),
+                Users.email.label('merchant_email'),
+
+                ).join(
+                    Currency, Currency.id == MerchantRefund.currency
+                ).join(
+                    MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
+                ).join(
+                     Users, Users.id == MerchantRefund.merchant_id
+                )
+
+            # Filter time wise
+            if date_time:
+                # Convert according to date time format
+                start_date, end_date = get_date_range(date_time)
+
+                conditions.append(
+                    and_(
+                        MerchantRefund.createdAt >= start_date,
+                        MerchantRefund.createdAt <= end_date
+                    ))
+             
+            # Filter Merchant email wise
+            if merchant_mail:
+                merchant_email_obj = await session.execute(select(Users).where(
+                    Users.email == merchant_mail
+                ))
+                merchant_email = merchant_email_obj.scalar()
+
+                if not merchant_email:
+                    return json({'message': 'Invalid email address'}, 400)
+                
+                conditions.append(
+                    MerchantRefund.merchant_id == merchant_email.id
+                )
+
+            # Filter currency wise
+            if refund_currency:
+                currency_obj = await session.execute(select(Currency).where(
+                    Currency.name == refund_currency
+                ))
+                currency = currency_obj.scalar()
+
+                if not currency:
+                    return json({'message': 'Invalid Currency'}, 400)
+                
+                conditions.append(MerchantRefund.currency == currency.id)
+
+            # Filter amount wise
+            if refund_amount:
+                refund_amount = float(schema.amount)
+                conditions.append(
+                    MerchantRefund.amount == refund_amount
+                )
+            
+            if conditions:
+                statement = stmt.where(and_(*conditions))
+
+                merchant_refunds_obj = await session.execute(statement)
+                merchant_refunds     = merchant_refunds_obj.fetchall()
+
+                if not merchant_refunds:
+                    return json({'message': 'No transaction found'}, 404)
+            else:
+                return json({'message': 'No transaction found'}, 404)
+            
+
+            # Combine all the data inside a list
+            for refunds in merchant_refunds:
+                combined_data.append({
+                    'id': refunds.id,
+                    "currency": refunds.currency_name,
+                    "transaction_currency": refunds.transaction_currency,
+                    "merchant_id": refunds.merchant_id,
+                    'merchant_name': refunds.merchant_name,
+                    'merchant_email': refunds.merchant_email,
+                    'is_completed': refunds.is_completed,
+                    'transaction_id': refunds.transaction_id,
+                    'amount': refunds.amount,
+                    'transaction_amount': refunds.transaction_amount,
+                    'createdAt': refunds.createdAt,
+                    'status': refunds.status
+                })
+
+            return json({
+                'success': True, 
+                'admin_merchant_filter_refunds': combined_data
+                }, 200)
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

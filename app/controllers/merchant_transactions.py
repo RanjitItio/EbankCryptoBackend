@@ -519,24 +519,60 @@ class FilterMerchantTransactionController(APIController):
                 transactionID      = schema.transaction_id
                 businessName       = schema.business_name
 
-                start_date, end_date = self.get_date_range(currenct_time_date)
+                conditions = []
 
-                # Get the transaction according to the input
-                merchant_pg_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                    and_(
-                        MerchantProdTransaction.merchantOrderId == orderID,
-                        MerchantProdTransaction.transaction_id  == transactionID,
-                        MerchantProdTransaction.business_name   == businessName,
-                        MerchantProdTransaction.createdAt       >= start_date,
-                        MerchantProdTransaction.createdAt       <= end_date,
-                        MerchantProdTransaction.merchant_id     == user_id
-                    )
-                ))
-                merchant_pg_transaction = merchant_pg_transaction_obj.scalars().all()
+                stmt = select(
+                    MerchantProdTransaction
+                )
 
-                if not merchant_pg_transaction:
-                    return json({'message': 'No transaction available'}, 404)
+                if currenct_time_date:
+                    # Convert to date time format
+                    start_date, end_date = self.get_date_range(currenct_time_date)
+                    conditions.append(
+                        and_(
+                            MerchantProdTransaction.createdAt       >= start_date,
+                            MerchantProdTransaction.createdAt       <= end_date,)
+                        )
                 
+                # Filter order ID wise
+                if orderID:
+                    conditions.append(
+                        and_(
+                            MerchantProdTransaction.merchantOrderId == orderID,
+                            MerchantProdTransaction.merchant_id     == user_id
+                            )
+                    )
+                
+                # Filter Transaction ID Wise
+                if transactionID:
+                    conditions.append(
+                       and_(
+                           MerchantProdTransaction.transaction_id  == transactionID,
+                           MerchantProdTransaction.merchant_id     == user_id
+                           )
+                    )
+                
+                # Filter Business Name wise
+                if businessName:
+                    conditions.append(
+                       and_(
+                           MerchantProdTransaction.business_name == businessName,
+                           MerchantProdTransaction.merchant_id     == user_id
+                           ) 
+                        )
+                 # If data found
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+
+                    merchant_pg_transaction_obj = await session.execute(statement)
+                    merchant_pg_transaction     = merchant_pg_transaction_obj.scalars().all()
+
+                    if not merchant_pg_transaction:
+                        return json({'message': 'No transaction available'}, 404)
+                else:
+                    return json({'message': 'No transaction available'}, 400)
+                
+                # Store all the data inside a list
                 for transaction in merchant_pg_transaction:
 
                     combined_data.append({

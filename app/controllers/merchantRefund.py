@@ -460,7 +460,7 @@ class FilterMerchantRefunds(APIController):
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v6/filter/merchant/fiat/refund/'
+        return '/api/v6/filter/merchant/pg/refund/'
     
     # Convert text to datetime format
     @staticmethod
@@ -503,17 +503,11 @@ class FilterMerchantRefunds(APIController):
                 # Get the payload data
                 date_time     = schema.date
                 transactionId = schema.transaction_id
-                refundAmount  = float(schema.refund_amount)
+                refundAmount  = schema.refund_amount
 
-                start_date, end_date = self.get_date_range(date_time)
+                conditions = []
 
-                # Get the transaction ID
-                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                    MerchantProdTransaction.transaction_id == transactionId
-                ))
-                merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
-
-                # Get all the refund made by the merchant
+                # Select table
                 stmt = select(
                     MerchantRefund.id,
                     MerchantRefund.merchant_id,
@@ -534,22 +528,63 @@ class FilterMerchantRefunds(APIController):
                         Currency, Currency.id == MerchantRefund.currency
                     ).join(
                         MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
-                    ).where(
-                        and_(
-                            MerchantRefund.merchant_id    == user_id,
-                            MerchantRefund.transaction_id == merchant_prod_transaction.id,
-                            MerchantRefund.amount         == refundAmount,
-                            MerchantRefund.createdAt      >= start_date,
-                            MerchantRefund.createdAt      <= end_date,
-                            )
                     )
                 
-                merchant_refunds_obj = await session.execute(stmt)
-                merchant_refunds     = merchant_refunds_obj.fetchall()
+                # Filter Date wise
+                if date_time:
+                    start_date, end_date = self.get_date_range(date_time)
 
-                if not merchant_refunds:
-                    return json({'message': 'No refund requests available'}, 404)
+                    conditions.append(
+                        and_(
+                            MerchantRefund.merchant_id == user_id,
+                            MerchantRefund.createdAt   >= start_date,
+                            MerchantRefund.createdAt   <= end_date
+                        ))
+
+                # Filter Transaction Wise
+                if transactionId:
+                    # Get the transaction ID
+                    merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                        MerchantProdTransaction.transaction_id == transactionId
+                    ))
+                    merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
+
+                    if not merchant_prod_transaction:
+                        return json({'message': 'Invalid Transaction ID'}, 400)
+
+                    conditions.append(
+                        and_(
+                            MerchantRefund.merchant_id == user_id,
+                            MerchantRefund.transaction_id == merchant_prod_transaction.id
+                        )
+                    )
                 
+                # Filter Refund amount wise
+                if refundAmount:
+                    refundAmount  = float(schema.refund_amount)
+
+                    conditions.append(
+                        and_(
+                            MerchantRefund.merchant_id == user_id,
+                            MerchantRefund.amount      == refundAmount
+                        )
+                    )
+                
+                # If data is available
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+
+                    merchant_refunds_obj = await session.execute(statement)
+                    merchant_refunds     = merchant_refunds_obj.fetchall()
+
+                    if not merchant_refunds:
+                        return json({'message': 'No refund requests available'}, 404)
+                    
+                else:
+                    return json({'message': 'No refund requests available'}, 400)
+                
+                
+                ## Store all the data inside a list
                 for refunds in merchant_refunds:
                     combined_data.append({
                         'id': refunds.id,

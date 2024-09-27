@@ -329,7 +329,7 @@ class FilterMerchantWithdrawalsController(APIController):
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v3/filter/merchant/fiat/withdrawals/'
+        return '/api/v3/filter/merchant/pg/withdrawals/'
     
     # Convert text to datetime format
     @staticmethod
@@ -373,42 +373,92 @@ class FilterMerchantWithdrawalsController(APIController):
                 date_time           = schema.date
                 bankName            = schema.bank_name
                 withdrawal_currency = schema.withdrawal_currency
-                withdrawal_amount   = float(schema.withdrawal_amount)
+                withdrawal_amount   = schema.withdrawal_amount
 
-                start_date, end_date = self.get_date_range(date_time)
+                conditions  = []
 
-                # Get The merchant bank Account
-                merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
-                    and_(
-                        MerchantBankAccount.bank_name == bankName,
-                        MerchantBankAccount.user      == user_id
+                # Select the table
+                stmt = select(
+                    MerchantWithdrawals
+                )
+
+                # Filter date wise
+                if date_time:
+                    start_date, end_date = self.get_date_range(date_time)
+
+                    conditions.append(
+                        and_(
+                            MerchantWithdrawals.createdAt   >= start_date,
+                            MerchantWithdrawals.createdAt   <= end_date,
+                            MerchantWithdrawals.merchant_id == user_id
                         )
-                ))
-                merchant_bank_account  = merchant_bank_account_obj.scalar()
-
-                # Get the currency ID
-                currency_obj = await session.execute(select(Currency).where(
-                    Currency.name == withdrawal_currency
-                ))
-                currency = currency_obj.scalar()
-
-                # get the merchant withdrawal transaction
-                merchant_withdrawal_transaction_obj = await session.execute(select(MerchantWithdrawals).where(
-                    and_(
-                        MerchantWithdrawals.bank_id     == merchant_bank_account.id,
-                        MerchantWithdrawals.currency    == currency.id,
-                        MerchantWithdrawals.amount      == withdrawal_amount,
-                        MerchantWithdrawals.merchant_id == user_id,
-                        MerchantWithdrawals.createdAt   >= start_date,
-                        MerchantWithdrawals.createdAt   <= end_date,
                     )
-                ))
-                merchant_withdrawal_transaction = merchant_withdrawal_transaction_obj.scalars().all()
-
-                if not merchant_withdrawal_transaction:
-                    return json({'error': 'No withdrawal request found'}, 404)
                 
+                # Filter bank name wise
+                if bankName:
 
+                    # Get The merchant bank Account
+                    merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
+                        and_(
+                            MerchantBankAccount.bank_name == bankName,
+                            MerchantBankAccount.user      == user_id
+                            )
+                    ))
+                    merchant_bank_account  = merchant_bank_account_obj.scalar()
+
+                    if not merchant_bank_account:
+                        return json({'message': 'Invalid Bank Name'}, 400)
+                    
+                    conditions.append(
+                        and_(
+                            MerchantWithdrawals.bank_id     == merchant_bank_account.id,
+                            MerchantWithdrawals.merchant_id == user_id
+                        )
+                    )
+
+                # Filter Withdrawal currency wise
+                if withdrawal_currency:
+                    # Get the currency ID
+                    currency_obj = await session.execute(select(Currency).where(
+                        Currency.name == withdrawal_currency
+                    ))
+                    currency = currency_obj.scalar()
+
+                    if not currency:
+                        return json({'message': 'Invalid Currency'}, 400)
+
+                    conditions.append(
+                        and_(
+                            MerchantWithdrawals.currency == currency.id,
+                            MerchantWithdrawals.merchant_id == user_id
+                            )
+                        )
+                
+                # Filter Withdrawal amount wise
+                if withdrawal_amount:
+                    withdrawal_amount = float(schema.withdrawal_amount)
+
+                    conditions.append(
+                        and_(
+                            MerchantWithdrawals.amount == withdrawal_amount,
+                            MerchantWithdrawals.merchant_id == user_id
+                            )
+                        )
+                
+                # If data is available
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+
+                    merchant_withdrawal_transaction_obj = await session.execute(statement)
+                    merchant_withdrawal_transaction     = merchant_withdrawal_transaction_obj.scalars().all()
+
+                    if not merchant_withdrawal_transaction:
+                        return json({'error': 'No withdrawal request found'}, 404)
+                    
+                else:
+                    return json({'error': 'No withdrawal request found'}, 400)
+                
+                # Store all the data inside a list
                 for withdrawals in merchant_withdrawal_transaction:
                     # Get the bank account linked to the merchant
                     merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(

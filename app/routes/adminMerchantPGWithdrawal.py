@@ -1,4 +1,4 @@
-from blacksheep import Request, json, get, put
+from blacksheep import Request, json, get, put, post
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models3 import MerchantWithdrawals
@@ -7,6 +7,8 @@ from Models.models2 import MerchantAccountBalance
 from Models.Admin.PG.schema import AdminWithdrawalUpdateSchema
 from sqlmodel import select, and_, or_, cast, Date, Time, func, desc
 from datetime import datetime
+from Models.Admin.PG.schema import FilterMerchantWithdrawalsSchema
+from app.dateFormat import get_date_range
 
 
 
@@ -311,6 +313,7 @@ async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
                if conditions:
                     stmt = stmt.where(or_(*conditions))
 
+
                merchant_withdrawals_object = await session.execute(stmt)
                merchant_withdrawals = merchant_withdrawals_object.fetchall()
 
@@ -453,5 +456,171 @@ async def AdminMerchantExportWithdrawalRequests(request: Request):
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
+
+
+
+
+## Filter Merchant Withdrawals by Admin
+@auth('userauth')
+@post('/api/v4/admin/filter/merchant/withdrawals/')
+async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWithdrawalsSchema):
+     try:
+          async with AsyncSession(async_engine) as session:
+               user_identity = request.identity
+               user_id       = user_identity.claims.get('user_id')
+
+               # Admin authentication
+               admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == user_id
+               ))
+               admin_user = admin_user_obj.scalar()
+
+               if not admin_user.is_admin:
+                    return json({'message': 'Admin authorization failed'}, 401)
+               # Admin authentication ends
+
+               combined_data = []
+
+               ## Get The payload data
+               date_time            = schema.date
+               merchant_email       = schema.email
+               withdrawal_amount    = schema.amount
+               withdrawal_currency  = schema.currency
+
+               if date_time:
+                    start_date, end_date = get_date_range(date_time)
+
+
+               # Filter merchant email wise
+               if merchant_email:
+                    # Get the user
+                    merchant_user_obj = await session.execute(select(Users).where(
+                         Users.email == merchant_email
+                    ))
+                    merchant_user = merchant_user_obj.scalar()
+
+                    if not merchant_user:
+                         return json({'message': 'Invalid Email'}, 400)
+          
+               # Filter currency wise
+               if withdrawal_currency:
+                    # Get the Currency
+                    currency_obj = await session.execute(select(Currency).where(
+                         Currency.name == withdrawal_currency
+                    ))
+                    currency = currency_obj.scalar()
+
+                    if not currency:
+                         return json({'message': 'Invalid Currency'}, 400)
+
+
+               # Get all the merchant withdrawals
+               stmt = select(
+                    MerchantWithdrawals.id, 
+                    MerchantWithdrawals.merchant_id,
+                    MerchantWithdrawals.amount,
+                    MerchantWithdrawals.createdAt,
+                    MerchantWithdrawals.currency,
+                    MerchantWithdrawals.bank_currency,
+                    MerchantWithdrawals.status,
+                    MerchantWithdrawals.is_completed,
+
+                    MerchantBankAccount.bank_name,
+
+                    Users.full_name,
+                    Users.email
+                    ).join(
+                         Users, Users.id == MerchantWithdrawals.merchant_id
+                    ).join(
+                         MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
+                    )
+
+               conditions = []
+
+               # Date time 
+               if date_time:
+                    conditions.append(
+                         and_(
+                             MerchantWithdrawals.createdAt >= start_date,
+                             MerchantWithdrawals.createdAt <= end_date 
+                         )
+                    )
+               
+               if merchant_email:
+                    conditions.append(
+                         MerchantWithdrawals.merchant_id == merchant_user.id
+                    )
+               
+               if withdrawal_amount:
+                    withdrawal_amount = float(schema.amount)
+
+                    conditions.append(
+                         MerchantWithdrawals.amount == withdrawal_amount
+                    )
+
+               if withdrawal_currency:
+                    conditions.append(
+                         MerchantWithdrawals.currency == currency.id
+                    )
+               
+               if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    
+                    merchant_withdrawals_object = await session.execute(statement)
+                    merchant_withdrawals        = merchant_withdrawals_object.fetchall()
+     
+                    if not merchant_withdrawals:
+                         return json({'message': 'No transaction found'}, 404)
+               else:
+                    return json({'message': 'No data found'}, 404)
+
+
+               # Gather all the Data inside combined data
+               for withdrawals in merchant_withdrawals:
+                    # Get the withdrawal currency and Bank Currecy
+
+                    merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.currency
+                    ))
+                    merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
+
+                    # Get the merchant Bank Currency
+                    merchant_bank_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == withdrawals.bank_currency
+                    ))
+                    merchant_bank_currency = merchant_bank_currency_obj.scalar()
+
+                    # Get merchant account balance
+                    merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
+                         and_(MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
+                              MerchantAccountBalance.currency    == merchant_withdrawal_currency.name
+                              )
+                    ))
+                    merchant_account_balance_ = merchant_account_balance_obj.scalar()
+
+                    combined_data.append({
+                        'id': withdrawals.id,
+                        'merchant_id': withdrawals.merchant_id,
+                        'merchant_name': withdrawals.full_name,
+                        'merchant_email': withdrawals.email,
+                        'bank_account': withdrawals.bank_name,
+                        'bankCurrency': merchant_bank_currency.name,
+                        'withdrawalAmount': withdrawals.amount,
+                        'withdrawalCurrency': merchant_withdrawal_currency.name,
+                        'createdAt': withdrawals.createdAt,
+                        'status':   withdrawals.status,
+                        'is_completed': withdrawals.is_completed,
+                        'account_balance': merchant_account_balance_.amount if merchant_account_balance_ else None,
+                        'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
+                    })
+
+               return json({
+                         'success': True, 
+                         'AdminMerchantWithdrawalRequests': combined_data,
+                    }, 200)
+
+     except Exception as e:
+          return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
 

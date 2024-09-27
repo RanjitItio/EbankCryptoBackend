@@ -1,14 +1,16 @@
-from blacksheep import json, Request, get, put
+from blacksheep import json, Request, get, put, post
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from Models.models import Users, MerchantGroup, BusinessProfile, Currency
 from datetime import datetime, date
-import uuid
 from blacksheep.exceptions import BadRequest
 from pathlib import Path
 from decouple import config
 from sqlalchemy import desc
-from sqlmodel import select, func
+from sqlmodel import select, func, and_
+from app.dateFormat import get_date_range
+from Models.Admin.PG.schema import FilterBusinsessPage
+import uuid
 import re
 
 
@@ -589,4 +591,150 @@ async def exportMerchantBusiness(request: Request):
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
     
+
+
+## Filter business by Admin
+@auth('userauth')
+@post('/api/v2/admin/filter/merchant/business/')
+async def filter_business(request: Request, schema: FilterBusinsessPage):
+    try:
+        async with AsyncSession(async_engine) as session:
+            user_identity = request.identity
+            admin_id       = user_identity.claims.get('user_id')
+
+            # Authenticate admin
+            admin_user_obj = await session.execute(select(Users).where(
+                Users.id == admin_id
+            ))
+            admin_user = admin_user_obj.scalar()
+
+            if not admin_user.is_admin:
+                return json({'message': 'Admin authorization failed'}, 401)
+            # Admin authentication failed
+
+            # get payload data
+            date_time     = schema.date
+            merchant_name = schema.merchant_name
+            business_name = schema.business_name
+            status        = schema.status
+
+            conditions = []
+            combined_data = []
+
+            stmt = select(
+                BusinessProfile
+            )
+
+            # Filter date wise
+            if date_time:
+                start_date, end_date = get_date_range(date_time)
+
+                conditions.append(
+                    and_(
+                        BusinessProfile.created_date >= start_date,
+                        BusinessProfile.created_date <= end_date
+                    ))
+            
+            # Filter merchant name wise
+            if merchant_name:
+                merchant_user_obj = await session.execute(select(Users).where(
+                    Users.full_name == merchant_name
+                ))
+                merchant_user = merchant_user_obj.scalars().all()
+
+                if not merchant_user:
+                    return json({'message': 'Invalid merchant name'}, 400)
+                
+                conditions.append(
+                    BusinessProfile.user.in_(user.id for user in merchant_user)
+                )
+
+            if business_name:
+                conditions.append(
+                    BusinessProfile.bsn_name == business_name
+                )
+
+            # Filter status wise
+            if status:
+                conditions.append(
+                    BusinessProfile.status == status
+                )
+            
+            if conditions:
+                statement = stmt.where(and_(*conditions))
+
+                business_profile_obj = await session.execute(statement)
+                business_profile     = business_profile_obj.scalars().all()
+
+                if not business_profile:
+                    return json({'message': 'No business found'}, 404)
+
+            else:
+                return json({'message': 'No data found'}, 404)
+            
+            # Fecth currecies
+            user_obj      = await session.execute(select(Users))
+            user_obj_data = user_obj.scalars().all()
+
+            # Fetch Groups
+            group_obj      = await session.execute(select(MerchantGroup))
+            group_obj_data = group_obj.scalars().all()
+
+            # Fetch Currency
+            currency_obj      = await session.execute(select(Currency))
+            currency_obj_data = currency_obj.scalars().all()
+
+            user_dict     = {user.id: user for user in user_obj_data}  # Users data 
+            group_dict    = {grp.id: grp for grp in group_obj_data}    # Group Name
+            currency_dict = {cur.id: cur for cur in currency_obj_data}  # Currency Data
+
+            # Business Data
+            for business in business_profile:
+                user_id   = business.user
+                merchant_user = user_dict.get(user_id)
+
+                group_id   = business.group
+                group_data = group_dict.get(group_id)
+
+                currency_id   = business.currency
+                currency_data = currency_dict.get(currency_id)
+
+                user_data = {
+                    'full_name': merchant_user.full_name,
+                    'id': merchant_user.id
+
+                } if merchant_user else None
+
+                combined_data.append(
+                    {
+                        'user': user_data,
+                        'group': group_data,
+                        'currency': currency_data,
+                        'merchant': {
+                            'id':           business.id,
+                            'bsn_url':      business.bsn_url,
+                            'user':         business.user,
+                            'logo':         f"{url}{business.logo}",
+                            'group':        business.group,
+                            'created_time': business.created_time,
+                            'is_active':    business.is_active,
+                            'bsn_name':     business.bsn_name,
+                            'currency':     business.currency,
+                            'bsn_msg':      business.bsn_msg,
+                            'fee':          business.fee,
+                            'created_date': business.created_date,
+                            'status':       business.status
+                        }
+                    }
+                )
+
+            return json({
+                    'msg': 'Merchant data fetched successfully', 
+                    'filtered_business': combined_data,
+                    'success': True
+                    }, 200)
+
+
+    except Exception as e:
+        return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 

@@ -103,23 +103,24 @@ class UppdateUserProfileSchema:
 
 @dataclass
 class FilterTransactionSchema:
-    date: str
-    order_id: str
-    transaction_id: str
-    business_name: str
+    date: str           = field(default=None)
+    order_id: str       = field(default=None)
+    transaction_id: str = field(default=None)
+    business_name: str  = field(default=None)
 
 
 @dataclass
 class FilterWithdrawalTransactionSchema:
-    date: str
-    bank_name: str
-    withdrawal_currency: str
-    withdrawal_amount: float
+    date: str = field(default=None)
+    bank_name: str = field(default=None)
+    withdrawal_currency: str = field(default=None)
+    withdrawal_amount: float = field(default=None)
 
 
 
 @dataclass
 class FilterMerchantRefundSchema:
-    date: str
-    transaction_id: str
-    refund_amount: float
+    date: str = field(default=None)
+    transaction_id: str = field(default=None)
+    refund_amount: float = field(default=None)
+

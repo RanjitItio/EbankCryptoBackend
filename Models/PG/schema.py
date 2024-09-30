@@ -124,3 +124,12 @@ class FilterMerchantRefundSchema:
     transaction_id: str = field(default=None)
     refund_amount: float = field(default=None)
 
+
+
+@dataclass
+class FiatUserWithdrawalSchema:
+    withdrawalAmount: float
+    withdrawalCurrency: str
+    wallet_currency: str
+    fee: float
+    

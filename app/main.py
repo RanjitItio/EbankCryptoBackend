@@ -18,7 +18,8 @@ from app.CryptoFiatController.authentication import (
     )
 from app.CryptoFiatController.deposit import DepositController
 from app.CryptoFiatController.SendMoney import TransferMoneyController
-from app.CryptoFiatController.Transactions import UserFiatTransactionController
+from app.CryptoFiatController.Transactions import UserFiatTransactionController, UserFiatRecentTransactionController
+from app.CryptoFiatController.Withdrawal import UserFiatWithdrawalController
 from app.CryptoFiatAdminControllers.admin_users import CryptoUserKYCController
 from app.CryptoFiatAdminControllers.admin_transaction_deposit import AllDepositController
 from app.CryptoFiatAdminControllers.admin_transaction_transfer import AllTransferTransactions

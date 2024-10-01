@@ -331,6 +331,7 @@ class FilterMerchantWithdrawalsController(APIController):
     def route(cls) -> str | None:
         return '/api/v3/filter/merchant/pg/withdrawals/'
     
+
     # Convert text to datetime format
     @staticmethod
     def get_date_range(currenct_time_date: str):
@@ -396,11 +397,12 @@ class FilterMerchantWithdrawalsController(APIController):
                 
                 # Filter bank name wise
                 if bankName:
+                    bankName = schema.bank_name.capitalize()
 
                     # Get The merchant bank Account
                     merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
                         and_(
-                            MerchantBankAccount.bank_name == bankName,
+                            MerchantBankAccount.bank_name.like(f"{bankName}%"),
                             MerchantBankAccount.user      == user_id
                             )
                     ))
@@ -418,9 +420,11 @@ class FilterMerchantWithdrawalsController(APIController):
 
                 # Filter Withdrawal currency wise
                 if withdrawal_currency:
+                    withdrawal_currency = schema.withdrawal_currency.upper()
+
                     # Get the currency ID
                     currency_obj = await session.execute(select(Currency).where(
-                        Currency.name == withdrawal_currency
+                        Currency.name.like(f"{withdrawal_currency}%")
                     ))
                     currency = currency_obj.scalar()
 

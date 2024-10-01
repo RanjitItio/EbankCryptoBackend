@@ -488,15 +488,12 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                withdrawal_amount    = schema.amount
                withdrawal_currency  = schema.currency
 
-               if date_time:
-                    start_date, end_date = get_date_range(date_time)
-
 
                # Filter merchant email wise
                if merchant_email:
                     # Get the user
                     merchant_user_obj = await session.execute(select(Users).where(
-                         Users.email == merchant_email
+                         Users.email.like(f"{merchant_email}%") 
                     ))
                     merchant_user = merchant_user_obj.scalar()
 
@@ -505,9 +502,11 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
           
                # Filter currency wise
                if withdrawal_currency:
+                    withdrawal_currency = schema.currency.upper()
+
                     # Get the Currency
                     currency_obj = await session.execute(select(Currency).where(
-                         Currency.name == withdrawal_currency
+                         Currency.name.like(f"{withdrawal_currency}%")
                     ))
                     currency = currency_obj.scalar()
 
@@ -540,6 +539,8 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
 
                # Date time 
                if date_time:
+                    start_date, end_date = get_date_range(date_time)
+
                     conditions.append(
                          and_(
                              MerchantWithdrawals.createdAt >= start_date,

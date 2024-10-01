@@ -634,11 +634,11 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
                         BusinessProfile.created_date >= start_date,
                         BusinessProfile.created_date <= end_date
                     ))
-            
+
             # Filter merchant name wise
             if merchant_name:
                 merchant_user_obj = await session.execute(select(Users).where(
-                    Users.full_name == merchant_name
+                    Users.full_name.like(f"{merchant_name}%")
                 ))
                 merchant_user = merchant_user_obj.scalars().all()
 
@@ -651,15 +651,17 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
 
             if business_name:
                 conditions.append(
-                    BusinessProfile.bsn_name == business_name
+                    BusinessProfile.bsn_name.like(f"{business_name}%")
                 )
 
             # Filter status wise
             if status:
+                status = schema.status.capitalize()
+
                 conditions.append(
-                    BusinessProfile.status == status
+                    BusinessProfile.status.like(f"{status}%")
                 )
-            
+
             if conditions:
                 statement = stmt.where(and_(*conditions))
 
@@ -733,7 +735,6 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
                     'filtered_business': combined_data,
                     'success': True
                     }, 200)
-
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

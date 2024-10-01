@@ -123,6 +123,7 @@ class FilterMerchantRefundSchema:
     date: str = field(default=None)
     transaction_id: str = field(default=None)
     refund_amount: float = field(default=None)
+    status: str = field(default=None)
 
 
 

@@ -619,10 +619,6 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
             transaction_amount = schema.transaction_amount
             business_name      = schema.business_name
 
-            if date_time:
-                # Convert according to date time format
-                start_date, end_date = get_date_range(date_time)
-
             conditions = []
 
             stmt = select(
@@ -631,6 +627,8 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
 
             ## Filter according to the Input date time
             if date_time:
+                start_date, end_date = get_date_range(date_time)
+
                 conditions.append(
                     and_(
                         MerchantProdTransaction.createdAt >= start_date,
@@ -640,11 +638,10 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
             
             ## Filter according to transaction ID
             if transactionID:
-
                 conditions.append(
-                    MerchantProdTransaction.transaction_id == transactionID
+                    MerchantProdTransaction.transaction_id.like(f"{transactionID}%")
                 )
-            
+
             ## Filter according to transaction Amount
             if transaction_amount:
                 transaction_amount = float(schema.transaction_amount)
@@ -655,9 +652,9 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
             ## Filter according to business Name
             if business_name:
                 conditions.append(
-                    MerchantProdTransaction.business_name == business_name
+                    MerchantProdTransaction.business_name.like(f"{business_name}%") 
                 )
-            
+
             if conditions:
                 statement = stmt.where(and_(*conditions))
 
@@ -674,7 +671,6 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
             users      = user_obj.scalars().all()
 
             users_dict = {user.id: user for user in users}
-
 
             # Loop through the transaction
             for transactions in merchant_transactions:

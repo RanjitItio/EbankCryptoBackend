@@ -485,7 +485,7 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
             # Filter Merchant email wise
             if merchant_mail:
                 merchant_email_obj = await session.execute(select(Users).where(
-                    Users.email == merchant_mail
+                    Users.email.like(f"{merchant_mail}%")
                 ))
                 merchant_email = merchant_email_obj.scalar()
 
@@ -498,8 +498,10 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
 
             # Filter currency wise
             if refund_currency:
+                refund_currency = schema.currency.upper()
+
                 currency_obj = await session.execute(select(Currency).where(
-                    Currency.name == refund_currency
+                    Currency.name.like(f"{refund_currency}%")
                 ))
                 currency = currency_obj.scalar()
 
@@ -551,3 +553,4 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+

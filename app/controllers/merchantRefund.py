@@ -504,6 +504,7 @@ class FilterMerchantRefunds(APIController):
                 date_time     = schema.date
                 transactionId = schema.transaction_id
                 refundAmount  = schema.refund_amount
+                status        = schema.status
 
                 conditions = []
 
@@ -540,12 +541,23 @@ class FilterMerchantRefunds(APIController):
                             MerchantRefund.createdAt   >= start_date,
                             MerchantRefund.createdAt   <= end_date
                         ))
+                
+                # Search Status wise
+                if status:
+                    status = schema.status.capitalize()
+                    
+                    conditions.append(
+                        and_(
+                            MerchantRefund.merchant_id == user_id,
+                            MerchantRefund.status.like(f"{status}%")
+                        )
+                    )
 
                 # Filter Transaction Wise
                 if transactionId:
                     # Get the transaction ID
                     merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                        MerchantProdTransaction.transaction_id == transactionId
+                        MerchantProdTransaction.transaction_id.like(f"{transactionId}%")
                     ))
                     merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
 

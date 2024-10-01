@@ -539,28 +539,31 @@ class FilterMerchantTransactionController(APIController):
                 if orderID:
                     conditions.append(
                         and_(
-                            MerchantProdTransaction.merchantOrderId == orderID,
+                            MerchantProdTransaction.merchantOrderId.like(f"{orderID}%"),
                             MerchantProdTransaction.merchant_id     == user_id
                             )
                     )
-                
+
                 # Filter Transaction ID Wise
                 if transactionID:
                     conditions.append(
                        and_(
-                           MerchantProdTransaction.transaction_id  == transactionID,
+                           MerchantProdTransaction.transaction_id.like(f"{transactionID}%"),
                            MerchantProdTransaction.merchant_id     == user_id
                            )
-                    )
-                
+                        )
+
                 # Filter Business Name wise
                 if businessName:
+                    businessName = schema.business_name.capitalize()
+                    
                     conditions.append(
                        and_(
-                           MerchantProdTransaction.business_name == businessName,
+                           MerchantProdTransaction.business_name.like(f"{businessName}%"),
                            MerchantProdTransaction.merchant_id     == user_id
                            ) 
                         )
+
                  # If data found
                 if conditions:
                     statement = stmt.where(and_(*conditions))

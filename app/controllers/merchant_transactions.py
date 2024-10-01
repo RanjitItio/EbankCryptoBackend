@@ -555,11 +555,11 @@ class FilterMerchantTransactionController(APIController):
 
                 # Filter Business Name wise
                 if businessName:
-                    businessName = schema.business_name.capitalize()
+                    businessName = schema.business_name
                     
                     conditions.append(
                        and_(
-                           MerchantProdTransaction.business_name.like(f"{businessName}%"),
+                           MerchantProdTransaction.business_name.ilike(f"{businessName}%"),
                            MerchantProdTransaction.merchant_id     == user_id
                            ) 
                         )

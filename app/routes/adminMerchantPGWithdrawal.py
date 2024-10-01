@@ -486,7 +486,7 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                date_time            = schema.date
                merchant_email       = schema.email
                withdrawal_amount    = schema.amount
-               withdrawal_currency  = schema.currency
+               withdrawal_status    = schema.status
 
 
                # Filter merchant email wise
@@ -499,20 +499,7 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
 
                     if not merchant_user:
                          return json({'message': 'Invalid Email'}, 400)
-          
-               # Filter currency wise
-               if withdrawal_currency:
-                    withdrawal_currency = schema.currency.upper()
-
-                    # Get the Currency
-                    currency_obj = await session.execute(select(Currency).where(
-                         Currency.name.like(f"{withdrawal_currency}%")
-                    ))
-                    currency = currency_obj.scalar()
-
-                    if not currency:
-                         return json({'message': 'Invalid Currency'}, 400)
-
+                    
 
                # Get all the merchant withdrawals
                stmt = select(
@@ -560,9 +547,9 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                          MerchantWithdrawals.amount == withdrawal_amount
                     )
 
-               if withdrawal_currency:
+               if withdrawal_status:
                     conditions.append(
-                         MerchantWithdrawals.currency == currency.id
+                         MerchantWithdrawals.status.ilike(f"{withdrawal_status}%")
                     )
                
                if conditions:

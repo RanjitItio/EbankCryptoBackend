@@ -64,7 +64,7 @@ async def each_transaction_details(self, request: Request, transaction_id: int):
                 return json({'msg': 'User not found'}, 400)
             
             
-             #Get all currency data
+            #Get all currency data
             try:
                 currency_obj      = await session.execute(select(Currency))
                 currency_obj_data = currency_obj.scalars().all()

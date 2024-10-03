@@ -136,6 +136,7 @@ class DepositTransactionDetailController(APIController):
     def class_name(cls) -> str:
         return 'Deposit Transaction Details'
     
+
     @auth('userauth')
     @get()
     async def get_deposit_details(self, request: Request, transaction_id: int):
@@ -189,7 +190,7 @@ class DepositTransactionDetailController(APIController):
                 
                 deposit_currency            = currency.name
                 selected_wallet             = transaction_id_details.selected_wallet
-                deposit_amount              = transaction_id_details.payout_amount
+                deposit_amount              = transaction_id_details.amount
 
                 # Get the selected wallet
                 deposit_selected_wallet = await session.execute(select(Wallet).where(
@@ -326,7 +327,7 @@ class UpdateDepositController(APIController):
                     currency_to_convert_name = currency_to_convert_obj.name
 
                     try:
-                        url = f"{currency_converter_api}/convert?from={currency_to_convert_name}&to={selected_wallet_currency_name}&amount={transaction_data.payout_amount}"
+                        url = f"{currency_converter_api}/convert?from={currency_to_convert_name}&to={selected_wallet_currency_name}&amount={transaction_data.amount}"
                         headers = {
                         'X-RapidAPI-Key': f"{RAPID_API_KEY}",
                         'X-RapidAPI-Host': f"{RAPID_API_HOST}"
@@ -356,10 +357,12 @@ class UpdateDepositController(APIController):
                     session.add(sender_wallet_obj)
                     # await session.commit()
 
-                    transaction_data.status          = 'Approved'
-                    transaction_data.is_completed    = True
-                    transaction_data.payout_amount   = converted_amount
-                    # transaction_data.credited_currency = currency_to_convert_name
+                    transaction_data.status            = 'Approved'
+                    transaction_data.is_completed      = True
+                    transaction_data.payout_amount     = converted_amount
+                    transaction_data.credited_currency = selected_wallet_currency_name
+                    transaction_data.credited_amount   = converted_amount
+
 
                     session.add(transaction_data)
                     await session.commit()

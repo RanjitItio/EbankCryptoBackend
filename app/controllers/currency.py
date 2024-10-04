@@ -179,15 +179,15 @@ class CurrencyConverterController(APIController):
                     # print('api data', api_data)
 
                 else:
-                    return json({'msg': 'Error calling external API', 'error': response.text}, 400)
+                    return json({'message': 'Error calling external API', 'error': response.text}, 400)
                                     
         except Exception as e:
-            return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
+            return json({'message': 'Currency API Error', 'error': f'{str(e)}'}, 400)
 
         converted_amount = api_data['result'] if 'result' in api_data else None
 
         if not converted_amount:
-            return json({'msg': 'Invalid Curency Converter API response', 'error': 'Conversion result missing'}, 400)
+            return json({'message': 'Invalid Curency Converter API response', 'error': 'Conversion result missing'}, 400)
         
 
         return json({'converted_amount': converted_amount}, 200)

@@ -77,6 +77,27 @@ class FiatWithdrawalTransaction(SQLModel, table=True):
 
 
 
+# Exchange Money table
+class FIATExchangeMoney(SQLModel, table=True):
+    id: int | None          = Field(default=None, primary_key=True)
+    user_id: int            = Field(foreign_key="users.id")
+    from_currency: int      = Field(foreign_key="currency.id")
+    to_currency: int        = Field(foreign_key="currency.id")
+    exchange_amount: float  = Field(default=0.00)
+    converted_amount: float = Field(default=0.00)
+    transaction_fee: float  = Field(default=0.00, nullable=True)
+    status: str             = Field(default='Pending', nullable=True) # Approved, Pending, Cancelled, Hold
+    is_completed: bool      = Field(default=False, nullable=True)
+    created_At: datetime    = Field(default=datetime.now())
+
+
+    def assign_current_datetime(self):
+        self.created_At = datetime.now()
+
+
+
+
+
 # Assign current date time when the transaction gets created
 @event.listens_for(DepositTransaction, 'before_insert')
 def assign_deposit_transaction_time_listener(mapper, connection, target):

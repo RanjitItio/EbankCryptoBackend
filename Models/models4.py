@@ -61,10 +61,12 @@ class FiatWithdrawalTransaction(SQLModel, table=True):
     amount: float               = Field(default_factory=0.00)
     total_amount: float         = Field(default=0.00)
     transaction_fee: float      = Field(default=0.00)
-    wallet_currency: int        = Field(foreign_key="currency.id")
-    withdrawal_currency: int    = Field(foreign_key="currency.id")
+    wallet_currency: int        = Field(foreign_key="currency.id")  # Withdrawal Currency
+    withdrawal_currency: int    = Field(foreign_key="currency.id")  # Convert Currency
     status: str                 = Field(default='Pending', nullable=True) # Pending, Approved, Cancelled, Hold, Success
-    credit_amount: float        = Field(default=0.00 , nullable=True)
+    debit_amount: float         = Field(default=0.00 , nullable=True)
+    debit_currency: str         = Field(nullable=True, default='')
+    credit_amount: float        = Field(nullable=True, default=0.00)
     credit_currency: str        = Field(nullable=True, default='')
     is_completed: bool          = Field(default=False, nullable=True)
     created_At: datetime        = Field(default=datetime.now())

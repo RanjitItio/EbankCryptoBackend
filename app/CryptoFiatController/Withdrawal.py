@@ -86,7 +86,7 @@ class UserFiatWithdrawalController(APIController):
                     wallet_currency     = wallet_currency_.id,
                     withdrawal_currency = withdrawal_currency_.id,
                     status              = 'Pending',
-                    credit_currency     = withdrawal_currency_.name 
+                    debit_currency      = withdrawal_currency_.name 
                 )
 
                 session.add(withdrawal_request)
@@ -98,7 +98,7 @@ class UserFiatWithdrawalController(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
-
+    # Get all withdrawals of Merchant
     @auth('userauth')
     @get()
     async def get_all_fiat_withdrawal(self, request: Request, limit: int = 10, offset: int = 0):
@@ -123,8 +123,8 @@ class UserFiatWithdrawalController(APIController):
                     FiatWithdrawalTransaction.transaction_fee,
                     FiatWithdrawalTransaction.withdrawal_currency,
                     FiatWithdrawalTransaction.status,
-                    FiatWithdrawalTransaction.credit_amount,
-                    FiatWithdrawalTransaction.credit_currency,
+                    FiatWithdrawalTransaction.debit_amount,
+                    FiatWithdrawalTransaction.debit_currency,
                     FiatWithdrawalTransaction.is_completed,
                     FiatWithdrawalTransaction.created_At,
 
@@ -142,6 +142,10 @@ class UserFiatWithdrawalController(APIController):
                 # Get the withdrdrawlas
                 withdrawals_obj = await session.execute(stmt)
                 all_fiat_withdrawals = withdrawals_obj.all()
+
+                if not all_fiat_withdrawals:
+                    return json({'message': 'No Withdrawal found'}, 404)
+
 
                 for withdrawals in all_fiat_withdrawals:
 
@@ -161,8 +165,8 @@ class UserFiatWithdrawalController(APIController):
                         'withdrawal_currency': withdrawal_currency.name,
                         'wallet_currency': withdrawals.wallet_currency,
                         'status': withdrawals.status,
-                        'credit_amount': withdrawals.credit_amount,
-                        'credit_currency': withdrawals.credit_currency,
+                        'credit_amount': withdrawals.debit_amount,
+                        'credit_currency': withdrawals.debit_currency,
                         'is_completed': withdrawals.is_completed,
                         'created_At': withdrawals.created_At
                     })

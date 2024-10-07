@@ -572,10 +572,12 @@ class MasterCardTransaction(APIController):
                 ))
                 pipe_id = pipe_id_obj.scalar()
 
+                # Calculate settlement date
                 pipe_settlement_period  = pipe_id.settlement_period
                 numeric_period          = re.findall(r'\d+', pipe_settlement_period)
+
                 if numeric_period:
-                    settlement_period_value = int(numeric_period)
+                    settlement_period_value = int(numeric_period[0])
                 else:
                     settlement_period_value = 0
 

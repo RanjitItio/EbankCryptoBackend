@@ -20,7 +20,9 @@ from app.controllers.PG.Mastercard.mastercard import (
     MasterCardWebhookPayload, deduct_amount, Mastercard_Transaction_Status)
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
 from sqlmodel import select, and_
+from datetime import timedelta
 import json
+import re
 
 
 
@@ -460,7 +462,7 @@ class PaymentGatewayProductionAPI(APIController):
 
 
 
-# Card Transaction Process
+# Master Card Transaction Process
 class MasterCardTransaction(APIController):
 
     @classmethod
@@ -471,6 +473,7 @@ class MasterCardTransaction(APIController):
     def route(cls) -> str | None:
         return '/api/pg/prod/v1/pay/mc/'
     
+
     @post()
     async def create_mastercard_transaction(request: Request, schema: PGProdMasterCardSchema):
         try:
@@ -538,10 +541,10 @@ class MasterCardTransaction(APIController):
                 merchantCallBackURL  = merchant_prod_transaction.merchantCallBackURL
 
                 # Get the pipe which payment medium is card
-                card_pipe_obj = await session.execute(select(PIPE).where(
-                    PIPE.payment_medium == 'Card'
-                ))
-                card_pipe = card_pipe_obj.scalar()
+                # card_pipe_obj = await session.execute(select(PIPE).where(
+                #     PIPE.payment_medium == 'Card'
+                # ))
+                # card_pipe = card_pipe_obj.scalar()
 
                 # if card_pipe:
                 #     # Get the pipe assigned to the merchant
@@ -553,27 +556,47 @@ class MasterCardTransaction(APIController):
                 #     ))
                 #     merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
                 # else:
-                    # Get the pipe assigned to the merchant
+
+                # Get the pipe assigned to the merchant
                 merchant_assigned_pipe_obj = await session.execute(select(MerchantPIPE).where(
-                    and_(MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
+                    and_(
+                        MerchantPIPE.merchant == merchant_prod_transaction.merchant_id,
                         MerchantPIPE.is_active == True,
                         )
-                ))
+                    ))
                 merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
 
-                # If not acquirer assigned
-                # if not merchant_assigned_pipe:
-                #     return pretty_json({'error': 'pipe with payment medium card is not available'}, 400)
-                
+                ## Get The settlement period of the assigned pipe
+                pipe_id_obj = await session.execute(select(PIPE).where(
+                    PIPE.id == merchant_assigned_pipe.pipe
+                ))
+                pipe_id = pipe_id_obj.scalar()
+
+                pipe_settlement_period  = pipe_id.settlement_period
+                numeric_period          = re.findall(r'\d+', pipe_settlement_period)
+                if numeric_period:
+                    settlement_period_value = int(numeric_period)
+                else:
+                    settlement_period_value = 0
+
+                # Calculate settlement date
+                transaction_date            = merchant_prod_transaction.createdAt
+                transaction_settlement_date = transaction_date + timedelta(days=settlement_period_value)
+
+
+                ## If not acquirer assigned
+                ## if not merchant_assigned_pipe:
+                ##     return pretty_json({'error': 'pipe with payment medium card is not available'}, 400)
+
                 ## Master card Transaction started
-                # Create session
+                ## Create session
                 mastercard_session = Create_Session()
                 session_result     = mastercard_session.get('result')
 
                 if session_result == 'SUCCESS':
                     sessionID = mastercard_session.get('session')['id']
 
-                    # Update session
+                    ### Update session
                     update_session = Update_Session(sessionID, transaction_id, card_no, card_cvv, card_expiry, currency, amount, redirect_url)
 
                     if update_session.get('session')['updateStatus'] == 'SUCCESS':
@@ -582,11 +605,14 @@ class MasterCardTransaction(APIController):
                         transaction_fee_amount = (merchant_prod_transaction.amount / 100) * merchant_assigned_pipe.fee
 
                         # Store json response in transaction
-                        merchant_prod_transaction.gateway_res     = update_session
-                        merchant_prod_transaction.payment_mode    = 'Card'
-                        merchant_prod_transaction.pipe_id         = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
-                        merchant_prod_transaction.transaction_fee = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
-                        merchant_prod_transaction.fee_amount      = transaction_fee_amount
+                        merchant_prod_transaction.gateway_res       = update_session
+                        merchant_prod_transaction.payment_mode      = 'Card'
+                        merchant_prod_transaction.pipe_id           = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
+                        merchant_prod_transaction.transaction_fee   = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
+                        merchant_prod_transaction.fee_amount        = transaction_fee_amount
+                        merchant_prod_transaction.settlement_period = pipe_settlement_period
+                        merchant_prod_transaction.settlement_date   = transaction_settlement_date
+                        merchant_prod_transaction.balance_status    = "Immature"
 
 
                         session.add(merchant_prod_transaction)
@@ -604,6 +630,7 @@ class MasterCardTransaction(APIController):
                                     'session': sessionID,
                                     'transactionID': transaction_id
                                 }, 200)
+                        
                         
                         if initiate_auth.get('result') == 'FAILURE' and initiate_auth.get('response')['gatewayCode'] == 'DECLINED':
                             # Send Webhook URL for Authentication Error
@@ -881,12 +908,12 @@ class ReceiveMasterCardWebhook(APIController):
 
                         # Fetch the session ID from the saved log
                         gateway_data_dict = merchant_transaction.gateway_res
-                        sessionID = gateway_data_dict["session"]["id"]
+                        sessionID         = gateway_data_dict["session"]["id"]
 
                         # Last process to deduct the amount
                         deduct = deduct_amount(transaction_id, sessionID)
 
-                        response = deduct.get('response', {})
+                        response     = deduct.get('response', {})
                         gateway_code = response.get('gatewayCode')
 
                         # If the payment Succeeded

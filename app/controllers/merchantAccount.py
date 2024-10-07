@@ -22,6 +22,7 @@ class MerchantAccountBalanceController(APIController):
     def route(cls) -> str | None:
         return '/api/v5/merchant/account/balance/'
     
+
     @auth('userauth')
     @get()
     async def get_merchantAccountBalance(self, request: Request):

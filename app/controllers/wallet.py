@@ -11,6 +11,7 @@ from blacksheep.server.authorization import auth
 
 
 
+## User wallet controller
 class WalletController(APIController):
 
     @classmethod
@@ -21,6 +22,7 @@ class WalletController(APIController):
     def class_name(cls):
         return "Wallet"
     
+
     @get()
     async def get_wallet():
         try:
@@ -90,7 +92,7 @@ class WalletController(APIController):
 
 
 
-
+# User wallet controller
 class UseWiseWalletController(APIController):
 
     @classmethod
@@ -100,7 +102,8 @@ class UseWiseWalletController(APIController):
     @classmethod
     def class_name(cls):
         return "Wallet"
-    
+
+    ## Get all the available wallet of the user
     @auth('userauth')
     @get()
     async def get_wallet(self, request: Request):
@@ -111,7 +114,9 @@ class UseWiseWalletController(APIController):
                 
                 #Get the wallets related to the user
                 try:
-                    user_wallet_obj = await session.execute(select(Wallet).where(Wallet.user_id == userID))
+                    user_wallet_obj = await session.execute(select(Wallet).where(
+                        Wallet.user_id == userID
+                        ))
                     user_wallets    = user_wallet_obj.scalars().all()
 
                     if not user_wallets:

@@ -80,7 +80,6 @@ class PIPE(SQLModel, table=True):
 
     settlement_period: str  = Field(default='', nullable=True)  # Settlement period
     
-
     #Bank Response
     bank_max_fail_trans_allowed: int = Field(default=0, nullable=True)
     bank_down_period: str            = Field(default='', nullable=True)
@@ -172,11 +171,15 @@ class MerchantProdTransaction(SQLModel, table=True):
     business_name: str        = Field(default='', nullable=True)
     is_completd: bool         = Field(default=False)
     is_refunded: bool         = Field(default=False, nullable=True)
-    
+    settlement_period: str    = Field(max_length=10, default='', nullable=True)
+    settlement_date: datetime = Field(nullable=True)
+    balance_status: str       = Field(default='', nullable=True) # Tranck whether the amount is Mature or Immature
+
 
     def assignTransactionCreatedTime(self):
         current_time   = datetime.now()
         self.createdAt = current_time
+
 
 
 
@@ -192,10 +195,17 @@ class MerchantSandBoxSteps(SQLModel, table=True):
 
 # Merchant Account Balace after fee deduction
 class MerchantAccountBalance(SQLModel, table=True):
-    id: int | None     = Field(primary_key=True, default=None)
-    amount: float      = Field(default=0.00)
-    merchant_id: int   = Field(foreign_key='users.id', index=True)
-    currency: str      = Field(default='')
+    id: int | None          = Field(primary_key=True, default=None)
+    merchant_id: int        = Field(foreign_key='users.id', index=True)
+    mature_balance: float   = Field(default=0.00, nullable=True)
+    immature_balance: float = Field(default=0.00, nullable=True)
+    account_balance: float  = Field(default=0.00, nullable=True)
+    currency: str           = Field(default='', index=True)
+    last_updated: datetime  = Field(default=datetime.utcnow, nullable=True)
+
+
+    def update_account_balance(self):
+        self.account_balance = self.mature_balance + self.immature_balance
 
 
 
@@ -234,14 +244,22 @@ def Merchant_sandBox_transaction_date(mapper, connection, target):
 
 
 
+
 # Auto assign created time when row gets inserted into the table
 @event.listens_for(MerchantProdTransaction, 'after_insert')
 def Merchant_sandBox_transaction_time(mapper, connection, target):
     target.assignTransactionCreatedTime()
     
 
-# Auto assign created time when row gets inserted into the table
-# @event.listens_for(MerchantSandBoxTransaction, 'after_insert')
-# def Merchant_sandBox_transaction_time(mapper, connection, target):
-#     target.assignTransactionCreatedTime()
 
+
+# Auto assign last update time while updating Account Balance
+@event.listens_for(MerchantAccountBalance, 'before_update', propagate=True)
+def account_balance_last_update_time(mapper, connection, target):
+    target.last_updated = datetime.now()
+
+
+# Auto assign last update time while updating Account Balance
+@event.listens_for(MerchantAccountBalance, 'before_update', propagate=True)
+def account_balance_update(mapper, connection, target):
+    target.update_account_balance()

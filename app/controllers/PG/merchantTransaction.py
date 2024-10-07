@@ -40,9 +40,9 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
             # If Account does not exists then create one
             if not merchantAccountBalance:
                 merchantAccountBalance = MerchantAccountBalance(
-                    amount      = merchant_account_balance,
-                    merchant_id = merchantID,
-                    currency    = currency
+                    immature_balance  = merchant_account_balance,
+                    merchant_id       = merchantID,
+                    currency          = currency
                 )
 
                 session.add(merchantAccountBalance)
@@ -50,7 +50,7 @@ async def CalculateMerchantAccountBalance(transactionAmount, currency, merchantP
                 await session.refresh(merchantAccountBalance)
             else:
                 # Update Merchant Account Balance If Exists
-                merchantAccountBalance.amount  += merchant_account_balance
+                merchantAccountBalance.immature_balance  += merchant_account_balance
 
             session.add(merchantAccountBalance)
             session.add(existing_collected_fees)

@@ -2,13 +2,14 @@ from blacksheep import get, post, put, Request, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users
-from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction
+from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction, MerchantAccountBalance
 from sqlmodel import and_, select, cast, Date, Time, func, desc
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
 from app.dateFormat import get_date_range
 from Models.Admin.PG.schema import AllTransactionFilterSchema
+
 
 
 
@@ -20,6 +21,8 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
             admin_id       = user_identity.claims.get('user_id') if user_identity else None
+
+            currenct_datetime =  datetime.now()
 
             combined_data = []
 
@@ -33,6 +36,43 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
 
             if not is_admin_user:
                 return json({'error': 'Unauthorized Access'}, 403)
+            # Admin authentication ends
+
+            # Get all the transactions related to the merchant
+            merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                MerchantProdTransaction.is_completd == True
+            ))
+            merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all()
+
+            # Check the which transactions related to merchant has been matured
+            if merchant_prod_transaction:
+                for transaction in merchant_prod_transaction:
+                    if transaction.settlement_date:
+                        if transaction.settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
+                            # Get the account balance of the merchant
+                            merchant_account_balance_Obj = await session.execute(select(MerchantAccountBalance).where(
+                            and_(
+                                MerchantAccountBalance.merchant_id == transaction.merchant_id,
+                                MerchantAccountBalance.currency    == transaction.currency
+                                )
+                            ))
+                            merchant_account_balance = merchant_account_balance_Obj.scalar()
+
+                            charged_fee       = (transaction.amount / 100) * transaction.transaction_fee
+                            merchant__balance = transaction.amount - charged_fee
+                            
+                            if merchant_account_balance:
+                                # Update the mature and immature balance
+                                merchant_account_balance.immature_balance -= merchant__balance
+                                merchant_account_balance.mature_balance   += merchant__balance
+
+                                transaction.balance_status = 'Mature'
+                                
+                                session.add(merchant_account_balance)
+                                session.add(transaction)
+                                await session.commit()
+                                await session.refresh(merchant_account_balance)
+                                await session.refresh(transaction)
             
             # Get all the Production transactions
             merchant_transactions_obj = await session.execute(select(MerchantProdTransaction).order_by(
@@ -160,7 +200,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_transaction.status               = schema.status
             merchant_transaction.transaction_fee      = transactionFee
             merchant_transaction.fee_amount           = transaction_fee_amount
-
+            
 
             if schema.status == 'PAYMENT_SUCCESS':
                 merchant_transaction.is_completd = True
@@ -176,7 +216,10 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             await session.commit()  
             await session.refresh(merchant_transaction)
 
-            return json({'success': True, 'message': 'Updated Successfully'}, 200)
+            return json({
+                'success': True, 
+                'message': 'Updated Successfully'
+                }, 200)
         
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

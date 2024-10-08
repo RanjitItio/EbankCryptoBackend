@@ -263,3 +263,10 @@ def account_balance_last_update_time(mapper, connection, target):
 @event.listens_for(MerchantAccountBalance, 'after_update', propagate=True)
 def account_balance_update(mapper, connection, target):
     target.update_account_balance()
+
+    # Persist the change to the account_balance back into the database
+    connection.execute(
+        mapper.local_table.update().where(mapper.local_table.c.id == target.id).values(
+            account_balance=target.account_balance
+        )
+    )

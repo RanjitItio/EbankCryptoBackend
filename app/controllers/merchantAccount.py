@@ -41,7 +41,10 @@ class MerchantAccountBalanceController(APIController):
 
                 # Get all the transactions related to the merchant
                 merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                    MerchantProdTransaction.merchant_id == user_id
+                    and_(
+                        MerchantProdTransaction.merchant_id == user_id,
+                        MerchantProdTransaction.is_completd == True
+                    )
                 ))
                 merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all()
 

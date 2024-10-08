@@ -71,7 +71,8 @@ async def get_merchantDashStats(request: Request, currency: str):
             # Count total amount for all the requests
             total_merchant_withdrawals               = sum(withdrawals.amount for withdrawals in merchant_withdrawal_requests)
             total_merchant_refunds                   = sum(refunds.amount for refunds in merchant_refund_requests)
-            total_merchant_account_balance           = sum(balance.mature_balance for balance in merchant_account_balance if balance.mature_balance is not None)
+            total_merchant_mature_balance            = sum(balance.mature_balance for balance in merchant_account_balance if balance.mature_balance is not None)
+            total_merchant_immature_balance          = sum(balance.immature_balance for balance in merchant_account_balance if balance.immature_balance is not None)
             total_merchant_pending_withdrawal_amount = sum(pending.amount for pending in merchant_pending_withdrawal_requests)
 
             combined_data = []
@@ -84,7 +85,11 @@ async def get_merchantDashStats(request: Request, currency: str):
                 }],
                 'merchant_account_balance': [{
                     'currency': currency_name.name,
-                    'amount':   total_merchant_account_balance
+                    'amount':   total_merchant_mature_balance
+                }],
+                'merchant_immature_balance': [{
+                    'currency': currency_name.name,
+                    'amount':   total_merchant_immature_balance
                 }],
                 'merchant_withdrawals': [{
                     'currency': currency_name.name,
@@ -96,6 +101,7 @@ async def get_merchantDashStats(request: Request, currency: str):
                 }],
             })
             
+
             return json({'success': True, 'stats_data': combined_data}, 200)
         
     except Exception as e:

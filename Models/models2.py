@@ -159,7 +159,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     payment_mode: str | None  = Field(default='', nullable=True)
     transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)
     currency: str             = Field(default='', nullable=True)
-    status: str               = Field(default='', index=True)
+    status: str               = Field(default='', index=True) # PAYMENT_SUCCESS, PAYMENT_PENDING, PAYMENT_FAILED, PAYMENT_INITIATE
     amount: float             = Field(default=0.00)
     createdAt: datetime       = Field(default=datetime.now(), nullable=True)
     merchantOrderId: str      = Field(default='')

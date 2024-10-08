@@ -43,7 +43,7 @@ class MerchantAccountBalanceController(APIController):
                 merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
                     and_(
                         MerchantProdTransaction.merchant_id == user_id,
-                        MerchantProdTransaction.is_completd == True
+                        MerchantProdTransaction.status == 'PAYMENT_SUCCESS'
                     )
                 ))
                 merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all()

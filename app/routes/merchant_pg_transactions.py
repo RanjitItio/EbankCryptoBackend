@@ -40,7 +40,7 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
 
             # Get all the transactions related to the merchant
             merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                MerchantProdTransaction.is_completd == True
+                MerchantProdTransaction.status == 'PAYMENT_SUCCESS'
             ))
             merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all()
 
@@ -67,7 +67,7 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
                                 merchant_account_balance.mature_balance   += merchant__balance
 
                                 transaction.balance_status = 'Mature'
-                                
+
                                 session.add(merchant_account_balance)
                                 session.add(transaction)
                                 await session.commit()

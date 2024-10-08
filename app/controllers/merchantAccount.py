@@ -2,16 +2,18 @@ from blacksheep import Request, json
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from Models.models2 import MerchantAccountBalance
+from Models.models2 import MerchantProdTransaction
 from database.db import AsyncSession, async_engine
 from app.controllers.controllers import get
 from sqlmodel import select, and_
+from datetime import datetime
 
 
 
 
-###########################
-# Merchant Account Balance
-###########################
+#############################
+## Merchant Account Balance 
+#############################
 class MerchantAccountBalanceController(APIController):
 
     @classmethod
@@ -35,7 +37,45 @@ class MerchantAccountBalanceController(APIController):
                 if user_id is None:
                     return json({'error': 'Unauthorized'}, 401)
                 
-                # Get merchant Account Balance
+                currenct_datetime =  datetime.now()
+
+                # Get all the transactions related to the merchant
+                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    MerchantProdTransaction.merchant_id == user_id
+                ))
+                merchant_prod_transaction = merchant_prod_transaction_obj.scalars().all()
+
+                # Check the which transactions related to merchant has been matured
+                if merchant_prod_transaction:
+                    for transaction in merchant_prod_transaction:
+                        if transaction.settlement_date:
+                            if transaction.settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
+                                # Get the account balance of the merchant
+                                merchant_account_balance_Obj = await session.execute(select(MerchantAccountBalance).where(
+                                and_(
+                                    MerchantAccountBalance.merchant_id == user_id,
+                                    MerchantAccountBalance.currency    == transaction.currency
+                                    )
+                                ))
+                                merchant_account_balance = merchant_account_balance_Obj.scalar()
+
+                                charged_fee = (transaction.amount / 100) * transaction.transaction_fee
+                                merchant__balance = transaction.amount - charged_fee
+                                
+                                if merchant_account_balance:
+                                    # Update the mature and immature balance
+                                    merchant_account_balance.immature_balance -= merchant__balance
+                                    merchant_account_balance.mature_balance   += merchant__balance
+
+                                    transaction.balance_status = 'Mature'
+
+                                    session.add(merchant_account_balance)
+                                    session.add(transaction)
+                                    await session.commit()
+                                    await session.refresh(merchant_account_balance)
+                                    await session.refresh(transaction)
+
+                ## Get merchant Account Balance
                 merchantBalanceObj = await session.execute(select(MerchantAccountBalance).where(
                     MerchantAccountBalance.merchant_id == user_id
                 ))
@@ -48,3 +88,6 @@ class MerchantAccountBalanceController(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500) 
+
+
+

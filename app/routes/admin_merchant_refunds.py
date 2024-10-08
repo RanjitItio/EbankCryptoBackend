@@ -145,6 +145,7 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                if merchantRefundTransaction.status == 'Approved':
                     return json({'message': 'Can not perform the same action again'}, 405)
                
+               
                # Update database
                merchantRefundTransaction.status = status
 
@@ -156,7 +157,7 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                     ))
                     merchant_account_balance = merchant_account_balance_obj.scalar()
 
-                    if merchant_account_balance.amount < merchantRefundTransaction.amount:
+                    if merchant_account_balance.mature_balance < merchantRefundTransaction.amount:
                         return json({'message': 'Donot have sufficient balance in account'}, 400)
 
                     merchantRefundTransaction.is_completed = True
@@ -165,7 +166,8 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
                     merchant_transaction.is_refunded = True
 
                     # Deduct the merchant Account balance
-                    merchant_account_balance.amount -= merchantRefundTransaction.amount
+                    merchant_account_balance.mature_balance -= merchantRefundTransaction.amount
+                    merchant_account_balance.account_balance -= merchantRefundTransaction.amount
                     
                     session.add(merchant_transaction)
                     session.add(merchant_account_balance)

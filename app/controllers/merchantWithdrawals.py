@@ -72,7 +72,7 @@ class MerchantWithdrawalController(APIController):
                     return json({'error': 'Do not have any active account in the currency'}, 400)
                 
                 # Withdrawal balance is lesser than Account balance or not
-                merchant_account_balance = merchant_account_balance_.amount
+                merchant_account_balance = merchant_account_balance_.mature_balance
                 
                 if withdrawalAmount >= merchant_account_balance:
                     return json({'error': 'Donot have sufficient balance in Account'}, 400)

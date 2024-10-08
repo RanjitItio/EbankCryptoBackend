@@ -102,7 +102,7 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
                         'is_completed': withdrawals.is_completed,
-                        'account_balance': merchant_account_balance_.amount if merchant_account_balance_ else None,
+                        'account_balance': merchant_account_balance_.mature_balance if merchant_account_balance_ else None,
                         'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
                     })
 
@@ -168,7 +168,7 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                ))
                merchant_account_balance = merchant_account_balance_obj.scalar()
 
-               account_balance_amount = merchant_account_balance.amount
+               account_balance_amount = merchant_account_balance.mature_balance
                
                
                # Update withdrawal status
@@ -179,7 +179,8 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
                     
                     merchant_withdrawals.status       = status
                     merchant_withdrawals.is_completed = True
-                    merchant_account_balance.amount -= merchant_withdrawals.amount
+                    merchant_account_balance.mature_balance -= merchant_withdrawals.amount
+                    merchant_account_balance.account_balance -= merchant_withdrawals.amount
 
                else:
                     merchant_withdrawals.status       = status

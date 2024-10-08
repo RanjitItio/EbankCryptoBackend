@@ -173,7 +173,7 @@ class MerchantProdTransaction(SQLModel, table=True):
     is_refunded: bool         = Field(default=False, nullable=True)
     settlement_period: str    = Field(max_length=10, default='', nullable=True)
     settlement_date: datetime = Field(nullable=True)
-    balance_status: str       = Field(default='', nullable=True) # Tranck whether the amount is Mature or Immature
+    balance_status: str       = Field(default='', nullable=True) # Track whether the amount is Mature or Immature
 
 
     def assignTransactionCreatedTime(self):
@@ -260,6 +260,6 @@ def account_balance_last_update_time(mapper, connection, target):
 
 
 # Auto assign last update time while updating Account Balance
-@event.listens_for(MerchantAccountBalance, 'before_update', propagate=True)
+@event.listens_for(MerchantAccountBalance, 'after_update', propagate=True)
 def account_balance_update(mapper, connection, target):
     target.update_account_balance()

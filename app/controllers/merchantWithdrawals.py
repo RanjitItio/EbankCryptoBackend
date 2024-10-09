@@ -84,7 +84,7 @@ class MerchantWithdrawalController(APIController):
                 if withdrawalAmount >= merchant_account_balance:
                     return json({'error': 'Donot have sufficient balance in Account'}, 400)
                 
-                if withdrawalAmount < merchant_user.minimum_withdrawal_amount:
+                if withdrawalAmount <= merchant_user.minimum_withdrawal_amount:
                     return json({'message': 'Withdrawal amount must be greater than minimum withdrawal amount'}, 400)
                 
                 # Currency

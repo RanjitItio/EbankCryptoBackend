@@ -291,7 +291,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 # For Success transaction status
                 if schema.status == 'PAYMENT_SUCCESS':
 
-                    pipe_settlement_period  = merchant_transaction.settlement_period
+                    pipe_settlement_period  = merchant_transaction.pg_settlement_period
                     numeric_period          = re.findall(r'\d+', pipe_settlement_period)
 
                     if numeric_period:

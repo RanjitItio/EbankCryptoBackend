@@ -5,10 +5,11 @@ from Models.models import Users
 from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction, MerchantAccountBalance
 from sqlmodel import and_, select, cast, Date, Time, func, desc
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.controllers.PG.merchantTransaction import CalculateMerchantAccountBalance
 from app.dateFormat import get_date_range
 from Models.Admin.PG.schema import AllTransactionFilterSchema
+import re
 
 
 
@@ -47,8 +48,8 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
             # Check the which transactions related to merchant has been matured
             if merchant_prod_transaction:
                 for transaction in merchant_prod_transaction:
-                    if transaction.settlement_date:
-                        if transaction.settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
+                    if transaction.pg_settlement_date:
+                        if transaction.pg_settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
                             # Get the account balance of the merchant
                             merchant_account_balance_Obj = await session.execute(select(MerchantAccountBalance).where(
                             and_(
@@ -174,14 +175,6 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             if not merchant_transaction:
                 return json({'error': 'Transaction not found'}, 404)
             
-            # If the transaction already updated
-            # if merchant_transaction.is_completd:
-            #     return json({'message': 'Transaction already updated'}, 405)
-
-            # If the transaction has been succeeded
-            if merchant_transaction.status == 'PAYMENT_SUCCESS':
-                return json({'message': 'Transaction already updated'}, 405)
-            
             transactionFee = schema.transaction_fee if isinstance(schema.transaction_fee, int) else merchant_transaction.transaction_fee
             
             if not transactionFee:
@@ -189,6 +182,189 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             
             # calculate Fee Ammount
             transaction_fee_amount = ((schema.amount / 100) * transactionFee)
+
+            current_datetime = datetime.now()
+
+            # Get Merchant account balance
+            merchant_account_balance_Obj = await session.execute(select(MerchantAccountBalance).where(
+                and_(
+                    MerchantAccountBalance.merchant_id == merchant_transaction.merchant_id,
+                    MerchantAccountBalance.currency    == merchant_transaction.currency
+                    )))
+            merchant_account_balance = merchant_account_balance_Obj.scalar()
+
+            ##############################
+            ## For Initiated Trasaction ##
+            #############################
+            if merchant_transaction.status == 'PAYMENT_INITIATE':
+                
+                if schema.status == 'PAYMENT_SUCCESS':
+                    merchant_transaction.is_completd = True
+
+                    await CalculateMerchantAccountBalance(
+                        merchant_transaction.amount, 
+                        merchant_transaction.currency, 
+                        merchant_transaction.transaction_fee, 
+                        merchant_transaction.merchant_id
+                    )
+                    session.add(merchant_transaction)
+
+                # Holding the payment
+                elif schema.status == 'PAYMENT_HOLD':
+                    return json({'message': 'Can not add amount into frozen balance'}, 400)
+
+            ####################################
+            ## For Already Success transaction ##
+            #####################################
+            elif merchant_transaction.status == 'PAYMENT_SUCCESS':
+
+                # Reapproving the transaction
+                if schema.status == 'PAYMENT_SUCCESS':
+                    return json({'message': 'Transaction already updated'}, 400)
+                
+                # Holding the payment
+                elif schema.status == 'PAYMENT_HOLD':
+                    # Transfer payment to frozen balance
+                    if merchant_transaction.pg_settlement_date:
+                        if current_datetime > merchant_transaction.pg_settlement_date:
+                            return json({'message': 'Amount has been credited to Mature fund'}, 400)
+                    
+                    merchant_transaction.balance_status = 'Frozen'
+
+                    # Calculate the amount to be credited into merchant account
+                    # Transfer the amount into forzen balance
+                    charged_fee    = transaction_fee_amount
+                    total__balance = merchant_transaction.amount - charged_fee
+
+                    if merchant_account_balance:
+                        merchant_account_balance.immature_balance -= total__balance
+                        merchant_account_balance.frozen_balance   += total__balance
+
+                        session.add(merchant_account_balance)
+                        session.add(merchant_transaction)
+
+                # If the payment staus is Failed
+                elif schema.status == 'PAYMENT_FAILED':
+
+                    # Failing the transaction after amount added into Mature fund
+                    if merchant_transaction.pg_settlement_date:
+                        if current_datetime > merchant_transaction.pg_settlement_date:
+                            return json({'message': 'Amount has been credited to Mature fund'}, 400)
+                    
+                    merchant_transaction.balance_status = 'Failed'
+
+                    # Calculate the amount to be credited into merchant account
+                    # Transfer the amount into forzen balance
+                    charged_fee    = transaction_fee_amount
+                    total__balance = merchant_transaction.amount - charged_fee
+
+                    if merchant_account_balance:
+                        merchant_account_balance.immature_balance -= total__balance
+
+                        session.add(merchant_account_balance)
+                        session.add(merchant_transaction)
+
+
+                elif schema.status == 'PAYMENT_PENDING':
+                    # Pending the transaction after amount added into Mature fund
+                    if merchant_transaction.pg_settlement_date:
+                        if current_datetime > merchant_transaction.pg_settlement_date:
+                            return json({'message': 'Amount has been credited to Mature fund'}, 400)
+                        
+                    return json({'message': 'Can not perform this action'}, 400)
+
+
+                elif schema.status == 'PAYMENT_INITIATED':
+
+                    if merchant_transaction.pg_settlement_date:
+                        if current_datetime > merchant_transaction.pg_settlement_date:
+                            return json({'message': 'Amount has been credited to Mature fund'}, 400)
+                    
+                    return json({"message": "Can not perform this action"}, 400)
+            
+
+            ###################################
+            ## Already ON HOLD Transactions ##
+            ###################################
+            elif merchant_transaction.status == 'PAYMENT_HOLD':
+
+                # For Success transaction status
+                if schema.status == 'PAYMENT_SUCCESS':
+
+                    pipe_settlement_period  = merchant_transaction.settlement_period
+                    numeric_period          = re.findall(r'\d+', pipe_settlement_period)
+
+                    if numeric_period:
+                        settlement_period_value = int(numeric_period[0])
+                    else:
+                        settlement_period_value = 0
+
+                    # Calculate settlement date
+                    transaction_settlement_date = current_datetime + timedelta(days=settlement_period_value)
+
+                    merchant_transaction.balance_status     = 'Immature'
+                    merchant_transaction.pg_settlement_date = transaction_settlement_date
+
+                    # Calculate the amount to be credited into merchant account
+                    # Transfer the amount into forzen balance
+                    charged_fee    = transaction_fee_amount
+                    total__balance = merchant_transaction.amount - charged_fee
+
+                    if merchant_account_balance:
+                        merchant_account_balance.frozen_balance   -= total__balance
+                        merchant_account_balance.immature_balance += total__balance
+
+                        session.add(merchant_account_balance)
+                        session.add(merchant_transaction)
+
+
+                # Holding the payment
+                elif schema.status == 'PAYMENT_HOLD':
+                    return json({'message': 'Already added balance to Fronzen fund'}, 400)
+
+
+                # If the payment staus is Failed
+                elif schema.status == 'PAYMENT_FAILED':
+
+                    charged_fee    = transaction_fee_amount
+                    total__balance = merchant_transaction.amount - charged_fee
+
+                    if merchant_account_balance:
+                        merchant_account_balance.frozen_balance -= total__balance
+
+                        session.add(merchant_account_balance)
+                        session.add(merchant_transaction)
+
+            ###############################
+            ## Already FAILED Transactions
+            ###############################
+            elif merchant_transaction.status == 'PAYMENT_FAILED':
+
+                # Reapproving the transaction
+                if schema.status == 'PAYMENT_SUCCESS':
+                    merchant_transaction.is_completd = True
+
+                    await CalculateMerchantAccountBalance(
+                        merchant_transaction.amount, 
+                        merchant_transaction.currency, 
+                        merchant_transaction.transaction_fee, 
+                        merchant_transaction.merchant_id
+                    )
+                    session.add(merchant_transaction)
+
+                # Holding the payment
+                elif schema.status == 'PAYMENT_HOLD':
+                    return json({'message': 'Can not hold failed transaction'}, 400)
+                
+            
+            ################################
+            ## Already Pending Transactions
+            ################################
+            elif merchant_transaction.status == 'PAYMENT_PENDING':
+
+                if schema.status == 'PAYMENT_HOLD':
+                    return json({'message': 'Can not hold pending transaction'}, 400)
+
 
             # Update the transaction with details
             merchant_transaction.amount               = schema.amount
@@ -202,25 +378,19 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_transaction.fee_amount           = transaction_fee_amount
             
 
-            if schema.status == 'PAYMENT_SUCCESS':
-                merchant_transaction.is_completd = True
-
-                await CalculateMerchantAccountBalance(
-                    merchant_transaction.amount, 
-                    merchant_transaction.currency, 
-                    merchant_transaction.transaction_fee, 
-                    merchant_transaction.merchant_id
-                    )
-
             session.add(merchant_transaction)
             await session.commit()  
             await session.refresh(merchant_transaction)
+
+            # To avoid greenlet spawn error
+            if merchant_account_balance:
+                await session.refresh(merchant_account_balance)
 
             return json({
                 'success': True, 
                 'message': 'Updated Successfully'
                 }, 200)
-        
+
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 

@@ -166,7 +166,6 @@ class PaymentGatewayProductionAPI(APIController):
                             "message":  f'Missing Parameter: {field}',
                         }}, 400)
 
-
                 # If Payment type is not present in payload
                 if not payment_type:
 
@@ -607,14 +606,14 @@ class MasterCardTransaction(APIController):
                         transaction_fee_amount = (merchant_prod_transaction.amount / 100) * merchant_assigned_pipe.fee
 
                         # Store json response in transaction
-                        merchant_prod_transaction.gateway_res       = update_session
-                        merchant_prod_transaction.payment_mode      = 'Card'
-                        merchant_prod_transaction.pipe_id           = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
-                        merchant_prod_transaction.transaction_fee   = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
-                        merchant_prod_transaction.fee_amount        = transaction_fee_amount
-                        merchant_prod_transaction.settlement_period = pipe_settlement_period
-                        merchant_prod_transaction.settlement_date   = transaction_settlement_date
-                        merchant_prod_transaction.balance_status    = "Immature"
+                        merchant_prod_transaction.gateway_res          = update_session
+                        merchant_prod_transaction.payment_mode         = 'Card'
+                        merchant_prod_transaction.pipe_id              = merchant_assigned_pipe.pipe if merchant_assigned_pipe.pipe else 0
+                        merchant_prod_transaction.transaction_fee      = merchant_assigned_pipe.fee if merchant_assigned_pipe.fee else 0
+                        merchant_prod_transaction.fee_amount           = transaction_fee_amount
+                        merchant_prod_transaction.pg_settlement_period = pipe_settlement_period
+                        merchant_prod_transaction.pg_settlement_date   = transaction_settlement_date
+                        merchant_prod_transaction.balance_status       = "Immature"
 
 
                         session.add(merchant_prod_transaction)

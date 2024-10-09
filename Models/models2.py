@@ -150,30 +150,30 @@ class MerchantSandBoxTransaction(SQLModel, table=True):
 
 # All the transaction related to Production
 class MerchantProdTransaction(SQLModel, table=True):
-    id: int | None            = Field(primary_key=True, default=None)
-    merchant_id: int | None   = Field(foreign_key='users.id', default=None, index=True)
-    pipe_id: int | None       = Field(foreign_key='pipe.id', default=None, index=True)
-    transaction_fee: float    = Field(default=0.00, nullable=True) # In Percentage
-    fee_amount: float         = Field(default=0.00, nullable=True) # Positive Integer
-    gateway_res: dict | None  = Field(sa_column=Column(JSON), default={})
-    payment_mode: str | None  = Field(default='', nullable=True)
-    transaction_id: str       = Field(default='', nullable=True, max_length=40, index=True)
-    currency: str             = Field(default='', nullable=True)
-    status: str               = Field(default='', index=True) # PAYMENT_SUCCESS, PAYMENT_PENDING, PAYMENT_FAILED, PAYMENT_INITIATE
-    amount: float             = Field(default=0.00)
-    createdAt: datetime       = Field(default=datetime.now(), nullable=True)
-    merchantOrderId: str      = Field(default='')
-    merchantRedirectURl: str  = Field(default='', nullable=True)
-    merchantRedirectMode: str = Field(default='', nullable=True)
-    merchantCallBackURL: str  = Field(default='', nullable=True)
-    merchantMobileNumber: str = Field(default='', nullable=True)
-    merchantPaymentType: str  = Field(default='', nullable=True)
-    business_name: str        = Field(default='', nullable=True)
-    is_completd: bool         = Field(default=False)
-    is_refunded: bool         = Field(default=False, nullable=True)
-    settlement_period: str    = Field(max_length=10, default='', nullable=True)
-    settlement_date: datetime = Field(nullable=True)
-    balance_status: str       = Field(default='', nullable=True) # Track whether the amount is Mature or Immature
+    id: int | None               = Field(primary_key=True, default=None)
+    merchant_id: int | None      = Field(foreign_key='users.id', default=None, index=True)
+    pipe_id: int | None          = Field(foreign_key='pipe.id', default=None, index=True)
+    transaction_fee: float       = Field(default=0.00, nullable=True) # In Percentage
+    fee_amount: float            = Field(default=0.00, nullable=True) # Positive Integer
+    gateway_res: dict | None     = Field(sa_column=Column(JSON), default={})
+    payment_mode: str | None     = Field(default='', nullable=True)
+    transaction_id: str          = Field(default='', nullable=True, max_length=40, index=True)
+    currency: str                = Field(default='', nullable=True)
+    status: str                  = Field(default='', index=True) # PAYMENT_SUCCESS, PAYMENT_PENDING, PAYMENT_FAILED, PAYMENT_INITIATE
+    amount: float                = Field(default=0.00)
+    createdAt: datetime          = Field(default=datetime.now(), nullable=True)
+    merchantOrderId: str         = Field(default='')
+    merchantRedirectURl: str     = Field(default='', nullable=True)
+    merchantRedirectMode: str    = Field(default='', nullable=True)
+    merchantCallBackURL: str     = Field(default='', nullable=True)
+    merchantMobileNumber: str    = Field(default='', nullable=True)
+    merchantPaymentType: str     = Field(default='', nullable=True)
+    business_name: str           = Field(default='', nullable=True)
+    is_completd: bool            = Field(default=False)
+    is_refunded: bool            = Field(default=False, nullable=True)
+    pg_settlement_period: str    = Field(default='', nullable=True)
+    pg_settlement_date: datetime = Field(nullable=True)
+    balance_status: str          = Field(default='', nullable=True) # Track whether the amount is Mature, Immature, Frozen and Failed
 
 
     def assignTransactionCreatedTime(self):
@@ -200,6 +200,7 @@ class MerchantAccountBalance(SQLModel, table=True):
     mature_balance: float   = Field(default=0.00, nullable=True)
     immature_balance: float = Field(default=0.00, nullable=True)
     account_balance: float  = Field(default=0.00, nullable=True)
+    frozen_balance: float   = Field(default=0.00, nullable=True)
     currency: str           = Field(default='', index=True)
     last_updated: datetime  = Field(default=datetime.utcnow, nullable=True)
 

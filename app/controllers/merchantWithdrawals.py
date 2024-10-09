@@ -55,6 +55,13 @@ class MerchantWithdrawalController(APIController):
                 if not merchant_bank_account:
                     return json({'error': 'Bank account not active'}, 400)
                 
+                # Get The merchant
+                merchant_user_obj = await session.execute(select(Users).where(
+                    Users.id == merchant_bank_account.user
+                ))
+                merchant_user = merchant_user_obj.scalar()
+
+                
                 # If withdrawal amount is 0 or less than 10
                 if withdrawalAmount == 0 or withdrawalAmount < 10:
                     return json({'error': 'Amount should be greater than 10'}, 400)
@@ -76,6 +83,9 @@ class MerchantWithdrawalController(APIController):
                 
                 if withdrawalAmount >= merchant_account_balance:
                     return json({'error': 'Donot have sufficient balance in Account'}, 400)
+                
+                if withdrawalAmount < merchant_user.minimum_withdrawal_amount:
+                    return json({'message': 'Withdrawal amount must be greater than minimum withdrawal amount'}, 400)
                 
                 # Currency
                 account_currency_obj = await session.execute(select(Currency).where(

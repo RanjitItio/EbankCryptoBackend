@@ -4,7 +4,7 @@ from sqlalchemy import event
 
 
 
-# All Deposit Transaction Model
+# All Deposit Transaction Model for FIAT
 class DepositTransaction(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
     user_id: int                = Field(foreign_key="users.id")
@@ -26,7 +26,7 @@ class DepositTransaction(SQLModel, table=True):
 
 
 
-# Transfer Transaction Model
+# Transfer Transaction Model for FIAT
 class TransferTransaction(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
     user_id: int                = Field(foreign_key="users.id")
@@ -53,7 +53,7 @@ class TransferTransaction(SQLModel, table=True):
 
 
 
-# Withdrawal Model
+# Withdrawal Model for FIAT
 class FiatWithdrawalTransaction(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
     user_id: int                = Field(foreign_key="users.id")

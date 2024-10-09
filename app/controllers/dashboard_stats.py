@@ -71,6 +71,7 @@ async def get_merchantDashStats(request: Request, currency: str):
             # Count total amount for all the requests
             total_merchant_withdrawals               = sum(withdrawals.amount for withdrawals in merchant_withdrawal_requests)
             total_merchant_refunds                   = sum(refunds.amount for refunds in merchant_refund_requests)
+            total_merchant_account_balance           = sum(balance.account_balance for balance in merchant_account_balance if balance.account_balance is not None)
             total_merchant_mature_balance            = sum(balance.mature_balance for balance in merchant_account_balance if balance.mature_balance is not None)
             total_merchant_immature_balance          = sum(balance.immature_balance for balance in merchant_account_balance if balance.immature_balance is not None)
             total_merchant_pending_withdrawal_amount = sum(pending.amount for pending in merchant_pending_withdrawal_requests)
@@ -84,6 +85,10 @@ async def get_merchantDashStats(request: Request, currency: str):
                     'amount':   total_merchant_refunds
                 }],
                 'merchant_account_balance': [{
+                    'currency': currency_name.name,
+                    'amount':   total_merchant_account_balance
+                }],
+                'merchant_mature_balance': [{
                     'currency': currency_name.name,
                     'amount':   total_merchant_mature_balance
                 }],

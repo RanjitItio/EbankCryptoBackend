@@ -14,24 +14,27 @@ class Group(SQLModel, table=True):
 
 #User Model
 class Users(SQLModel, table=True):
-    id: int | None                 = Field(default=None, primary_key=True, index=True)
-    first_name: str                = Field(default='NA')
-    lastname: str                  = Field(default='NA')
-    full_name: str | None          = None
-    email: str                     = Field(index=True, unique=True)
+    id: int | None                   = Field(default=None, primary_key=True, index=True)
+    first_name: str                  = Field(default='NA')
+    lastname: str                    = Field(default='NA')
+    full_name: str | None            = None
+    email: str                       = Field(index=True, unique=True)
     phoneno: str 
     password: str
-    picture: str                   = Field(default='')
-    is_merchent: bool              = Field(default=False)
-    is_verified: bool              = Field(default=False,nullable=True)
-    is_active: bool                = Field(default=False ,nullable=True)
-    is_kyc_submitted: bool         = Field(default=False, nullable=True)
-    is_admin: bool                 = Field(default=False, nullable=True)
-    is_suspended: bool             = Field(default=False, nullable=True)
-    lastlogin: datetime            = Field(nullable=True)
-    ipaddress: str                 = Field(default='0.0.0.0', nullable=True)
-    login_count: int               = Field(default=0, nullable=True)
-    group: int                     = Field(foreign_key='group.id', nullable=True)
+    picture: str                     = Field(default='')
+    is_merchent: bool                = Field(default=False)
+    is_verified: bool                = Field(default=False,nullable=True)
+    is_active: bool                  = Field(default=False ,nullable=True)
+    is_kyc_submitted: bool           = Field(default=False, nullable=True)
+    is_admin: bool                   = Field(default=False, nullable=True)
+    is_suspended: bool               = Field(default=False, nullable=True)
+    lastlogin: datetime              = Field(nullable=True)
+    ipaddress: str                   = Field(default='0.0.0.0', nullable=True)
+    login_count: int                 = Field(default=0, nullable=True)
+    group: int                       = Field(foreign_key='group.id', nullable=True)
+    minimum_withdrawal_amount: float = Field(default=0.00, nullable=True)
+    settlement_period: str           = Field(max_length=10, default='', nullable=True)
+    settlement_date: datetime        = Field(nullable=True)
     # default_wallets: Optional[int] = None
     # address1: str                  = Field(default='Address1')
     # address2: str                  = Field(default='Address2')

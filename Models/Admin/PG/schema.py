@@ -60,3 +60,9 @@ class FilterBusinsessPage:
     status: str = field(default=None)
 
 
+@dataclass
+class MerchantBalancePeriodUpdateSchema:
+    merchant_id: int
+    settlement_period: str
+    minimum_withdrawal_amt: float
+    

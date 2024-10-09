@@ -51,8 +51,8 @@ class MerchantAccountBalanceController(APIController):
                 # Check the which transactions related to merchant has been matured
                 if merchant_prod_transaction:
                     for transaction in merchant_prod_transaction:
-                        if transaction.settlement_date:
-                            if transaction.settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
+                        if transaction.pg_settlement_date:
+                            if transaction.pg_settlement_date < currenct_datetime and transaction.balance_status == 'Immature':
                                 # Get the account balance of the merchant
                                 merchant_account_balance_Obj = await session.execute(select(MerchantAccountBalance).where(
                                 and_(

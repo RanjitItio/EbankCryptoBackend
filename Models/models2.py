@@ -206,7 +206,7 @@ class MerchantAccountBalance(SQLModel, table=True):
 
 
     def update_account_balance(self):
-        self.account_balance = self.mature_balance + self.immature_balance
+        self.account_balance = self.mature_balance + self.immature_balance + self.frozen_balance
 
 
 

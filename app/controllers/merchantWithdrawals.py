@@ -63,8 +63,8 @@ class MerchantWithdrawalController(APIController):
 
                 
                 # If withdrawal amount is 0 or less than 10
-                if withdrawalAmount == 0 or withdrawalAmount < 10:
-                    return json({'error': 'Amount should be greater than 10'}, 400)
+                # if withdrawalAmount == 0 or withdrawalAmount < 10:
+                #     return json({'error': 'Amount should be greater than 10'}, 400)
                 
                 # Get the merchant Account Balance
                 merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(

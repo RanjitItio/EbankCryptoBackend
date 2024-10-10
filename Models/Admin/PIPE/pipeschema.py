@@ -160,5 +160,6 @@ class AdminMerchantPipeUdateSchema:
     pipe_id: int
     fee: float
     status: bool
+    cooling_period: str
 
 

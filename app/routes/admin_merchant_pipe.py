@@ -107,13 +107,6 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
         async with AsyncSession(async_engine) as session:
             adminIdentity = request.identity
             adminID       = adminIdentity.claims.get('user_id') if adminIdentity else None
-
-            merchant_id   = schema.merchant_id
-            pipe_id       = schema.pipe_id
-            fee           = schema.fee
-            status        = schema.status
-            merch_pipe_id = schema.merchant_pipe_id
-
           
             # Admin Authentication
             try:
@@ -131,7 +124,14 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
                 return json({'msg': 'Admin check error', 'error': f'{str(e)}'}, 400)
             # Admin authentication Ends
 
-            # Check the requested pipe id exists or not
+            merchant_id   = schema.merchant_id
+            pipe_id       = schema.pipe_id
+            fee           = schema.fee
+            status        = schema.status
+            merch_pipe_id = schema.merchant_pipe_id
+            coolingPeriod = schema.cooling_period
+
+            # Get The requested pipe
             try:
                 pipe_obj = await session.execute(select(PIPE).where(
                     PIPE.id == pipe_id
@@ -144,7 +144,7 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
             except Exception as e:
                 return json({'msg': 'Pipe fetch error', 'error': f'{str(e)}'}, 400)
             
-            # Check the user exists or not
+            # Get the requested user
             try:
                 merchant_obj = await session.execute(select(Users).where(
                     Users.id == merchant_id
@@ -190,10 +190,13 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
             merchant_pipe.merchant  = merchant_.id
             merchant_pipe.fee       = fee
             merchant_pipe.is_active = status
+            pipe_.settlement_period = coolingPeriod
 
             session.add(merchant_pipe)
+            session.add(pipe_)
             await session.commit()
             await session.refresh(merchant_pipe)
+            await session.refresh(pipe_)
 
             return json({'msg': 'Updated successfully'}, 200)
         

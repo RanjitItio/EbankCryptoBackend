@@ -299,7 +299,8 @@ async def list_all_merchant_wise_pipes(request: Request, id: int):
                     'currency':         currency_data.name,
                     'status':           merchantpipe.is_active,
                     'fee':              merchantpipe.fee,
-                    'merchant_pipe_id': merchantpipe.id
+                    'merchant_pipe_id': merchantpipe.id,
+                    'settlement_period': pipe_data.settlement_period
                 })
 
             return json({'msg': 'fetched_successfully', 'merchant_pipes': combined_data}, 200)

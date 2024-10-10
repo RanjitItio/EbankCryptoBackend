@@ -335,6 +335,15 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                         session.add(merchant_account_balance)
                         session.add(merchant_transaction)
 
+
+                elif schema.status == 'PAYMENT_INITIATED':
+                    return json({'message': 'Can not perform this action'}, 400)
+                
+
+                elif schema.status == 'PAYMENT_PENDING':
+                    return json({'message': 'Can not perform this action'}, 400)
+                
+
             ###############################
             ## Already FAILED Transactions
             ###############################

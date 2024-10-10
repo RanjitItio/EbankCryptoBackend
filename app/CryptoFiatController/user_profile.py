@@ -1,33 +1,35 @@
-from blacksheep import Request, json, FromFiles
-from blacksheep.server.authorization import auth
-from blacksheep.server.controllers import APIController
-from blacksheep.exceptions import BadRequest
 from app.controllers.controllers import get, put, post
-from app.req_stream import upload_merchant_profile_Image, delete_old_file
+from blacksheep.server.controllers import APIController
+from blacksheep.server.authorization import auth
+from blacksheep import json, Request, FromFiles
 from database.db import AsyncSession, async_engine
-from Models.Merchant.schema import UpdateMerchantProfileSchema
+from sqlmodel import select, and_
 from Models.models import Users, Kycdetails
-from sqlmodel import select
+from app.controllers.environment import media_url
+from app.req_stream import upload_crypto_fiat_user_profile_Image, delete_old_file
+from Models.FIAT.Schema import UpdateFiatCryptoUserProfileSchema
 from datetime import datetime
 from pathlib import Path
-from .environment import media_url
 
 
 
-# Merchant Profile Section
-class MerchantProfileController(APIController):
+
+## User profile controller
+class CryprtoFIATUserProfileController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Merchant Profile'
+        return 'Crypto FIAT User Profile'
     
+
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v1/merchant/profile/'
+        return '/api/v1/fiat/crypto/user/profile/'
+
 
     @auth('userauth')
     @get()
-    async def get_merchantProfile(self, request: Request):
+    async def get_FiatCryptoUserProfile(self, request: Request):
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -64,33 +66,33 @@ class MerchantProfileController(APIController):
                     Users.id == user_id
                 )
 
-                merchant_profile_obj = await session.execute(stmt)
-                merchant_profile     = merchant_profile_obj.first()
+                user_profile_obj = await session.execute(stmt)
+                user_profile     = user_profile_obj.first()
 
                 # Get the picture 
-                merchant_picture_obj = await session.execute(select(Users).where(
+                user_picture_obj = await session.execute(select(Users).where(
                     Users.id == user_id
                 ))
-                merchant_picture = merchant_picture_obj.scalar()
+                user_picture = user_picture_obj.scalar()
 
                 # Get the Document 
-                merchant_doc_obj = await session.execute(select(Kycdetails).where(
+                user_doc_obj = await session.execute(select(Kycdetails).where(
                     Kycdetails.user_id == user_id
                 ))
-                merchant_doc = merchant_doc_obj.scalar()
+                user_doc = user_doc_obj.scalar()
 
 
-                if merchant_profile:
+                if user_profile:
                     # Convert the result row to a dictionary
-                    merchant_profile_dict = merchant_profile._asdict()
+                    user_profile_dict = user_profile._asdict()
                     
-                    merchant_profile_dict['picture'] = f"{media_url}{merchant_picture.picture}" if merchant_profile_dict['picture'] else None
-                    merchant_profile_dict['uploaddocument'] = f"{media_url}{merchant_doc.uploaddocument}" if merchant_profile_dict['uploaddocument'] else None
+                    user_profile_dict['picture'] = f"{media_url}{user_picture.picture}" if user_profile_dict['picture'] else None
+                    user_profile_dict['uploaddocument'] = f"{media_url}{user_doc.uploaddocument}" if user_profile_dict['uploaddocument'] else None
 
                     return json({
                         'success': True, 
                         'message': 'Data fetched successfully',
-                        'merchant_profile': merchant_profile_dict
+                        'user_profile': user_profile_dict
                         }, 200)
 
         except Exception as e:
@@ -100,7 +102,7 @@ class MerchantProfileController(APIController):
     # Update merchant profile by merchant
     @auth('userauth')
     @put()
-    async def update_merchantProfile(self, request: Request, schema: UpdateMerchantProfileSchema):
+    async def update_CryptoFiatUserProfile(self, request: Request, schema: UpdateFiatCryptoUserProfileSchema):
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -137,39 +139,39 @@ class MerchantProfileController(APIController):
                 
 
                 # Get the Merchant Profile 
-                merchant_profile_obj = await session.execute(select(Users).where(Users.id == user_id))
-                merchant_profile     = merchant_profile_obj.scalar()
+                user_profile_obj = await session.execute(select(Users).where(Users.id == user_id))
+                user_profile     = user_profile_obj.scalar()
 
                 # Get the merchant kyc profile
-                merchant_kyc_obj = await session.execute(select(Kycdetails).where(
+                user_kyc_obj = await session.execute(select(Kycdetails).where(
                     Kycdetails.user_id == user_id
                 ))
-                merchant_kyc = merchant_kyc_obj.scalar()
+                user_kyc = user_kyc_obj.scalar()
 
                 # Update data in user table
-                merchant_profile.email     = email
-                merchant_profile.phoneno   = phoneno
-                merchant_profile.full_name = full_name
+                user_profile.email     = email
+                user_profile.phoneno   = phoneno
+                user_profile.full_name = full_name
                 
                 # Update data in Kyc table
-                merchant_kyc.phoneno  = phoneno
-                merchant_kyc.email    = email
-                merchant_kyc.state    = state
-                merchant_kyc.city     = city
-                merchant_kyc.landmark = landmark
-                merchant_kyc.zipcode        = zipcode
-                merchant_kyc.country  = country
-                merchant_kyc.address  = address
-                merchant_kyc.nationality    = nationality
-                merchant_kyc.dateofbirth    = dob_date
-                merchant_kyc.gander         = gender
-                merchant_kyc.marital_status = marital_status
+                user_kyc.phoneno  = phoneno
+                user_kyc.email    = email
+                user_kyc.state    = state
+                user_kyc.city     = city
+                user_kyc.landmark = landmark
+                user_kyc.zipcode        = zipcode
+                user_kyc.country  = country
+                user_kyc.address  = address
+                user_kyc.nationality    = nationality
+                user_kyc.dateofbirth    = dob_date
+                user_kyc.gander         = gender
+                user_kyc.marital_status = marital_status
 
-                session.add(merchant_profile)
-                session.add(merchant_kyc)
+                session.add(user_profile)
+                session.add(user_kyc)
                 await session.commit()
-                await session.refresh(merchant_profile)
-                await session.refresh(merchant_kyc)
+                await session.refresh(user_profile)
+                await session.refresh(user_kyc)
 
                 return json({'success': True, 'message': 'Updated Successfully'}, 200)
 
@@ -179,20 +181,20 @@ class MerchantProfileController(APIController):
 
 
 # Upload profile Picture by merchant
-class UploadProfilePicture(APIController):
+class UploadCryptoFIATUserProfilePicture(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Upload Merchant Profile Picture'
+        return 'Upload Crypto FIAT User Profile Picture'
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v1/upload/profile/pic/'
-    
+        return '/api/v1/upload/user/profile/pic/'
+
 
     @auth('userauth')
     @post()
-    async def upload_profilePic(self, request: Request, files: FromFiles):
+    async def upload_user_profilePic(self, request: Request, files: FromFiles):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -210,7 +212,7 @@ class UploadProfilePicture(APIController):
                 # Save profile picture
                 if picture:
                     try:
-                        profile_picture_path = await upload_merchant_profile_Image(picture)
+                        profile_picture_path = await upload_crypto_fiat_user_profile_Image(picture)
 
                         if profile_picture_path == 'File size exceeds the maximum allowed size':
                             return json({'message': 'File size exceeds the maximum allowed size'}, 403)
@@ -239,4 +241,3 @@ class UploadProfilePicture(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
-

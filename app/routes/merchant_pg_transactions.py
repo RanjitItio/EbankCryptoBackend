@@ -2,7 +2,8 @@ from blacksheep import get, post, put, Request, json
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users
-from Models.models2 import MerchantProdTransaction, MerchantSandBoxTransaction, MerchantAccountBalance
+from Models.models2 import (MerchantProdTransaction, MerchantSandBoxTransaction, 
+                            MerchantAccountBalance, MerchantPIPE, PIPE)
 from sqlmodel import and_, select, cast, Date, Time, func, desc
 from Models.PG.schema import AdminMerchantProductionTransactionUpdateSchema
 from datetime import datetime, timedelta
@@ -291,13 +292,31 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 # For Success transaction status
                 if schema.status == 'PAYMENT_SUCCESS':
 
-                    pipe_settlement_period  = merchant_transaction.pg_settlement_period
-                    numeric_period          = re.findall(r'\d+', pipe_settlement_period)
+                    if not merchant_transaction.pg_settlement_period:
+                        merchant_assigned_pipe_obj = await session.execute(select(PIPE).where(
+                                PIPE.id == merchant_transaction.pipe_id
+                        ))
+                        merchant_assigned_pipe = merchant_assigned_pipe_obj.scalar()
+
+                        pipe_settlement_time = merchant_assigned_pipe.settlement_period
+
+                        if pipe_settlement_time:
+                            pipe_settlement_period = merchant_assigned_pipe.settlement_period
+                            numeric_period         = re.findall(r'\d+', pipe_settlement_period)
+
+                        else:
+                            pipe_settlement_period = '3 Days'
+                            numeric_period         = re.findall(r'\d+', pipe_settlement_period)\
+
+                    else:
+                        pipe_settlement_period  = merchant_transaction.pg_settlement_period
+                        numeric_period          = re.findall(r'\d+', pipe_settlement_period)
 
                     if numeric_period:
                         settlement_period_value = int(numeric_period[0])
                     else:
                         settlement_period_value = 0
+
 
                     # Calculate settlement date
                     transaction_settlement_date = current_datetime + timedelta(days=settlement_period_value)

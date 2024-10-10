@@ -197,7 +197,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             ##############################
             ## For Initiated Trasaction ##
             #############################
-            if merchant_transaction.status == 'PAYMENT_INITIATE':
+            if merchant_transaction.status == 'PAYMENT_INITIATED':
                 
                 if schema.status == 'PAYMENT_SUCCESS':
                     merchant_transaction.is_completd = True
@@ -306,7 +306,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
 
                         else:
                             pipe_settlement_period = '3 Days'
-                            numeric_period         = re.findall(r'\d+', pipe_settlement_period)\
+                            numeric_period         = re.findall(r'\d+', pipe_settlement_period)
 
                     else:
                         pipe_settlement_period  = merchant_transaction.pg_settlement_period

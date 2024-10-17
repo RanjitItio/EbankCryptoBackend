@@ -10,7 +10,7 @@ class CryptoWallet(SQLModel, table=True):
     user_id: int                = Field(foreign_key="users.id", index=True)
     wallet_address: str         = Field(nullable=True, default=None)
     created_At: datetime        = Field(default=datetime.now())
-    crypto_name: str            = Field(default='', unique=True) # Crypto name
+    crypto_name: str            = Field(default='', unique=False) # Crypto name
     balance: float              = Field(default=0.00)
     status: str                 = Field(default='Pending', nullable=True) ## Pending, Approved, Rejected
     is_approved: bool           = Field(default=False)

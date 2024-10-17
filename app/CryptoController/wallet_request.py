@@ -92,3 +92,88 @@ class CryptoWalletController(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+
+## All available Crypto wallets of user
+class UserCryptoWalletsController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return '''User's all crypto wallets'''
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/user/crypto/wallets/'
+    
+    @auth('userauth')
+    @get()
+    async def get_userWallets(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                # Get all the Wallets of user
+                user_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.user_id == user_id
+                ))
+                user_crypto_wallet = user_crypto_wallet_obj.scalars().all()
+
+                return json({
+                    'success': True,
+                    'user_crypto_wallets': user_crypto_wallet
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+                }, 500)
+        
+
+
+## All available Crypto wallets of user
+class UserCryptoWalletAdressController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return '''User's all crypto wallets'''
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/user/crypto/wallet/address/{crypto_wallet}/'
+    
+    
+    @auth('userauth')
+    @get()
+    async def get_userWalletAddress(self, request: Request, crypto_wallet: int):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                # Get all the Wallets of user
+                user_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    and_(
+                        CryptoWallet.id      == crypto_wallet,
+                        CryptoWallet.user_id == user_id
+                    )
+                ))
+                user_crypto_wallet = user_crypto_wallet_obj.scalar()
+
+                if not user_crypto_wallet:
+                    return json({'message': 'Wallet not found'}, 404)
+                
+                wallet_address = user_crypto_wallet.wallet_address
+
+                return json({
+                    'success': True,
+                    'wallet_address': wallet_address
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

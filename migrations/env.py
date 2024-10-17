@@ -9,6 +9,7 @@ from Models.models2 import *
 from Models.models3 import *
 from Models.models4 import *
 from Models.crypto import *
+from Models.fee import *
 from alembic import context
 
 

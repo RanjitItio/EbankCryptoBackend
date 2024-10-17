@@ -13,7 +13,7 @@ from sqlmodel import select, and_, desc
 
 
 
-# All Transactions of a Merchant
+# All Fiat Transactions of a user
 class UserFiatTransactionController(APIController):
 
     @classmethod

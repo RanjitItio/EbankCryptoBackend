@@ -503,6 +503,106 @@ class ExportCryptoTransactionDataController(APIController):
                     return json({'message': 'Unauthorized'}, 401)
                 ## Admin authentication ends
 
+                combined_transaction = []
+
+                 ## Execute Buy Query
+                buy_stmt = select(
+                    CryptoBuy.id,
+                    CryptoBuy.crypto_quantity,
+                    CryptoBuy.payment_type,
+                    CryptoBuy.buying_currency,
+                    CryptoBuy.buying_amount,
+                    CryptoBuy.fee_value,
+                    CryptoBuy.created_at,
+                    CryptoBuy.status,
+
+                    CryptoWallet.crypto_name,
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
+                ).join(
+                    Users, Users.id == CryptoBuy.user_id
+                ).order_by(
+                    desc(CryptoBuy.id)
+                )
+
+                # Execute Sell Query
+                sell_stmt = select(
+                    CryptoSell.id,
+                    CryptoSell.crypto_quantity,
+                    CryptoSell.payment_type,
+                    CryptoSell.received_amount,
+                    CryptoSell.fee_value,
+                    CryptoSell.created_at,
+                    CryptoSell.status,
+
+                    CryptoWallet.crypto_name,
+
+                    Wallet.currency.label('wallet_currency'),
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                ).join(
+                    Wallet, Wallet.id == CryptoSell.wallet_id
+                ).join(
+                    Users, Users.id == CryptoSell.user_id
+                ).order_by(
+                    desc(CryptoSell.id)
+                )
+
+                ## Get all cryptoBuy Transactions of user
+                crypto_buy_transaction_obj = await session.execute(buy_stmt)
+                crypto_buy_transaction     = crypto_buy_transaction_obj.all()
+
+                ## Get all cryptoSell Transactions of user
+                crypto_sell_transaction_obj = await session.execute(sell_stmt)
+                crypto_sell_transaction     = crypto_sell_transaction_obj.all()
+
+                combined_transaction = [
+                    {
+                        'id': buyTransaction.id,
+                        'type': 'Buy',
+                        'crypto_name': buyTransaction.crypto_name,
+                        'crypto_qty': buyTransaction.crypto_quantity,
+                        'payment_mode': buyTransaction.payment_type,
+                        'amount': buyTransaction.buying_amount,
+                        'currency': buyTransaction.buying_currency,
+                        'status': buyTransaction.status,
+                        'created_at': buyTransaction.created_at,
+                        'user_name': buyTransaction.user_name,
+                        'user_email': buyTransaction.user_email,
+                        'fee': buyTransaction.fee_value
+
+                    } for buyTransaction in crypto_buy_transaction
+                ] + [
+                    {
+                        'id': sellTransaction.id,
+                        'type': 'Sell',
+                        'payment_mode': sellTransaction.payment_type,
+                        'crypto_name': sellTransaction.crypto_name,
+                        'crypto_qty': sellTransaction.crypto_quantity,
+                        'currency': sellTransaction.wallet_currency,
+                        'amount': sellTransaction.received_amount,
+                        'status': sellTransaction.status,
+                        'created_at': sellTransaction.created_at,
+                        'user_name': sellTransaction.user_name,
+                        'user_email': sellTransaction.user_email,
+                        'fee': sellTransaction.fee_value
+
+                    } for sellTransaction in crypto_sell_transaction
+                ]
+
+
+                return json({
+                    'success': True,
+                    'export_crypto_transactions_data': combined_transaction
+                }, 200)
+
         except Exception as e:
             return json({
                 'error': 'Server Error',

@@ -304,3 +304,68 @@ class AdminCryptoWalletController(APIController):
 
 
 
+## Export All Cryppto Wallets
+class ExportWalletController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Export Crypto Wallets'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/admin/export/crypto/wallets/'
+    
+    
+    ### Export All wallets
+    @auth('userauth')
+    @get()
+    async def export_cryptoWallets(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                stmt = select(
+                    CryptoWallet.id,
+                    CryptoWallet.user_id,
+                    CryptoWallet.wallet_address,
+                    CryptoWallet.created_At,
+                    CryptoWallet.crypto_name,
+                    CryptoWallet.balance,
+                    CryptoWallet.status,
+                    CryptoWallet.is_approved,
+
+                    Users.full_name,
+                    Users.email,
+                ).join(
+                    Users, Users.id == CryptoWallet.user_id
+                ).order_by(
+                    desc(CryptoWallet.id)
+                )
+
+                user_crypto_wallets_obj = await session.execute(stmt)
+                user_crypto_wallets     = user_crypto_wallets_obj.all()
+
+                combined_data = []
+
+                for wallet in user_crypto_wallets:
+                    combined_data.append({
+                        'id': wallet.id,
+                        'user_id': wallet.user_id,
+                        'wallet_address': wallet.wallet_address,
+                        'created_At': wallet.created_At,
+                        'crypto_name': wallet.crypto_name,
+                        'balance': wallet.balance,
+                        'status': wallet.status,
+                        'user_name': wallet.full_name,
+                        'user_email': wallet.email
+                    })
+
+                return json({
+                    'success': True,
+                    'export_wallets_data': combined_data
+                }, 200)
+            
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

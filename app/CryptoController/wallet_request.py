@@ -21,7 +21,8 @@ class CryptoWalletController(APIController):
     def class_name(cls) -> str:
         return 'Raise Wallet Request'
     
-
+    
+    ## Raise New Wallet request for user
     @auth('userauth')
     @post()
     async def create_userWallet(self, request: Request, schema: CreateWalletRequestSchema):
@@ -85,10 +86,17 @@ class CryptoWalletController(APIController):
                 )
                 user_wallets = user_wallets_obj.scalars().all()
 
+                count_stmt      = select(func.count(CryptoWallet.id))
+                exec_count_stmt = await session.execute(count_stmt)
+                total_rows      = exec_count_stmt.scalar()
+
+                total_row_count = total_rows / limit
+
                 return json({
                     'success': True,
-                    'user_crypto_wallet_data': user_wallets
-                })
+                    'user_crypto_wallet_data': user_wallets,
+                    'total_row_count': total_row_count
+                }, 200)
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
@@ -177,3 +185,7 @@ class UserCryptoWalletAdressController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
             }, 500)
+
+
+
+        

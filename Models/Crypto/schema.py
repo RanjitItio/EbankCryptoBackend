@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 
@@ -42,4 +42,23 @@ class AdminUpdateCryptoBuySchema:
 class AdminUpdateCryptoSellSchema:
     crypto_sell_id: int
     status: str
+
+
+
+@dataclass
+class AdminFilterUserWalletSchema:
+    date_range: str = field(default=None)
+    email: str       = field(default=None)
+    crypto_name: str   = field(default=None)
+    status: str     = field(default=None)
+
+
+
+@dataclass
+class AdminFilterCryptoTransactionsSchema:
+    date_range: str       = field(default=None)
+    user_email: str       = field(default=None)
+    crypto_name: str      = field(default=None)
+    transaction_type: str = field(default=None)
+
 

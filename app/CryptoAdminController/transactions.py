@@ -6,7 +6,8 @@ from database.db import AsyncSession, async_engine
 from Models.models import Users, Wallet, Currency
 from Models.crypto import CryptoBuy, CryptoSell, CryptoWallet
 from sqlmodel import select, desc, and_, func
-from Models.Crypto.schema import AdminUpdateCryptoBuySchema, AdminUpdateCryptoSellSchema
+from Models.Crypto.schema import AdminUpdateCryptoBuySchema, AdminUpdateCryptoSellSchema, AdminFilterCryptoTransactionsSchema
+from app.dateFormat import get_date_range
 
 
 
@@ -345,11 +346,11 @@ class CryptoTransactionController(APIController):
 
                 total_row_count = (buy_row_count + sell_row_count) / (2 * limit)
 
-                ## Get all th cryptoBuy Transactions of user
+                ## Get all cryptoBuy Transactions of user
                 crypto_buy_transaction_obj = await session.execute(buy_stmt)
                 crypto_buy_transaction     = crypto_buy_transaction_obj.all()
 
-                ## Get all th cryptoSell Transactions of user
+                ## Get all cryptoSell Transactions of user
                 crypto_sell_transaction_obj = await session.execute(sell_stmt)
                 crypto_sell_transaction     = crypto_sell_transaction_obj.all()
 
@@ -400,3 +401,110 @@ class CryptoTransactionController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
                 }, 500)
+        
+    
+    ## Filter Crypto Transactions
+    @auth('userauth')
+    @post()
+    async def filter_cryptoTransactions(self, request: Request, schema: AdminFilterCryptoTransactionsSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id      = user_identity.claims.get('user_id')
+
+                ## Admin authentication
+                admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == admin_id
+                ))
+                admin_user = admin_user_obj.scalar()
+
+                if not admin_user.is_admin:
+                    return json({'message': 'Unauthorized'}, 401)
+                ## Admin authentication ends
+
+                combined_transaction = []
+                conditions = []
+
+                ## Get payload data
+                dateRange       = schema.date_range
+                userEmail       = schema.user_email
+                cryptoName      = schema.crypto_name
+                transactionType = schema.transaction_type
+
+                ## Filter date range wise
+                if dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    conditions.append(
+                        and_(
+
+                        )
+                    )
+                
+                ## Filter email wise
+                if userEmail:
+                    user_email_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{userEmail}%")
+                    ))
+                    user_email = user_email_obj.scalar()
+
+                    if not user_email:
+                         return json({'message': 'Invalid Email'}, 400)
+                    
+                    conditions.append(
+
+                    )
+
+                # Filter Crypto Name wise
+                if cryptoName:
+                    pass
+
+                if transactionType:
+                    pass
+
+                return json({})
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+        
+
+
+## Export Crypto transaction controller for Admin
+class ExportCryptoTransactionDataController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Export Crypto Transactions'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/admin/export/crypto/transactions/'
+    
+    
+    ## Export all Crypto transactions
+    @auth('userauth')
+    @get()
+    async def export_cryptoTransaction(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id      = user_identity.claims.get('user_id')
+
+                ## Admin authentication
+                admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == admin_id
+                ))
+                admin_user = admin_user_obj.scalar()
+
+                if not admin_user.is_admin:
+                    return json({'message': 'Unauthorized'}, 401)
+                ## Admin authentication ends
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

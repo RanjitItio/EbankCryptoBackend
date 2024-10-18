@@ -94,7 +94,7 @@ class CryptoUserKYCController(APIController):
                     user_object_data = save_to_db.scalar()
 
                     if user_object_data.is_admin == False:
-                        return json({'msg': 'Only admin can view all the KYC'}, 400)
+                        return json({'msg': 'Unauthorized'}, 401)
                     
                 except Exception as e:
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)

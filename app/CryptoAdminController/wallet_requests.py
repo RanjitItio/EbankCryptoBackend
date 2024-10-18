@@ -7,8 +7,8 @@ from database.db import AsyncSession, async_engine
 from sqlmodel import select, and_, desc, func
 from Models.crypto import CryptoWallet
 from Models.models import Users
-from Models.Crypto.schema import UpdateAdminCryptoWalletSchema
-
+from Models.Crypto.schema import UpdateAdminCryptoWalletSchema, AdminFilterUserWalletSchema
+from app.dateFormat import get_date_range
 
 
 
@@ -177,3 +177,130 @@ class AdminCryptoWalletController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
             }, 500)
+        
+
+
+    ## Filter Wallet Requests
+    @auth('userauth')
+    @post()
+    async def filter_wallets(self, request: Request, schema: AdminFilterUserWalletSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id       = user_identity.claims.get('user_id')
+
+                # Admin authentication
+                admin_user_obj = await session.execute(select(Users).where(Users.id == admin_id))
+                admin_user     = admin_user_obj.scalar()
+
+                if not admin_user.is_admin:
+                    return json({'message': 'Unauthorized'}, 401)
+                # Admin authentication ends
+
+                ## Get payload data
+                dateRange    = schema.date_range
+                email        = schema.email
+                crypto_name  = schema.crypto_name
+                status       = schema.status
+
+                conditions    = []
+                combined_data = []
+
+                stmt = select(
+                    CryptoWallet
+                )
+
+                ## Filter according to the Input date time
+                if dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    conditions.append(
+                        and_(
+                            CryptoWallet.created_At >= start_date,
+                            CryptoWallet.created_At <= end_date
+                        )
+                    )
+                
+                ## Filter Email wise
+                if email:
+                    user_email_obj = await session.execute(select(Users).where(
+                        Users.email.like(f"{email}%")
+                    ))
+                    user_email = user_email_obj.scalar()
+
+                    if not user_email:
+                         return json({'message': 'Invalid Email'}, 400)
+                    
+                    conditions.append(
+                        CryptoWallet.user_id == user_email.id
+                    )
+
+                ## Filter Crypto Name wise
+                if crypto_name:
+                    conditions.append(
+                        CryptoWallet.crypto_name.ilike(f"{crypto_name}%")
+                    )
+
+                ## Filter status wise
+                if status:
+                    conditions.append(
+                        CryptoWallet.status.ilike(f"{status}%")
+                    )
+                
+
+                # execute query
+                stmt = select(
+                    CryptoWallet.id,
+                    CryptoWallet.user_id,
+                    CryptoWallet.wallet_address,
+                    CryptoWallet.created_At,
+                    CryptoWallet.crypto_name,
+                    CryptoWallet.balance,
+                    CryptoWallet.status,
+                    CryptoWallet.is_approved,
+
+                    Users.full_name,
+                    Users.email,
+                ).join(
+                    Users, Users.id == CryptoWallet.user_id
+                ).order_by(
+                    desc(CryptoWallet.id)
+                )
+                
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    
+                    user_wallet_object = await session.execute(statement)
+                    user_wallets        = user_wallet_object.fetchall()
+     
+                    if not user_wallets:
+                         return json({'message': 'No wallet found'}, 404)
+                    
+                else:
+                    return json({'message': 'No wallet found'}, 404)
+
+
+                for wallet in user_wallets:
+                    combined_data.append({
+                        'id': wallet.id,
+                        'user_id': wallet.user_id,
+                        'wallet_address': wallet.wallet_address,
+                        'created_At': wallet.created_At,
+                        'crypto_name': wallet.crypto_name,
+                        'balance': wallet.balance,
+                        'status': wallet.status,
+                        'user_name': wallet.full_name,
+                        'user_email': wallet.email
+                    })
+
+                return json({
+                    'success': True,
+                    'all_user_crypto_wallets': combined_data,
+                }, 200)
+
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+
+
+

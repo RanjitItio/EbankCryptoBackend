@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 
@@ -35,3 +35,29 @@ class UpdateFiatCryptoUserProfileSchema:
     dob: str
     gender: str
     marital_status: str
+
+
+
+@dataclass
+class AdminAddFeeSchema:
+    fee_name: str
+    fee_type: str
+    tax_rate: float
+    fixed_value: float
+
+
+@dataclass
+class AdminAddFeeSchema:
+    fee_name: str
+    fee_type: str
+    tax_rate: float
+    fixed_value: float
+
+
+@dataclass
+class AdminUpdateFeeSchema:
+    fee_id : int
+    fee_name: str
+    fee_type: str
+    tax_rate: float
+    fixed_value: float

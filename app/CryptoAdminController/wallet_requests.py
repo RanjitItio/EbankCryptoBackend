@@ -246,7 +246,7 @@ class AdminCryptoWalletController(APIController):
                     conditions.append(
                         CryptoWallet.status.ilike(f"{status}%")
                     )
-                
+
 
                 # execute query
                 stmt = select(

@@ -423,21 +423,30 @@ class CryptoTransactionController(APIController):
                 ## Admin authentication ends
 
                 combined_transaction = []
-                conditions = []
+                buy_conditions  = []
+                sell_conditions = []
 
                 ## Get payload data
                 dateRange       = schema.date_range
                 userEmail       = schema.user_email
                 cryptoName      = schema.crypto_name
-                transactionType = schema.transaction_type
+                status          = schema.status
 
                 ## Filter date range wise
                 if dateRange:
                     start_date, end_date = get_date_range(dateRange)
 
-                    conditions.append(
+                    buy_conditions.append(
                         and_(
+                            CryptoBuy.created_at >= start_date,
+                            CryptoBuy.created_at <= end_date
+                        )
+                    )
 
+                    sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at <= end_date
                         )
                     )
                 
@@ -451,18 +460,148 @@ class CryptoTransactionController(APIController):
                     if not user_email:
                          return json({'message': 'Invalid Email'}, 400)
                     
-                    conditions.append(
+                    buy_conditions.append(
+                        CryptoBuy.user_id == user_email.id
+                    )
 
+                    sell_conditions.append(
+                        CryptoSell.user_id == user_email.id
                     )
 
                 # Filter Crypto Name wise
                 if cryptoName:
-                    pass
+                    crypto_wallet_name_obj = await session.execute(select(CryptoWallet).where(
+                        CryptoWallet.crypto_name.ilike(f"{cryptoName}%")
+                    ))
+                    crypto_wallet_name = crypto_wallet_name_obj.scalars().all()
 
-                if transactionType:
-                    pass
+                    buy_conditions.append(
+                        CryptoBuy.crypto_wallet_id.in_([wallet.id for wallet in crypto_wallet_name])
+                    )
 
-                return json({})
+                    sell_conditions.append(
+                        CryptoSell.crypto_wallet_id.in_([wallet.id for wallet in crypto_wallet_name])
+                    )
+
+                if status:
+                    buy_conditions.append(
+                        CryptoBuy.status.ilike(f"{status}%")
+                    )
+
+                    sell_conditions.append(
+                        CryptoSell.status.ilike(f"{status}%")
+                    )
+
+                ## Execute Buy Query
+                buy_stmt = select(
+                    CryptoBuy.id,
+                    CryptoBuy.crypto_quantity,
+                    CryptoBuy.payment_type,
+                    CryptoBuy.buying_currency,
+                    CryptoBuy.buying_amount,
+                    CryptoBuy.fee_value,
+                    CryptoBuy.created_at,
+                    CryptoBuy.status,
+
+                    CryptoWallet.crypto_name,
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
+                ).join(
+                    Users, Users.id == CryptoBuy.user_id
+                ).order_by(
+                    desc(CryptoBuy.id)
+                )
+
+                # Execute Sell Query
+                sell_stmt = select(
+                    CryptoSell.id,
+                    CryptoSell.crypto_quantity,
+                    CryptoSell.payment_type,
+                    CryptoSell.received_amount,
+                    CryptoSell.fee_value,
+                    CryptoSell.created_at,
+                    CryptoSell.status,
+
+                    CryptoWallet.crypto_name,
+
+                    Wallet.currency.label('wallet_currency'),
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                ).join(
+                    Wallet, Wallet.id == CryptoSell.wallet_id
+                ).join(
+                    Users, Users.id == CryptoSell.user_id
+                ).order_by(
+                    desc(CryptoSell.id)
+                )
+
+                user_buy_transaction  = []
+                user_sell_transaction = []
+
+                if buy_conditions:
+                    buy_statement = buy_stmt.where(and_(*buy_conditions))
+
+                    user_buy_transaction_obj = await session.execute(buy_statement)
+                    user_buy_transaction     = user_buy_transaction_obj.fetchall()
+
+                if sell_conditions:
+                    sell_statement = sell_stmt.where(and_(*sell_conditions))
+
+                    user_sell_transactio_obj = await session.execute(sell_statement)
+                    user_sell_transaction    = user_sell_transactio_obj.fetchall()
+
+
+                if not user_buy_transaction and not user_sell_transaction:
+                    return json({'message': 'No data found'}, 404)
+
+
+                ## Combine all the data
+                combined_transaction = [
+                    {
+                        'id': buyTransaction.id,
+                        'type': 'Buy',
+                        'crypto_name': buyTransaction.crypto_name,
+                        'crypto_qty': buyTransaction.crypto_quantity,
+                        'payment_mode': buyTransaction.payment_type,
+                        'amount': buyTransaction.buying_amount,
+                        'currency': buyTransaction.buying_currency,
+                        'status': buyTransaction.status,
+                        'created_at': buyTransaction.created_at,
+                        'user_name': buyTransaction.user_name,
+                        'user_email': buyTransaction.user_email,
+                        'fee': buyTransaction.fee_value
+
+                    } for buyTransaction in user_buy_transaction
+                ] + [
+                    {
+                        'id': sellTransaction.id,
+                        'type': 'Sell',
+                        'payment_mode': sellTransaction.payment_type,
+                        'crypto_name': sellTransaction.crypto_name,
+                        'crypto_qty': sellTransaction.crypto_quantity,
+                        'currency': sellTransaction.wallet_currency,
+                        'amount': sellTransaction.received_amount,
+                        'status': sellTransaction.status,
+                        'created_at': sellTransaction.created_at,
+                        'user_name': sellTransaction.user_name,
+                        'user_email': sellTransaction.user_email,
+                        'fee': sellTransaction.fee_value
+
+                    } for sellTransaction in user_sell_transaction
+                ]
+
+
+                return json({
+                    'success': True,
+                    'filtered_data': combined_transaction
+                }, 200)
 
         except Exception as e:
             return json({
@@ -597,7 +736,6 @@ class ExportCryptoTransactionDataController(APIController):
                     } for sellTransaction in crypto_sell_transaction
                 ]
 
-
                 return json({
                     'success': True,
                     'export_crypto_transactions_data': combined_transaction
@@ -608,3 +746,4 @@ class ExportCryptoTransactionDataController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
             }, 500)
+

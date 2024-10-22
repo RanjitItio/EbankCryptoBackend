@@ -133,4 +133,5 @@ class FiatUserWithdrawalSchema:
     withdrawalCurrency: str
     wallet_currency: str
     fee: float
+    converted_credit_amt: float
     

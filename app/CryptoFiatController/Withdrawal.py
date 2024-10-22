@@ -39,6 +39,7 @@ class UserFiatWithdrawalController(APIController):
                 withdrawalCurrency = schema.withdrawalCurrency
                 withdrawalAmount   = float(schema.withdrawalAmount)
                 withdrawalFee      = float(schema.fee)
+                creditedAmount     = float(schema.converted_credit_amt)
 
                 # Get wallet Currency
                 wallet_currency_obj = await session.execute(select(Currency).where(
@@ -61,10 +62,14 @@ class UserFiatWithdrawalController(APIController):
                 if not user_wallet:
                     return json({'message': 'User wallet does not exists'}, 400)
                 
+                ## Total amount to deduct
+                total_amt = withdrawalAmount + withdrawalFee
+
                 # Account balance check
-                if withdrawalAmount > user_wallet.balance:
+                if total_amt > user_wallet.balance:
                     return json({'message': 'Do not have Sufficient balance in Wallet'}, 400)
                 
+
                 # Get the withdrawal Currency
                 withdrawal_currency_obj = await session.execute(select(Currency).where(
                     Currency.name == withdrawalCurrency
@@ -74,7 +79,6 @@ class UserFiatWithdrawalController(APIController):
                 if not withdrawal_currency_:
                     return json({'message': 'Invalid withdrawal Currency'}, 400)
                 
-                total_amt = withdrawalAmount + withdrawalFee
 
                 # Create a Withdrawal Request
                 withdrawal_request = FiatWithdrawalTransaction(
@@ -86,7 +90,9 @@ class UserFiatWithdrawalController(APIController):
                     wallet_currency     = wallet_currency_.id,
                     withdrawal_currency = withdrawal_currency_.id,
                     status              = 'Pending',
-                    debit_currency      = withdrawal_currency_.name 
+                    debit_currency      = wallet_currency_.name,
+                    credit_currency     = withdrawal_currency_.name,
+                    credit_amount       = creditedAmount,
                 )
 
                 session.add(withdrawal_request)
@@ -98,6 +104,7 @@ class UserFiatWithdrawalController(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
+    
     # Get all withdrawals of Merchant
     @auth('userauth')
     @get()
@@ -109,9 +116,12 @@ class UserFiatWithdrawalController(APIController):
 
                 combined_data = []
 
-                # total_row_count_obj = await session.execute(select(func.count(FiatWithdrawalTransaction.id)))
-                # total_row_count     = total_row_count_obj.scalar()
+                ## Count available rows of Fiat withdrawala
+                select_rows    = select(func.count(FiatWithdrawalTransaction.id)).where(FiatWithdrawalTransaction.user_id == user_id)
+                exec_row_count = await session.execute(select_rows)
+                available_rows = exec_row_count.scalar()
 
+                total_row_count = available_rows / limit
 
                 # Select the withdrawal table
                 stmt = select(
@@ -123,10 +133,11 @@ class UserFiatWithdrawalController(APIController):
                     FiatWithdrawalTransaction.transaction_fee,
                     FiatWithdrawalTransaction.withdrawal_currency,
                     FiatWithdrawalTransaction.status,
-                    FiatWithdrawalTransaction.debit_amount,
                     FiatWithdrawalTransaction.debit_currency,
                     FiatWithdrawalTransaction.is_completed,
                     FiatWithdrawalTransaction.created_At,
+                    FiatWithdrawalTransaction.credit_amount,
+                    FiatWithdrawalTransaction.credit_currency,
 
                     Currency.name.label('wallet_currency'),
 
@@ -137,6 +148,8 @@ class UserFiatWithdrawalController(APIController):
                     Users, Users.id == FiatWithdrawalTransaction.user_id
                 ).where(
                     FiatWithdrawalTransaction.user_id == user_id
+                ).order_by(
+                    desc(FiatWithdrawalTransaction.id)
                 )
 
                 # Get the withdrdrawlas
@@ -165,15 +178,16 @@ class UserFiatWithdrawalController(APIController):
                         'withdrawal_currency': withdrawal_currency.name,
                         'wallet_currency': withdrawals.wallet_currency,
                         'status': withdrawals.status,
-                        'credit_amount': withdrawals.debit_amount,
-                        'credit_currency': withdrawals.debit_currency,
+                        'credit_amount': withdrawals.credit_amount,
+                        'credit_currency': withdrawals.credit_currency,
                         'is_completed': withdrawals.is_completed,
                         'created_At': withdrawals.created_At
                     })
 
                 return json({
                             'success': True,
-                            'all_fiat_withdrawals': combined_data
+                            'all_fiat_withdrawals': combined_data,
+                            'total_row_count': total_row_count
                         }, 200)
 
         except Exception as e:

@@ -73,7 +73,6 @@ class DepositController(APIController):
                 except Exception as e:
                     return json({'error': f'{str(e)}'}, 400)
                 
-
                 # Get the user
                 user_obj     = await session.execute(select(Users).where(Users.id == user_id))
                 user         = user_obj.scalar()

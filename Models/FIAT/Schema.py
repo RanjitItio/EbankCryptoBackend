@@ -61,3 +61,12 @@ class AdminUpdateFeeSchema:
     fee_type: str
     tax_rate: float
     fixed_value: float
+
+
+
+@dataclass
+class AdminFilterFIATDeposits:
+    date_time: str = field(default=None)
+    email: str    = field(default=None)
+    status: str   = field(default=None)
+    amount: float = field(default=None)

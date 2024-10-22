@@ -6,9 +6,11 @@ from database.db import AsyncSession, async_engine
 from Models.models import Users, Currency, Wallet
 from Models.models4 import DepositTransaction
 from Models.schemas import UpdateTransactionSchema
-from sqlmodel import select, desc, func
+from Models.FIAT.Schema import AdminFilterFIATDeposits
+from sqlmodel import select, desc, func, and_
 from decouple import config
 from httpx import AsyncClient
+from app.dateFormat import get_date_range
 
 
 
@@ -388,4 +390,147 @@ class UpdateDepositController(APIController):
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
 
+
+
+### Filter FIAT Filter 
+class AdminFiletrFIATDepositController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter FIAT Deposit Controller'
     
+
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v1/admin/filter/fiat/deposit/'
+    
+
+    @auth('userauth')
+    @post()
+    async def Filter_Fiat_Deposit(self, request: Request, schema: AdminFilterFIATDeposits):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get("user_id") if user_identity else None
+
+                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Admin authorization Failed'}, 401)
+                #Admin authentication ends
+
+                ## Get payload data
+                dateTime   = schema.date_time
+                user_email = schema.email
+                status     = schema.status
+                amount     = schema.amount
+
+                conditions = []
+                combined_data = []
+
+                ## Get The user from Mail
+                if user_email:
+                    fiat_user_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{user_email}%")
+                    ))
+                    fiat_user = fiat_user_obj.scalar()
+
+                    if not fiat_user:
+                        return json({'message': 'Invalid Email'}, 400)
+            
+                ## Select the columns
+                stmt  = select(
+                    DepositTransaction.id,
+                    DepositTransaction.transaction_id,
+                    DepositTransaction.created_At,
+                    DepositTransaction.amount,
+                    DepositTransaction.transaction_fee,
+                    DepositTransaction.payout_amount,
+                    DepositTransaction.status,
+                    DepositTransaction.payment_mode,
+                    DepositTransaction.is_completed,
+
+                    Users.full_name,
+                    Users.email,
+                    Currency.name.label('currency_name')
+
+                    ).join(
+                        Users,  Users.id == DepositTransaction.user_id
+                    ).join(
+                        Currency, Currency.id == DepositTransaction.currency
+                    ).order_by(
+                        desc(DepositTransaction.id)
+                    )
+                
+                ## Filter email wise
+                if user_email:
+                    conditions.append(
+                        DepositTransaction.user_id == fiat_user.id
+                    )
+
+                ## Filter status wise
+                if status:
+                    conditions.append(
+                        DepositTransaction.status.ilike(f"{status}%")
+                    )
+
+                ## Filter date time wise
+                if dateTime:
+                    start_date, end_date = get_date_range(dateTime)
+
+                    conditions.append(
+                        and_(
+                            DepositTransaction.created_At <= end_date,
+                            DepositTransaction.created_At >= start_date
+                        )
+                    )
+
+                ## Filter amount wise
+                if amount:
+                    conditions.append(
+                        DepositTransaction.amount == float(amount)
+                    )
+                
+                ## if filterd data available
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+
+                    fiat_deposit_transactions_obj = await session.execute(statement)
+                    fiat_deposit_transactions     = fiat_deposit_transactions_obj.fetchall()
+
+                    if not fiat_deposit_transactions:
+                        return json({'message': 'No data found'}, 404)
+                
+                else:
+                    return json({'message': 'No data found'}, 404)
+                
+                ## Get all data in combined_data
+                for transaction in fiat_deposit_transactions:
+
+                    combined_data.append({
+                        'id': transaction.id,
+                        'transaction_id': transaction.transaction_id,
+                        'created_At': transaction.created_At,
+                        'amount': transaction.amount,
+                        'transaction_fee': transaction.transaction_fee,
+                        'payout_amount': transaction.payout_amount,
+                        'status': transaction.status,
+                        'payment_mode': transaction.payment_mode,
+                        'is_completed': transaction.is_completed,
+                        'user_name': transaction.full_name,
+                        'user_email': transaction.email,
+                        'transaction_currency': transaction.currency_name
+                    })
+
+                return json({
+                    'message': 'Deposit Transaction data fetched successfully', 
+                    'filter_deposit_transactions': combined_data,
+                    'success': True
+                }, 200)
+            
+        except Exception as e:
+            return json({
+                'error': 'Server Error', 
+                'message': f'{str(e)}'
+                }, 500)

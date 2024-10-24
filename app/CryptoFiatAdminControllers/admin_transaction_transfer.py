@@ -3,7 +3,7 @@ from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from app.controllers.controllers import get, put, post
 from database.db import AsyncSession, async_engine
-from sqlmodel import select, and_, desc, func, outerjoin
+from sqlmodel import select, and_, desc, func
 from sqlalchemy.orm import aliased
 from Models.models import Users, Currency, ReceiverDetails, Wallet
 from Models.models4 import TransferTransaction
@@ -877,99 +877,86 @@ class ExportTransferTransactions(APIController):
                 # Admin authentication end
 
                 combined_data = []
+                #Get all transaction Data
+                get_all_transaction = await session.execute(select(TransferTransaction).order_by(
+                    desc(TransferTransaction.id)
+                ))
+                get_all_transaction_obj = get_all_transaction.scalars().all()
 
-                # Rename the tables
-                TransactionCurrency = aliased(Currency)
-                ReceiverCurrency    = aliased(Currency)
-                SenderDetail        = aliased(Users)
-                ReceiverWalletUser  = aliased(Users)
-                ReceiverBankCurrency = aliased(Currency)
+                #Get the Currency
+                currency     = await session.execute(select(Currency))
+                currency_obj = currency.scalars().all()
 
-                ## Select the coulumns
-                stmt = select(
-                    TransferTransaction.id,
-                    TransferTransaction.transaction_id,
-                    TransferTransaction.amount,
-                    TransferTransaction.transaction_fee,
-                    TransferTransaction.payout_amount,
-                    TransferTransaction.status,
-                    TransferTransaction.payment_mode,
-                    TransferTransaction.receiver_payment_mode,
-                    TransferTransaction.credited_amount,
-                    TransferTransaction.credited_currency,
-                    TransferTransaction.created_At,
+                #Get the user data
+                user_obj      = await session.execute(select(Users))
+                user_obj_data = user_obj.scalars().all()
 
-                    SenderDetail.email.label('sender_email'),
-                    SenderDetail.full_name.label('sender_name'),
+                ## Receiver details
+                receiver_details_obj = await session.execute(select(ReceiverDetails))
+                receiver_details     = receiver_details_obj.scalars().all()
 
-                    ReceiverWalletUser.email.label('receiver_email'),
-                    ReceiverWalletUser.full_name.label('receiver_name'),
+                # Prepare dictionaries for output data
+                currency_dict          = {currency.id: currency for currency in currency_obj}
+                receiver_currency_dict = {currency.id: currency for currency in currency_obj}
+                user_dict              = {user.id: user for user in user_obj_data}
+                receiver_dict          = {receiver.id: receiver for receiver in user_obj_data}
+                receiver_details_dict  = {details.id: details for details in receiver_details}
 
-                    TransactionCurrency.name.label('transaction_currency'),
 
-                    ReceiverCurrency.name.label('receiver_currency'),
+                for transaction in get_all_transaction_obj:
+                    ## Transaction Currency
+                    currency_id             = transaction.currency
+                    currency_data           = currency_dict.get(currency_id)
 
-                    ReceiverBankCurrency.name.label('receiver_bank_account_currency'),
+                    ## Receiver Currency 
+                    receiver_currency_id  = transaction.receiver_currency
+                    receiver_currency_data = receiver_currency_dict.get(receiver_currency_id)
 
-                    ReceiverDetails.full_name.label('receiver_bank_account_name'),
-                    ReceiverDetails.email.label('receiver_bank_email'),
-                    ReceiverDetails.mobile_number.label('receiver_bank_mobile_number'),
-                    ReceiverDetails.amount.label('receiver_amount'),
-                    ReceiverDetails.bank_name.label('receiver_bank_name'),
-                    ReceiverDetails.acc_number.label('receiver_account_number'),
-                    ReceiverDetails.ifsc_code.label('receiver_ifsc_code'),
-                    ReceiverDetails.address.label('receiver_bank_address')
+                    ## Sender data
+                    user_id   = transaction.user_id
+                    user_data = user_dict.get(user_id)
 
-                ).outerjoin(
-                    ReceiverWalletUser, ReceiverWalletUser.id == TransferTransaction.receiver
-                ).join(
-                    TransactionCurrency, TransactionCurrency.id == TransferTransaction.currency
-                ).join(
-                    ReceiverCurrency, ReceiverCurrency.id == TransferTransaction.receiver_currency
-                ).join(
-                    SenderDetail, SenderDetail.id == TransferTransaction.user_id
-                ).outerjoin(
-                    ReceiverDetails, ReceiverDetails.id == TransferTransaction.receiver_detail
-                )
+                    ## Receiver Details
+                    receiver_details_id   = transaction.receiver_detail
+                    if receiver_details_id:
+                        receiver_details_data = receiver_details_dict.get(receiver_details_id)
+                    else:
+                        receiver_details_data = None
 
-                ## Get The Data
-                all_tranfer_transaction_obj = await session.execute(stmt)
-                all_tranfer_transaction     = all_tranfer_transaction_obj.fetchall()
+                    receiver_id   = transaction.receiver
+                    if receiver_id:
+                        receiver_data = receiver_dict.get(receiver_id)
+                    else:
+                        receiver_data = None
 
-                # Gather all inside transaction_data
-                for transaction in all_tranfer_transaction:
-                    transaction_data = {
-                        'sender_name': transaction.sender_name,
-                        'sender_email': transaction.sender_email,
-                        'receiver_name': transaction.receiver_name,
-                        'receiver_email': transaction.receiver_email,
-                        'transaction_id': transaction.transaction_id,
-                        'amount': transaction.amount,
-                        'transaction_fee': transaction.transaction_fee,
-                        'payout_amount': transaction.payout_amount,
-                        'receiver_payment_mode': transaction.receiver_payment_mode,
-                        'credited_amount': transaction.credited_amount,
-                        'credited_currency': transaction.credited_currency,
-                        'created_At': transaction.created_At,
-                        'transaction_currency': transaction.transaction_currency,
-                        'receiver_currency': transaction.receiver_currency,
-                    }
 
-                     # Conditions for receiver bank payment mode
-                    if transaction.receiver_bank_account_name:
-                        transaction_data.update({
-                            'receiver_bank_account_name': transaction.receiver_bank_account_name,
-                            'receiver_bank_account_currency': transaction.receiver_bank_account_currency,
-                            'receiver_bank_email': transaction.receiver_bank_email,
-                            'receiver_bank_mobile_number': transaction.receiver_bank_mobile_number,
-                            'receiver_amount': transaction.receiver_amount,
-                            'receiver_bank_name': transaction.receiver_bank_name,
-                            'receiver_account_number': transaction.receiver_account_number,
-                            'receiver_ifsc_code': transaction.receiver_ifsc_code,
-                            'receiver_bank_address': transaction.receiver_bank_address
-                        })
+                    combined_data.append({
+                        'id': transaction.id,
+                       'sender_name': user_data.full_name if user_data else None,
+                       'sender_email': user_data.email if user_data else None,
+                       'transaction_id': transaction.transaction_id,
+                       'transaction_amount': transaction.amount,
+                       'transaction_fee': transaction.transaction_fee,
+                       'transaction_currency': currency_data.name,
+                       'transaction_purpose': transaction.massage,
+                       'status': transaction.status,
+                       'credited_amount': transaction.credited_amount,
+                       'credited_currency': transaction.credited_currency,
+                       
+                       ## Receiver if Receiver payment mode is wallet
+                       'receiver_user_name': receiver_data.full_name if receiver_data else None,
+                       'receiver_email': receiver_data.email if receiver_data else None,
+                       'receiver_payment_mode': transaction.receiver_payment_mode,
+                       'receiver_currency': receiver_currency_data.name,
 
-                    combined_data.append(transaction_data)
+                       ## Receiver Bank Details
+                       'receiver_name': receiver_details_data.full_name if receiver_details_data else None,
+                       'receiver_email': receiver_details_data.email if receiver_details_data else None,
+                       'receiver_mobile_number': receiver_details_data.mobile_number if receiver_details_data else None,
+                       'receiver_bank_name': receiver_details_data.bank_name if receiver_details_data else None,
+                       'receiver_account_number': receiver_details_data.acc_number if  receiver_details_data else None,
+                       'receiver_ifsc_code': receiver_details_data.ifsc_code if receiver_details_data else None
+                    })
 
                 return json({
                     'success': True,

@@ -6,7 +6,8 @@ from database.db import AsyncSession, async_engine
 from sqlmodel import select, desc, and_, func
 from Models.models import Users, Currency, Wallet
 from Models.models4 import FIATExchangeMoney
-from Models.FIAT.Schema import AdminUpdateExchangeMoneySchema
+from Models.FIAT.Schema import AdminUpdateExchangeMoneySchema, AdminFilterExchangeTransaction
+from app.dateFormat import get_date_range
 
 
 
@@ -218,4 +219,253 @@ class AdminFiatExchangeMoneyController(APIController):
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
 
+
+
+### Filter Exchange Money Transaction
+class AdminFilterExchangeMoneyTransaction(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter Exchange Money'
     
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/admin/filter/exchange/money/'
+
+    ### Filter Exchange money
+    @auth('userauth')
+    @post()
+    async def filter_exchange_money(self, request: Request, schema: AdminFilterExchangeTransaction):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get('user_id')
+
+                 # Admin Authentication
+                admin_obj      = await session.execute(select(Users).where(Users.id == AdminID))
+                admin_obj_data = admin_obj.scalar()
+
+                if not admin_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 400)
+                # Admin authentication ends
+
+                ### Get pauload data
+                dateTime = schema.date_time
+                email    = schema.email
+                status   = schema.status
+                currency = schema.currency
+
+                conditions    = []
+                combined_data = []
+
+                ## Filter Email wise
+                if email:
+                    user_email_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{email}%")
+                    ))
+                    user_email = user_email_obj.scalar()
+
+                    if not user_email:
+                        return json({'message': 'Invalid email'}, 400)
+                    
+                    conditions.append(
+                        FIATExchangeMoney.user_id == user_email.id
+                    )
+
+                ## Filter Date time wise
+                if dateTime:
+                    start_date, end_date = get_date_range(dateTime)
+
+                    conditions.append(
+                        and_(
+                            FIATExchangeMoney.created_At <= end_date,
+                            FIATExchangeMoney.created_At >= start_date
+                        )
+                    )
+
+                ### Filter status wise
+                if status:
+                    conditions.append(
+                        FIATExchangeMoney.status.ilike(f"{status}%")
+                    )
+
+                ## Filter From Currency wise
+                if currency:
+                    filter_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{currency}")
+                    ))
+                    filter_currency = filter_currency_obj.scalar()
+
+                    conditions.append(
+                        FIATExchangeMoney.from_currency == filter_currency.id
+                    )
+                
+                stmt = select(
+                    FIATExchangeMoney.id,
+                    FIATExchangeMoney.from_currency,
+                    FIATExchangeMoney.to_currency,
+                    FIATExchangeMoney.exchange_amount,
+                    FIATExchangeMoney.converted_amount,
+                    FIATExchangeMoney.transaction_fee,
+                    FIATExchangeMoney.created_At,
+                    FIATExchangeMoney.is_completed,
+                    FIATExchangeMoney.user_id,
+                    FIATExchangeMoney.status,
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+                ).join(
+                    Users, Users.id == FIATExchangeMoney.user_id
+                ).order_by(
+                    desc(FIATExchangeMoney.id)
+                )
+
+                ## If data available
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    all_exchange_transactions_obj = await session.execute(statement)
+                    all_exchange_transactions     = all_exchange_transactions_obj.fetchall()
+
+                    if not all_exchange_transactions:
+                        return json({'message': 'No data found'}, 404)
+                else:
+                    return json({'message': 'No data found'}, 404)
+                
+
+                for transaction in all_exchange_transactions:
+                    # From Currency
+                    from_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.from_currency
+                    ))
+                    from_currency = from_currency_obj.scalar()
+
+                    # To Currency
+                    to_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.to_currency
+                    ))
+                    to_currency = to_currency_obj.scalar()
+
+                    combined_data.append({
+                        "id": transaction.id,
+                        "to_currency": to_currency.name,
+                        "converted_amount": transaction.converted_amount,
+                        "is_completed": transaction.is_completed,
+                        "from_currency": from_currency.name,
+                        "exchange_amount": transaction.exchange_amount,
+                        "user_id": transaction.user_id,
+                        "transaction_fee": transaction.transaction_fee,
+                        "created_At": transaction.created_At,
+                        "user_name": transaction.user_name,
+                        'user_email': transaction.user_email,
+                        "status": transaction.status
+                    })
+
+                return json({
+                    'success': True,
+                    'filter_exchange_data': combined_data
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+
+
+
+### Export Exchange Transaction
+class AdminExportFiatExchangeTransactions(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Export Fiat Exchange Money Transactions'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/admin/export/exchange/money/'
+    
+
+    ### Filter Exchange money
+    @auth('userauth')
+    @get()
+    async def export_exchange_money(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get('user_id')
+
+                 # Admin Authentication
+                admin_obj      = await session.execute(select(Users).where(Users.id == AdminID))
+                admin_obj_data = admin_obj.scalar()
+
+                if not admin_obj_data.is_admin:
+                    return json({'msg': 'Only admin can view the Transactions'}, 400)
+                # Admin authentication ends
+
+                combined_data = []
+
+                ## Select Rows
+                stmt = select(
+                    FIATExchangeMoney.id,
+                    FIATExchangeMoney.from_currency,
+                    FIATExchangeMoney.to_currency,
+                    FIATExchangeMoney.exchange_amount,
+                    FIATExchangeMoney.converted_amount,
+                    FIATExchangeMoney.transaction_fee,
+                    FIATExchangeMoney.created_At,
+                    FIATExchangeMoney.is_completed,
+                    FIATExchangeMoney.user_id,
+                    FIATExchangeMoney.status,
+
+                    Users.full_name.label('user_name'),
+                    Users.email.label('user_email')
+                ).join(
+                    Users, Users.id == FIATExchangeMoney.user_id
+                ).order_by(
+                    desc(FIATExchangeMoney.id)
+                )
+
+                ## Execute Query
+                fiat_exchange_money_obj = await session.execute(stmt)
+                fiat_exchange_money     = fiat_exchange_money_obj.fetchall()
+
+                if not fiat_exchange_money:
+                    return json({'message': 'No data found'}, 404)
+                
+                ### Gather all the data
+                for transaction in fiat_exchange_money:
+                    # From Currency
+                    from_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.from_currency
+                    ))
+                    from_currency = from_currency_obj.scalar()
+
+                    # To Currency
+                    to_currency_obj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.to_currency
+                    ))
+                    to_currency = to_currency_obj.scalar()
+
+                    combined_data.append({
+                        "user_name": transaction.user_name,
+                        'user_email': transaction.user_email,
+                        "from_currency": from_currency.name,
+                        "to_currency": to_currency.name,
+                        "converted_amount": transaction.converted_amount,
+                        "exchange_amount": transaction.exchange_amount,
+                        "transaction_fee": transaction.transaction_fee,
+                        "created_At": transaction.created_At,
+                        "status": transaction.status
+                    })
+
+                return json({
+                    'success': True,
+                    'export_exchange_money_data': combined_data
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+

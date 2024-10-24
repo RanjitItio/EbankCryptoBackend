@@ -35,15 +35,6 @@ class Users(SQLModel, table=True):
     minimum_withdrawal_amount: float = Field(default=0.00, nullable=True)
     settlement_period: str           = Field(max_length=10, default='', nullable=True)
     settlement_date: datetime        = Field(nullable=True)
-    # default_wallets: Optional[int] = None
-    # address1: str                  = Field(default='Address1')
-    # address2: str                  = Field(default='Address2')
-    # city: str                      = Field(default='City')
-    # state: str                     = Field(default='State')
-    # country: str                   = Field(default='Country')
-    # dogecoin_address: str          = Field(default='Doge Coin Address')
-    # bitcoin_address: str           = Field(default='Bitcoin Address')
-    # litcoin_address: str           = Field(default='Litcoin Address')
 
 
     def assign_full_name(self):
@@ -79,6 +70,7 @@ class Currency(SQLModel, table=True):
     symbol: str
     fee : float = Field(default=0.0)
     decimal_places: int = Field
+
 
 
 

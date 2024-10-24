@@ -1,14 +1,18 @@
 from blacksheep import Request, json, pretty_json, FromJSON
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
-from app.controllers.controllers import get, put
+from app.controllers.controllers import get, put, post
 from database.db import AsyncSession, async_engine
-from sqlmodel import select, and_, desc, func
+from sqlmodel import select, and_, desc, func, outerjoin
+from sqlalchemy.orm import aliased
 from Models.models import Users, Currency, ReceiverDetails, Wallet
 from Models.models4 import TransferTransaction
 from Models.schemas import UpdateTransactionSchema
+from Models.Admin.Transfer.schemas import AdminFilterTransferTransaction
 from httpx import AsyncClient
 from decouple import config
+from app.dateFormat import get_date_range
+
 
 
 
@@ -28,7 +32,7 @@ class AllTransferTransactions(APIController):
     def route(cls) -> str | None:
         return '/api/v1/admin/transfer/transactions/'
     
-
+    ### Get all Transfer Transactions
     @auth('userauth')
     @get()
     async def get_transfer_transaction(self, request: Request, limit: int = 15, offset: int = 0):
@@ -96,16 +100,20 @@ class AllTransferTransactions(APIController):
 
                         user_id   = transaction.user_id
                         user_data = user_dict.get(user_id)
-                        user_data = {'first_name': user_data.first_name, 
-                                     'lastname': user_data.lastname, 
-                                     'email': user_data.email,
-                                     'id': user_data.id} if user_data else None
+                        user_data = {
+                            'first_name': user_data.first_name, 
+                            'lastname': user_data.lastname, 
+                            'email': user_data.email,
+                            'id': user_data.id
+                            } if user_data else None
 
                         receiver_id   = transaction.receiver
                         receiver_data = receiver_dict.get(receiver_id)
-                        receiver_data = {'first_name': receiver_data.first_name, 
-                                         'lastname': receiver_data.lastname, 
-                                         'id': receiver_data.id} if receiver_data else None
+                        receiver_data = {
+                            'first_name': receiver_data.first_name, 
+                            'lastname': receiver_data.lastname, 
+                            'id': receiver_data.id
+                            } if receiver_data else None
 
                         combined_data.append({
                             'transaction': transaction,
@@ -676,3 +684,300 @@ class UpdateTransferTransactionController(APIController):
         except Exception as e:
             return json({'error': 'Server error', 'message': f'{str(e)}'}, 500)
         
+
+
+
+## Filter Transfer Transaction
+class FilterTransferTransactionController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter Transfer Transaction'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v4/admin/filter/transfer/transaction/'
+    
+
+    ## Filter all transfer transaction by Admin
+    @auth('userauth')
+    @post()
+    async def filter_transferTransaction(self, request: Request, schema: AdminFilterTransferTransaction):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get('user_id')
+
+                # Admin Authentication
+                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'message': 'Admin authorization Failed'}, 400)
+                # Admin authentication ends
+
+                ## Get payload data
+                dateTime = schema.date_time
+                email    = schema.email
+                status   = schema.status
+                currency = schema.currency
+
+                conditions = []   ## apply all conditions
+                combined_data = []  ## Append all data
+
+
+                ### Filter datetime wise
+                if dateTime:
+                    start_date, end_date = get_date_range(dateTime) 
+
+                    conditions.append(
+                        and_(
+                            TransferTransaction.created_At <= end_date,
+                            TransferTransaction.created_At >= start_date
+                            )
+                    )
+
+                # Filter Email wise
+                if email:
+                    fiat_user_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{email}%")
+                    ))
+                    fiat_user = fiat_user_obj.scalar()
+
+                    if fiat_user:
+                        conditions.append(
+                            TransferTransaction.user_id == fiat_user.id
+                        )
+                    else:
+                        return json({'message': 'Invalid email'}, 404)
+                    
+
+                ## Filter status wise
+                if status:
+                    conditions.append(
+                        TransferTransaction.status.ilike(f"{status}%")
+                    )
+
+                ## Filter Currency wise
+                if currency:
+                    filter_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{currency}%")
+                    ))
+                    filter_currency = filter_currency_obj.scalar()
+
+                    conditions.append(
+                        TransferTransaction.currency == filter_currency.id
+                    )
+
+                ### Select the column
+                select_transfer = select(TransferTransaction)
+
+                if conditions:
+                    #Get all transaction Data
+                    query_ = select_transfer.where(and_(*conditions))
+
+                    result       = await session.execute(query_.order_by(desc(TransferTransaction.id)))
+                    all_transactions = result.scalars().all()
+
+                    if not all_transactions:
+                        return json({'message': 'No transaction found'}, 404)
+
+                else:
+                    return json({'message': 'No transaction found'}, 404)
+                
+
+                #Get the Currency
+                all_currency_obj = await session.execute(select(Currency))
+                all_currency     = all_currency_obj.scalars().all()
+
+                if not all_currency:
+                    return json({'message': 'Currency not available'}, 404)
+                
+
+                #Get the user data
+                user_obj      = await session.execute(select(Users))
+                user_obj_data = user_obj.scalars().all()
+
+                if not user_obj_data:
+                    return json({'message': 'User not available'}, 404)
+                
+                # Prepare dictionaries for output data
+                currency_dict = {currency.id: currency for currency in all_currency}
+                user_dict     = {user.id: user for user in user_obj_data}
+                receiver_dict = {receiver.id: receiver for receiver in user_obj_data}
+
+                ### Gather all data
+                for transaction in all_transactions:
+                    currency_id             = transaction.currency
+                    currency_data           = currency_dict.get(currency_id)
+
+                    user_id   = transaction.user_id
+                    user_data = user_dict.get(user_id)
+                    user_data = {
+                        'first_name': user_data.first_name, 
+                        'lastname': user_data.lastname, 
+                        'email': user_data.email,
+                        'id': user_data.id
+                        } if user_data else None
+
+                    receiver_id   = transaction.receiver
+                    receiver_data = receiver_dict.get(receiver_id)
+                    receiver_data = {
+                        'first_name': receiver_data.first_name, 
+                        'lastname': receiver_data.lastname, 
+                        'id': receiver_data.id
+                        } if receiver_data else None
+
+                    combined_data.append({
+                        'transaction': transaction,
+                        'sender_currency': currency_data,
+                        'user': user_data,
+                        'receiver': receiver_data
+                    })
+
+                return json({
+                    'success': True,
+                    'filtered_transaction_data': combined_data
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+
+
+
+### Export Transfer Transactions
+class ExportTransferTransactions(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Export Transfer Transaction'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v4/admin/export/transfer/transaction/'
+    
+    ## Export Transfer Transaction By Admin
+    @auth('userauth')
+    @get()
+    async def export_transferTransaction(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get('user_id')
+
+                # Admin Authentication
+                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'message': 'Admin authorization Failed'}, 400)
+                # Admin authentication end
+
+                combined_data = []
+
+                # Rename the tables
+                TransactionCurrency = aliased(Currency)
+                ReceiverCurrency    = aliased(Currency)
+                SenderDetail        = aliased(Users)
+                ReceiverWalletUser  = aliased(Users)
+                ReceiverBankCurrency = aliased(Currency)
+
+                ## Select the coulumns
+                stmt = select(
+                    TransferTransaction.id,
+                    TransferTransaction.transaction_id,
+                    TransferTransaction.amount,
+                    TransferTransaction.transaction_fee,
+                    TransferTransaction.payout_amount,
+                    TransferTransaction.status,
+                    TransferTransaction.payment_mode,
+                    TransferTransaction.receiver_payment_mode,
+                    TransferTransaction.credited_amount,
+                    TransferTransaction.credited_currency,
+                    TransferTransaction.created_At,
+
+                    SenderDetail.email.label('sender_email'),
+                    SenderDetail.full_name.label('sender_name'),
+
+                    ReceiverWalletUser.email.label('receiver_email'),
+                    ReceiverWalletUser.full_name.label('receiver_name'),
+
+                    TransactionCurrency.name.label('transaction_currency'),
+
+                    ReceiverCurrency.name.label('receiver_currency'),
+
+                    ReceiverBankCurrency.name.label('receiver_bank_account_currency'),
+
+                    ReceiverDetails.full_name.label('receiver_bank_account_name'),
+                    ReceiverDetails.email.label('receiver_bank_email'),
+                    ReceiverDetails.mobile_number.label('receiver_bank_mobile_number'),
+                    ReceiverDetails.amount.label('receiver_amount'),
+                    ReceiverDetails.bank_name.label('receiver_bank_name'),
+                    ReceiverDetails.acc_number.label('receiver_account_number'),
+                    ReceiverDetails.ifsc_code.label('receiver_ifsc_code'),
+                    ReceiverDetails.address.label('receiver_bank_address')
+
+                ).outerjoin(
+                    ReceiverWalletUser, ReceiverWalletUser.id == TransferTransaction.receiver
+                ).join(
+                    TransactionCurrency, TransactionCurrency.id == TransferTransaction.currency
+                ).join(
+                    ReceiverCurrency, ReceiverCurrency.id == TransferTransaction.receiver_currency
+                ).join(
+                    SenderDetail, SenderDetail.id == TransferTransaction.user_id
+                ).outerjoin(
+                    ReceiverDetails, ReceiverDetails.id == TransferTransaction.receiver_detail
+                )
+
+                ## Get The Data
+                all_tranfer_transaction_obj = await session.execute(stmt)
+                all_tranfer_transaction     = all_tranfer_transaction_obj.fetchall()
+
+                # Gather all inside transaction_data
+                for transaction in all_tranfer_transaction:
+                    transaction_data = {
+                        'sender_name': transaction.sender_name,
+                        'sender_email': transaction.sender_email,
+                        'receiver_name': transaction.receiver_name,
+                        'receiver_email': transaction.receiver_email,
+                        'transaction_id': transaction.transaction_id,
+                        'amount': transaction.amount,
+                        'transaction_fee': transaction.transaction_fee,
+                        'payout_amount': transaction.payout_amount,
+                        'receiver_payment_mode': transaction.receiver_payment_mode,
+                        'credited_amount': transaction.credited_amount,
+                        'credited_currency': transaction.credited_currency,
+                        'created_At': transaction.created_At,
+                        'transaction_currency': transaction.transaction_currency,
+                        'receiver_currency': transaction.receiver_currency,
+                    }
+
+                     # Conditions for receiver bank payment mode
+                    if transaction.receiver_bank_account_name:
+                        transaction_data.update({
+                            'receiver_bank_account_name': transaction.receiver_bank_account_name,
+                            'receiver_bank_account_currency': transaction.receiver_bank_account_currency,
+                            'receiver_bank_email': transaction.receiver_bank_email,
+                            'receiver_bank_mobile_number': transaction.receiver_bank_mobile_number,
+                            'receiver_amount': transaction.receiver_amount,
+                            'receiver_bank_name': transaction.receiver_bank_name,
+                            'receiver_account_number': transaction.receiver_account_number,
+                            'receiver_ifsc_code': transaction.receiver_ifsc_code,
+                            'receiver_bank_address': transaction.receiver_bank_address
+                        })
+
+                    combined_data.append(transaction_data)
+
+                return json({
+                    'success': True,
+                    'export_transfer_transaction_data': combined_data
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

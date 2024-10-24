@@ -6,7 +6,7 @@ from Models.models4 import DepositTransaction, TransferTransaction
 from database.db import async_engine, AsyncSession
 from app.controllers.controllers import get
 from blacksheep.server.authorization import auth
-from sqlmodel import select, and_, desc
+from sqlmodel import select, and_, desc, func
 
 
 
@@ -34,6 +34,20 @@ class UserFiatTransactionController(APIController):
                 # Authenticate user
                 user_identity = request.identity
                 user_id       = user_identity.claims.get("user_id") if user_identity else None
+
+                ### Count Total available rows in Deposit table
+                select_deposit_rows = select(func.count(DepositTransaction.id)).where(DepositTransaction.user_id == user_id)
+                exec_select_deposit_rows = await session.execute(select_deposit_rows)
+                total_deposit_rows = exec_select_deposit_rows.scalar()
+
+                ### Count total available rows in Transfer table
+                select_transfer_rows      = select(func.count(TransferTransaction.id)).where(TransferTransaction.user_id == user_id)
+                exec_select_transfer_rows = await session.execute(select_transfer_rows)
+                total_transfer_rows       = exec_select_transfer_rows.scalar()
+
+                ## Count total avaible rows
+                total_rows           = total_deposit_rows + total_transfer_rows
+                total_paginated_rows = total_rows / (limit * 2)
 
                 # Get all deposit Transaction
                 deposit_transaction_obj = await session.execute(select(DepositTransaction).where(
@@ -119,7 +133,9 @@ class UserFiatTransactionController(APIController):
 
                 return json({
                     'message': 'Transaction data fetched successfully', 
-                    'all_fiat_transactions': combined_transactions
+                    'all_fiat_transactions': combined_transactions,
+                    'total_paginated_rows': total_paginated_rows
+
                     }, 200)
                 
         except Exception as e:

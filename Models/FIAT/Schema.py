@@ -67,6 +67,15 @@ class AdminUpdateFeeSchema:
 @dataclass
 class AdminFilterFIATDeposits:
     date_time: str = field(default=None)
-    email: str    = field(default=None)
-    status: str   = field(default=None)
-    amount: float = field(default=None)
+    email: str     = field(default=None)
+    status: str    = field(default=None)
+    amount: float  = field(default=None)
+
+
+
+@dataclass
+class AdminFilterExchangeTransaction:
+    date_time: str = field(default=None)
+    email: str     = field(default=None)
+    status: str    = field(default=None)
+    currency: str  = field(default=None)

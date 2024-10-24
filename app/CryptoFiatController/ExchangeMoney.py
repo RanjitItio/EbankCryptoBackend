@@ -6,7 +6,7 @@ from database.db import AsyncSession, async_engine
 from Models.FIAT.Schema import FiatExchangeMoneySchema
 from Models.models import Wallet, Currency
 from Models.models4 import FIATExchangeMoney
-from sqlmodel import select, and_
+from sqlmodel import select, and_, desc, func
 
 
 
@@ -87,3 +87,87 @@ class ExchangeMoneyController(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+    ### Get all exchange transaction of a specific user
+    @auth('userauth')
+    @get()
+    async def get_userExchangeTransactions(self, request: Request, limit: int = 10, offset: int = 0):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                combined_data = []
+
+                ## Select columns
+                stmt = select(
+                    FIATExchangeMoney.id,
+                    FIATExchangeMoney.user_id,
+                    FIATExchangeMoney.to_currency,
+                    FIATExchangeMoney.exchange_amount,
+                    FIATExchangeMoney.converted_amount,
+                    FIATExchangeMoney.transaction_fee,
+                    FIATExchangeMoney.status,
+                    FIATExchangeMoney.created_At,
+
+                    Currency.name.label('from_currency')
+                ).join(
+                    Currency, Currency.id == FIATExchangeMoney.from_currency
+                ).where(
+                    FIATExchangeMoney.user_id == user_id
+                ).order_by(
+                    desc(FIATExchangeMoney.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
+                )
+
+                ## Count Total Rows
+                select_rows         = select(func.count(FIATExchangeMoney.id)).where(FIATExchangeMoney.user_id == user_id)
+                exec_select_rows    = await session.execute(select_rows)
+                total_exchange_rows = exec_select_rows.scalar()
+
+                total_paginated_rows = (total_exchange_rows / limit)
+
+
+                ## Get all exchange requests of the user
+                user_fiat_exchange_requests_obj = await session.execute(stmt)
+                user_fiat_exchange_requests    = user_fiat_exchange_requests_obj.fetchall()
+
+                if not user_fiat_exchange_requests:
+                    return json({'message': 'No exchange transaction found'}, 404)
+                
+
+                ## Add all data into combined_data
+                for transaction in user_fiat_exchange_requests:
+                    toCurrencyObj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.to_currency
+                    ))
+                    toCurrency = toCurrencyObj.scalar()
+
+                    combined_data.append({
+                        'id': transaction.id,
+                        'user_id': transaction.user_id,
+                        'from_currency': transaction.from_currency,
+                        'to_currency': toCurrency.name,
+                        'exchange_amount': transaction.exchange_amount,
+                        'converted_amount': transaction.converted_amount,
+                        'transaction_fee': transaction.transaction_fee,
+                        'status': transaction.status,
+                        'created_At': transaction.created_At
+                    })
+
+                return json({
+                    'success': True,
+                    'user_fiat_exchange_data': combined_data,
+                    'total_rows': total_paginated_rows
+                }, 200)
+            
+        except Exception as e:
+            return json({
+                "error": 'Server Error',
+                "message": f'{str(e)}'
+                }, 500)
+

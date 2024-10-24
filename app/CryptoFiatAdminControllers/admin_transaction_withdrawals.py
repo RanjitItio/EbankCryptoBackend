@@ -366,7 +366,7 @@ class AdminFilterFiatWithdrawal(APIController):
                 ## Get payload data
                 date_time = schema.date_time
                 email     = schema.email
-                amount    = schema.amount
+                currency  = schema.currency
                 status    = schema.status
 
                 conditions    = []
@@ -429,9 +429,14 @@ class AdminFilterFiatWithdrawal(APIController):
                     )
                 
                 ## Filter amount wise
-                if amount:
+                if currency:
+                    filter_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{currency}%")
+                    ))
+                    filter_currency = filter_currency_obj.scalar()
+
                     conditions.append(
-                        FiatWithdrawalTransaction.amount == float(amount)
+                        FiatWithdrawalTransaction.wallet_currency == filter_currency.id
                     )
                 
                 if status:

@@ -15,5 +15,5 @@ class UpdateFiatWithdrawalsSchema:
 class AdminFIATWithdrawalFilterSchema:
     date_time: str = field(default=None)
     email: str     = field(default=None)
-    amount: float  = field(default=None)
+    currency: str  = field(default=None)
     status: str    = field(default=None)

@@ -225,7 +225,6 @@ class DepositTransactionDetailController(APIController):
                         
                 except Exception as e:
                     return json({'msg': 'Currency API Error', 'error': f'{str(e)}'}, 400)
-                
 
                 converted_amount = api_data['result'] if 'result' in api_data else None
 
@@ -424,9 +423,9 @@ class AdminFiletrFIATDepositController(APIController):
                 dateTime   = schema.date_time
                 user_email = schema.email
                 status     = schema.status
-                amount     = schema.amount
+                currency   = schema.currency
 
-                conditions = []
+                conditions    = []
                 combined_data = []
 
                 ## Get The user from Mail
@@ -438,23 +437,22 @@ class AdminFiletrFIATDepositController(APIController):
 
                     if not fiat_user:
                         return json({'message': 'Invalid Email'}, 400)
-            
+                
                 ## Select the columns
                 stmt  = select(
-                    DepositTransaction.id,
-                    DepositTransaction.transaction_id,
-                    DepositTransaction.created_At,
-                    DepositTransaction.amount,
-                    DepositTransaction.transaction_fee,
-                    DepositTransaction.payout_amount,
-                    DepositTransaction.status,
-                    DepositTransaction.payment_mode,
-                    DepositTransaction.is_completed,
+                        DepositTransaction.id,
+                        DepositTransaction.transaction_id,
+                        DepositTransaction.created_At,
+                        DepositTransaction.amount,
+                        DepositTransaction.transaction_fee,
+                        DepositTransaction.payout_amount,
+                        DepositTransaction.status,
+                        DepositTransaction.payment_mode,
+                        DepositTransaction.is_completed,
 
-                    Users.full_name,
-                    Users.email,
-                    Currency.name.label('currency_name')
-
+                        Users.full_name,
+                        Users.email,
+                        Currency.name.label('currency_name')
                     ).join(
                         Users,  Users.id == DepositTransaction.user_id
                     ).join(
@@ -487,9 +485,14 @@ class AdminFiletrFIATDepositController(APIController):
                     )
 
                 ## Filter amount wise
-                if amount:
+                if currency:
+                    filter_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{currency}%")
+                    ))
+                    filter_currency = filter_currency_obj.scalar()
+
                     conditions.append(
-                        DepositTransaction.amount == float(amount)
+                        DepositTransaction.currency == filter_currency.id
                     )
                 
                 ## if filterd data available
@@ -534,3 +537,92 @@ class AdminFiletrFIATDepositController(APIController):
                 'error': 'Server Error', 
                 'message': f'{str(e)}'
                 }, 500)
+        
+
+
+
+## Export Deposit Transaction
+class AdminExportDepositTransactionsController(APIController):
+
+    @classmethod
+    def class_name(cls):
+        return 'Export Deposit Transactions'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v1/admin/export/deposit/transactions/'
+    
+    ### Export Deposit Transactions
+    @auth('userauth')
+    @get()
+    async def export_depositTransaction(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                AdminID       = user_identity.claims.get('user_id')
+
+                user_obj = await session.execute(select(Users).where(Users.id == AdminID))
+                user_obj_data = user_obj.scalar()
+
+                if not user_obj_data.is_admin:
+                    return json({'msg': 'Admin authorization Failed'}, 401)
+                #Admin authentication ends
+
+                stmt  = select(
+                    DepositTransaction.transaction_id,
+                    DepositTransaction.created_At,
+                    DepositTransaction.amount,
+                    DepositTransaction.transaction_fee,
+                    DepositTransaction.payout_amount,
+                    DepositTransaction.status,
+                    DepositTransaction.payment_mode,
+                    DepositTransaction.credited_amount,
+                    DepositTransaction.credited_currency,
+
+                    Users.full_name,
+                    Users.email,
+                    Currency.name.label('currency_name')
+
+                    ).join(
+                        Users,  Users.id == DepositTransaction.user_id
+                    ).join(
+                        Currency, Currency.id == DepositTransaction.currency
+                    ).order_by(
+                        desc(DepositTransaction.id)
+                    )
+                
+                #Get all transaction Data
+                get_all_transaction     = await session.execute(stmt)
+                get_all_transaction_obj = get_all_transaction.all()
+
+                combined_data = []
+
+                if not get_all_transaction_obj:
+                    return json({'msg': "No Transaction available"}, 404)
+                
+                for transaction in get_all_transaction_obj:
+                    combined_data.append({
+                        'transaction_id': transaction.transaction_id,
+                        'created_At': transaction.created_At,
+                        'amount': transaction.amount,
+                        'transaction_fee': transaction.transaction_fee,
+                        'status': transaction.status,
+                        'payment_mode': transaction.payment_mode,
+                        'user_name': transaction.full_name,
+                        'user_email': transaction.email,
+                        'transaction_currency': transaction.currency_name,
+                        'credited_amount': transaction.credited_amount,
+                        'credited_currency': transaction.credited_currency
+                    })
+
+                return json({
+                    'message': 'Deposit Transaction data fetched successfully', 
+                    'export_deposit_transactions': combined_data,
+                    'success': True
+                }, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

@@ -291,7 +291,7 @@ class FeeController(APIController):
                         percentage_fee = (float(amount) / 100) * fee_structure.tax_rate
 
                         calculated_fee += percentage_fee
-                
+
                 else:
                     calculated_fee = 10
 

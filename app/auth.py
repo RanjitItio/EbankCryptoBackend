@@ -48,29 +48,30 @@ SECRET_KEY = config('SECRET_KEY')
 # new_salt = base64.urlsafe_b64encode(os.urandom(16)).decode('utf-8')
 PASSWORD_RESET_SALT = config('PASSWORD_RESET_SALT')
 
-
+## Generate Access token while login
 def generate_access_token(user_id):
     payload = {
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=72),
-        "iat": datetime.datetime.utcnow(),
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=96),
+        "iat": datetime.datetime.now(datetime.timezone.utc),
         "type": "access"
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 
 
+## Generate refresh token while login
 def generate_refresh_token(user_id):
     payload = {
         "user_id": user_id,
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=30),
-        "iat": datetime.datetime.utcnow(),
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30),
+        "iat": datetime.datetime.now(datetime.timezone.utc),
         "type": "refresh"
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 
-
+### Decode token
 def decode_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -81,6 +82,7 @@ def decode_token(token):
         return "Invalid token"
     
 
+## Generate Access token from refresh token
 def generate_access_token_from_refresh_token(refresh_token):
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=["HS256"])
@@ -118,7 +120,7 @@ def check_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
-
+### Excryption whiile reseting password
 def encrypt_password_reset_token(user_id):
     payload = {
         "user_id": user_id,
@@ -129,7 +131,7 @@ def encrypt_password_reset_token(user_id):
     return token
 
 
-
+## Decrypt Password reset token
 def decrypt_password_reset_token(token):
     try:
         payload = jwt.decode(token, reset_token_secret_key, algorithms=["HS256"])
@@ -138,6 +140,7 @@ def decrypt_password_reset_token(token):
         return "Token has expired"
     except jwt.InvalidTokenError:
         return "Invalid token"
+
 
 
 def send_password_reset_email(recipient_email, subject, body):
@@ -158,6 +161,7 @@ def send_password_reset_email(recipient_email, subject, body):
 
 
 
+
 def send_welcome_email(recipient_email, subject, body):
     smtp_server = EMAIL_HOST
     smtp_port = int(EMAIL_PORT)  # For TLS
@@ -174,6 +178,7 @@ def send_welcome_email(recipient_email, subject, body):
         server.starttls()  
         server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
+
 
 
 async def send_email(recipient_email, subject, body):

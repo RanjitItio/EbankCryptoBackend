@@ -193,7 +193,7 @@ class CryptoUserKYCController(APIController):
         
 
 
-# Search users
+# Search Crypto Fiat users
 class SearchCryptoUserController(APIController):
 
     @classmethod
@@ -202,7 +202,7 @@ class SearchCryptoUserController(APIController):
     
     @classmethod
     def class_name(cls) -> str:
-        return 'Search Crypto User Controller'
+        return 'Search Crypto/Fiat User Controller'
     
     @auth('userauth')
     @get()
@@ -221,57 +221,72 @@ class SearchCryptoUserController(APIController):
                 # Authentication Ends here
 
                 data = query
+                conditions = []
 
                 group_query = None
-                if query.lower() ==  'merchant regular':
-                    group_query_obj = await session.execute(select(Group).where(Group.name == 'Merchant Regular'))
-                    group_query     = group_query_obj.scalar()
 
-                if data.lower() == 'active':
-                    searched_user_obj = await session.execute(select(Users).where(
-                        and_(
-                            Users.is_active == True,
-                            Users.is_merchent == False)
-                        ))
-                
+                group_query_obj = await session.execute(select(Group).where(Group.name.ilike(f"{query}%")))
+                group_query     = group_query_obj.scalar()
 
-                elif data.lower() == 'inactive':
-                    searched_user_obj = await session.execute(select(Users).where(
-                                    and_(
-                                        Users.is_active == False, 
-                                        Users.is_verified    == False,
-                                        Users.is_merchent    == False
-                                    )))
-                
-                elif group_query:
-                    searched_user_obj = await session.execute(select(Users).where(
+                ## Active user search
+                if data.lower().startswith('act'):
+                    conditions.append(
                         and_(
-                            Users.group == group_query.id,
-                            Users.is_merchent    == False
-                        )))
-                    
-                
-                else:
-                    try:
-                        searched_user_obj = await session.execute(select(Users).where(
-                            and_(
-                            (Users.first_name.ilike(data)) |
-                            (Users.lastname.ilike(data))   |
-                            (Users.full_name.ilike(data))  |
-                            (Users.email.ilike(data))      |
-                            (Users.phoneno.ilike(data)),
+                            Users.is_active   == True,
                             Users.is_merchent == False
                             )
-                        ))
+                        )
+                
+                ## Inctive user search
+                elif data.lower().startswith('ina'):
+                    conditions.append(
+                        and_(
+                            Users.is_active   == False, 
+                            Users.is_verified == False,
+                            Users.is_merchent == False
+                        )
+                    )
+                
+                ## Search Group wise
+                elif group_query:
+                    conditions.append(
+                        and_(
+                            Users.group == group_query.id,
+                            Users.is_merchent == False
+                        )
+                    )
+                else:
+                    try:
+                        conditions.append(
+                         and_(
+                            (Users.first_name.ilike(f"{data}%")) |
+                            (Users.lastname.ilike(f"{data}%"))   |
+                            (Users.full_name.ilike(f"{data}%"))  |
+                            (Users.email.ilike(f"{data}%"))      |
+                            (Users.phoneno.ilike(f"{data}%")),
+                            Users.is_merchent == False
+                            )
+                        )
 
                     except Exception as e:
                         return json({'msg': 'Search error', 'error': f'{str(e)}'}, 400)
 
-                all_users: List[Users] = searched_user_obj.scalars().all()
+                ## If data found
+                if conditions:
+                    all_users_obj = await session.execute(select(Users).where(
+                        and_(
+                            *conditions
+                        )
+                    ))
+                    all_users = all_users_obj.scalars().all()
+
+                else:
+                    return json({'message': 'No data found'}, 400)
 
                 user_data = []
                 kyc_data  = []
 
+                ## get all the Data
                 for user in all_users:
                     group_query = select(Group).where(Group.id == user.group)
                     group_result = await session.execute(group_query)

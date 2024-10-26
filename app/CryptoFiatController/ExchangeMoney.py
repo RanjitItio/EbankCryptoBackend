@@ -4,7 +4,7 @@ from blacksheep.server.authorization import auth
 from blacksheep import json, Request
 from database.db import AsyncSession, async_engine
 from Models.FIAT.Schema import FiatExchangeMoneySchema
-from Models.models import Wallet, Currency
+from Models.models import Wallet, Currency, Users
 from Models.models4 import FIATExchangeMoney
 from sqlmodel import select, and_, desc, func
 
@@ -38,6 +38,16 @@ class ExchangeMoneyController(APIController):
                 convertedAmount = schema.convert_amount
                 transaction_fee = schema.fee
 
+                ## Get The user 
+                fiat_user_obj = await session.execute(select(Users).where(
+                    Users.id == user_id
+                ))
+                fiat_user = fiat_user_obj.scalar()
+
+                ## If user has been suspended
+                if fiat_user.is_suspended:
+                    return json({'message': 'Suspended User'}, 400)
+                
                 # Get from Currency
                 from_currency_obj = await session.execute(select(Currency).where(
                     Currency.name == fromCurrency

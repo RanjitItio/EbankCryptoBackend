@@ -45,6 +45,17 @@ class DepositController(APIController):
                 total__amount     = deposit_schema.total_amount
                 payment__mode     = deposit_schema.payment_mode
 
+                ## Get The user 
+                fiat_user_obj = await session.execute(select(Users).where(
+                    Users.id == user_id
+                ))
+                fiat_user = fiat_user_obj.scalar()
+
+                ## If user has been suspended
+                if fiat_user.is_suspended:
+                    return json({'message': 'Suspended User'}, 400)
+                
+
                 # Get Currency
                 currency     = await session.execute(select(Currency).where(
                     Currency.name == deposit__currency

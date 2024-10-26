@@ -189,6 +189,8 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
             user_identity    = request.identity  
             adminID          = user_identity.claims.get("user_id") if user_identity else None
 
+            mail_sent = True  ## Mail send status
+
             # Admin authentication
             try:
                 user_obj      = await session.execute(select(Users).where(Users.id == adminID))
@@ -339,8 +341,8 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                         try:
                             await send_email(user_data_obj.email, "KYC Verification Successful - Login Credentials Activated", body)
                         except Exception as e:
-                            pass
-    
+                            mail_sent = False
+                            
                 #If the status is inactive
                 elif value.status == 'Inactive':
 
@@ -427,6 +429,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                             session.add(kyc_detail)
                             await session.commit()
                             await session.refresh(kyc_detail)
+
                         except Exception as e:
                             return json({'msg': 'Error while updating KYC details', 'error': f'{str(e)}'}, 400)
                         
@@ -438,7 +441,10 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                 return json({'msg': 'User update error', 'error': f'{str(e)}'}, 400)
 
             # SUccess Response
-            return json({'msg': 'User data updated successfully'}, 200)
+            return json({
+                'msg': 'User data updated successfully',
+                'mail_send': mail_sent
+                }, 200)
 
     # For any internal error response
     except Exception as e:

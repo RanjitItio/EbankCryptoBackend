@@ -41,6 +41,17 @@ class UserFiatWithdrawalController(APIController):
                 withdrawalFee      = float(schema.fee)
                 creditedAmount     = float(schema.converted_credit_amt)
 
+                ## Get The user 
+                fiat_user_obj = await session.execute(select(Users).where(
+                    Users.id == user_id
+                ))
+                fiat_user = fiat_user_obj.scalar()
+
+                ## If user has been suspended
+                if fiat_user.is_suspended:
+                    return json({'message': 'Suspended User'}, 400)
+                
+
                 # Get wallet Currency
                 wallet_currency_obj = await session.execute(select(Currency).where(
                     Currency.name == walletCurrency
@@ -49,8 +60,8 @@ class UserFiatWithdrawalController(APIController):
 
                 if not wallet_currency_:
                     return json({'message': 'Invalid Wallet Currency'}, 400)
-
-                # Get the wall                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              et of the user
+                
+                # Get the wall                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            et of the user
                 user_wallet_obj = await session.execute(select(Wallet).where(
                     and_(
                         Wallet.user_id == user_id,

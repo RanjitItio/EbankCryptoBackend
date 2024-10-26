@@ -104,7 +104,7 @@ class UserWalletBalanceController(APIController):
     def route(cls) -> str | None:
         return '/api/v1/user/wallet/balance/check/'
     
-
+    
     @auth('userauth')
     @post()
     async def user_wallet_balance(self, request: Request):

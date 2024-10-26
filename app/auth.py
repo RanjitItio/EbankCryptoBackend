@@ -37,6 +37,7 @@ EMAIL_USERNAME=config('EMAIL_USERNAME')
 EMAIL_PASSWORD=config('EMAIL_PASSWORD')
 reset_token_secret_key = config('RESET_TOKEN_SECRET_KEY')
 
+
 # Merchant Secret Key
 merchant_secret_key = config('SECRET_KEY_MERCHANT')
 cipher_suite        = Fernet(merchant_secret_key)
@@ -161,7 +162,7 @@ def send_password_reset_email(recipient_email, subject, body):
 
 
 
-
+### Send mail while login and update user
 def send_welcome_email(recipient_email, subject, body):
     smtp_server = EMAIL_HOST
     smtp_port = int(EMAIL_PORT)  # For TLS
@@ -174,11 +175,10 @@ def send_welcome_email(recipient_email, subject, body):
     msg.attach(MIMEText(body, 'html'))
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
-        
         server.starttls()  
         server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
         server.sendmail(EMAIL_USERNAME, recipient_email, msg.as_string())
-
+        
 
 
 async def send_email(recipient_email, subject, body):

@@ -336,7 +336,10 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                                 </body>
                                 </html>
                                 """
-                        await send_email(user_data_obj.email, "KYC Verification Successful - Login Credentials Activated", body)
+                        try:
+                            await send_email(user_data_obj.email, "KYC Verification Successful - Login Credentials Activated", body)
+                        except Exception as e:
+                            pass
     
                 #If the status is inactive
                 elif value.status == 'Inactive':
@@ -358,7 +361,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 
                     except Exception as e:
                         return json({'msg': 'Error while updating inactive user data', 'error': f'{str(e)}'}, 400)
-                    
+
                     #Update Kyc status
                     if kyc_detail:
                         date_format = "%Y-%m-%d"
@@ -402,7 +405,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
                     except Exception as e:
                         return json({'msg': 'Error while updating user data', 'error': f'{str(e)}'}, 400)
                     
-                    #Update Kyc status
+                    # Update Kyc status
                     if kyc_detail:
                         date_format = "%Y-%m-%d"
                         date_of_birth = datetime.strptime(value.dob, date_format).date()
@@ -436,7 +439,7 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 
             # SUccess Response
             return json({'msg': 'User data updated successfully'}, 200)
-        
+
     # For any internal error response
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)

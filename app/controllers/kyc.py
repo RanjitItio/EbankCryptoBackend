@@ -219,10 +219,9 @@ class MerchantKYCController(APIController):
                 user_detail = user_obj.scalar()
 
                 # Invalid user id
-                if user_detail is None:
+                if not user_detail:
                     return json({'message': 'User not found'}, 404)
                 
-
                 # Get the user kyc
                 is_kyc_submitted_obj = await session.execute(select(Kycdetails).where(
                     Kycdetails.user_id == int(user_id)

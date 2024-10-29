@@ -7,7 +7,7 @@ from sqlmodel import select, and_, desc, func
 from Models.crypto import CryptoWallet, CryptoBuy, CryptoSell
 from Models.models import Wallet, Currency
 from Models.fee import FeeStructure
-from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema
+from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, CreateUserCryptoSwapTransactionSchema
 from app.CryptoController.calculateFee import CalculateFee
 
 
@@ -443,3 +443,31 @@ class CryptoTransactionControlller(APIController):
                 'message': f'{str(e)}'
                 }, 500)
 
+
+
+
+### Crypto Swap Controller
+class CryptoSwapController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'User Crypto Swap Controller'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v2/user/crypto/swap/'
+    
+    
+    ## Create new Crypto swap Transaction
+    @auth('userauth')
+    @post()
+    async def create_crypto_swap(self, request: Request, schema: CreateUserCryptoSwapTransactionSchema):
+        user_identity = request.identity
+        user_id       = user_identity.claims.get('user_id')
+
+        ### Get the payload data
+        fromWalletID    = schema.from_wallet_id
+        toWalletID      = schema.to_wallet_id
+        swapAmount      = schema.swap_amount
+        convertedCrypto = schema.converted_crypto
+        

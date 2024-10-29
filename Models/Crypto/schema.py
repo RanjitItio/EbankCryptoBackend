@@ -62,3 +62,11 @@ class AdminFilterCryptoTransactionsSchema:
     status: str       = field(default=None)
 
 
+
+@dataclass
+class CreateUserCryptoSwapTransactionSchema:
+    from_wallet_id: int
+    to_wallet_id: int
+    swap_amount: float
+    converted_crypto: float
+    

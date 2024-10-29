@@ -48,7 +48,7 @@ class CryptoSell(SQLModel, table=True):
     user_id: int            = Field(foreign_key="users.id", index=True)
     crypto_wallet_id: int   = Field(foreign_key="cryptowallet.id")
     crypto_quantity: float  = Field(default=0.00)
-    payment_type: str       = Field(default='')
+    payment_type: str       = Field(default='', nullable=True)
     wallet_id: int          = Field(default=None)
     received_amount: float  = Field(default=0.00, nullable=True)  ## Converted amount from crypto
     fee_id: int             = Field(foreign_key='feestructure.id', index=True, nullable=True)

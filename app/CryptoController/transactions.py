@@ -156,7 +156,6 @@ class CryptoSellController(APIController):
 
                 ## Get payload data
                 cryptoWalletId = schema.crypto_wallet_id
-                paymentType    = schema.payment_type
                 walletId       = schema.wallet_id
                 sellingQty     = schema.selling_qty
                 received_amt   = schema.converted_amount
@@ -208,7 +207,6 @@ class CryptoSellController(APIController):
                         user_id          = user_id,
                         crypto_wallet_id = user_crypto_wallet.id,
                         crypto_quantity  = float(sellingQty),
-                        payment_type     = paymentType,
                         wallet_id        = user_wallet.id,
                         received_amount  = float(received_amt),
                         fee_id           = crypto_sell_fee.id,
@@ -226,7 +224,6 @@ class CryptoSellController(APIController):
                         user_id          = user_id,
                         crypto_wallet_id = user_crypto_wallet.id,
                         crypto_quantity  = float(sellingQty),
-                        payment_type     = paymentType,
                         wallet_id        = user_wallet.id,
                         received_amount  = float(received_amt),
                         fee_value        = calculated_amount,

@@ -26,7 +26,6 @@ class BuyUserCryptoSchema:
 class SellUserCryptoSchema:
     selling_qty: float
     crypto_wallet_id: int
-    payment_type: str
     wallet_id: int
     converted_amount: float
 

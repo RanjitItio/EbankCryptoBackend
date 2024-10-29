@@ -5,6 +5,7 @@ from blacksheep import json, Request
 from blacksheep.server.authorization import auth
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Wallet, Currency
+from Models.crypto import CryptoWallet
 from sqlmodel import select, and_
 
 
@@ -146,4 +147,49 @@ class UserWalletBalanceController(APIController):
 
 
 
+## Check Crypto Wallet Balance
+class UserCryptoWalletBalanceCheck(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Check Crypto Wallet Balance Controller'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v1/user/crypto/wallet/balance/check/'
+    
+    
+    ### Check user crypto wallet balance
+    @auth('userauth')
+    @post()
+    async def crypto_wallet_balance_check(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                request_data = await request.json()
+                wallet_id    = request_data['wallet_id']
+                amount       = request_data['amount']
+
+                ## Get the Crypto wallet
+                user_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == wallet_id
+                ))
+                user_crypto_wallet = user_crypto_wallet_obj.scalar()
+
+                if not user_crypto_wallet:
+                    return json({'message': 'Wallet not found'}, 404)
+                
+                if user_crypto_wallet.balance < float(amount):
+                    return json({'message': 'Donot have sufficient balance in Wallet'}, 400)
+                
+                return json({'success': True}, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+                
 

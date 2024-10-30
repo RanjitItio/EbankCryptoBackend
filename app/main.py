@@ -34,6 +34,8 @@ from app.CryptoController.wallet_request import CryptoWalletController, UserCryp
 from app.CryptoController.transactions import CryptoBuyController, FeeController, CryptoSellController,CryptoTransactionControlller
 from app.CryptoAdminController.wallet_requests import AdminCryptoWalletController, ExportWalletController
 from app.CryptoAdminController.transactions import CryptoTransactionController, CryptoSellController, CryptoBuyController, ExportCryptoTransactionDataController
+from app.CryptoAdminController.crypto_swap import AdminCryptoSwapController, AdminExportCryptoSwapTransaction
+
 
 
 

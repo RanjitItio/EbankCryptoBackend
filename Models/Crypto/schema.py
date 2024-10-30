@@ -69,3 +69,9 @@ class CreateUserCryptoSwapTransactionSchema:
     swap_amount: float
     converted_crypto: float
     
+
+
+@dataclass
+class AdminUpdateCryptoSwap:
+    swap_id: int
+    status: str

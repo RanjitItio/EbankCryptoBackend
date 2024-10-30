@@ -4,7 +4,7 @@ from blacksheep.server.controllers import APIController
 from blacksheep import json, Request
 from database.db import AsyncSession, async_engine
 from sqlmodel import select, and_, desc, func
-from Models.crypto import CryptoWallet, CryptoBuy, CryptoSell
+from Models.crypto import CryptoWallet, CryptoBuy, CryptoSell, CryptoSwap
 from Models.models import Wallet, Currency
 from Models.fee import FeeStructure
 from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, CreateUserCryptoSwapTransactionSchema
@@ -459,12 +459,88 @@ class CryptoSwapController(APIController):
     @auth('userauth')
     @post()
     async def create_crypto_swap(self, request: Request, schema: CreateUserCryptoSwapTransactionSchema):
-        user_identity = request.identity
-        user_id       = user_identity.claims.get('user_id')
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
 
-        ### Get the payload data
-        fromWalletID    = schema.from_wallet_id
-        toWalletID      = schema.to_wallet_id
-        swapAmount      = schema.swap_amount
-        convertedCrypto = schema.converted_crypto
-        
+                ### Get the payload data
+                fromWalletID    = schema.from_wallet_id
+                toWalletID      = schema.to_wallet_id
+                swapAmount      = schema.swap_amount
+                convertedCrypto = schema.converted_crypto
+                
+                ### Get The from Crypto Wallet
+                from_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == fromWalletID
+                ))
+                from_crypto_wallet = from_crypto_wallet_obj.scalar()
+
+                if not from_crypto_wallet:
+                    return json({'message': 'Invalid From Wallet'}, 404)
+                
+                ### Get To Crypto Wallet
+                to_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == toWalletID
+                ))
+                to_crypto_wallet = to_crypto_wallet_obj.scalar()
+
+                if not to_crypto_wallet:
+                    return json({'message': 'Invalid To Wallet'}, 404)
+                
+                ## Balance check
+                if float(swapAmount) > from_crypto_wallet.balance:
+                    return json({'message': 'Insufficient fund in account'}, 400)
+                
+                # Get fee to Buy Crypto
+                crypto_swap_fee_obj = await session.execute(select(FeeStructure).where(
+                    FeeStructure.name == 'Crypto Swap'
+                ))
+                crypto_swap_fee = crypto_swap_fee_obj.scalar()
+
+                if crypto_swap_fee:
+                    float_qty = float(swapAmount)
+                    calculated_amount = await CalculateFee(crypto_swap_fee.id, float_qty)
+
+                    ### Create Crypto Swap Transaction
+                    create_crypto_swap = CryptoSwap(
+                        user_id               = user_id,
+                        from_crypto_wallet_id = from_crypto_wallet.id,
+                        to_crypto_wallet_id   = to_crypto_wallet.id,
+                        swap_quantity         = float(swapAmount),
+                        credit_quantity       = float(convertedCrypto),
+                        status                = 'Pending',
+                        fee_value             = float(calculated_amount)
+                    )
+
+                    session.add(create_crypto_swap)
+
+                else:
+                    calculated_amount = 10
+
+                    ### Create Crypto Swap Transaction
+                    create_crypto_swap = CryptoSwap(
+                        user_id               = user_id,
+                        from_crypto_wallet_id = from_crypto_wallet.id,
+                        to_crypto_wallet_id   = to_crypto_wallet.id,
+                        swap_quantity         = float(swapAmount),
+                        credit_quantity       = float(convertedCrypto),
+                        status                = 'Pending',
+                        fee_value             = float(calculated_amount)
+                    )
+
+                    session.add(create_crypto_swap)
+
+                await session.commit()
+                await session.refresh(create_crypto_swap)
+
+                return json({
+                    'success': True,
+                    'message': "Created Successfully"
+                }, 201)
+            
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+                }, 500)

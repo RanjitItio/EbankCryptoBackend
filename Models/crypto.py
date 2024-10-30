@@ -4,6 +4,15 @@ from sqlalchemy import event
 
 
 
+class Cryptos(SQLModel, table=True):
+        id: int | None       = Field(default=None, primary_key=True)
+        created_At: datetime = Field(default=datetime.now())
+        name: str            = Field(default='')
+
+        def assign_current_datetime(self):
+            self.created_At = datetime.now()
+
+
 ## Crypto Wallet table
 class CryptoWallet(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
@@ -62,6 +71,23 @@ class CryptoSell(SQLModel, table=True):
         self.created_at = datetime.now()
 
 
+class CryptoSwap(SQLModel, table=True):
+        id: int | None             = Field(default=None, primary_key=True)
+        user_id: int               = Field(foreign_key="users.id", index=True)
+        from_crypto_wallet_id: int = Field(foreign_key="cryptowallet.id")
+        to_crypto_wallet_id: int   = Field(foreign_key="cryptowallet.id")
+        swap_quantity: float       = Field(default=0.00)
+        credit_quantity: float     = Field(default=0.00)
+        created_at:datetime        = Field(default=datetime.now())
+        status: str                = Field(default='Pending', nullable=True)
+        is_approved: bool          = Field(default=False, nullable=True)
+        fee_value: float           = Field(default=0.00, nullable=True)
+
+
+        def assign_current_datetime(self):
+            self.created_at = datetime.now()
+
+
 
 ## Assign current date time when the transaction gets created
 @event.listens_for(CryptoWallet, 'before_insert')
@@ -81,3 +107,18 @@ def assign_crypto_sell_time_listener(mapper, connection, target):
 @event.listens_for(CryptoBuy, 'before_insert')
 def assign_crypto_buy_time_listener(mapper, connection, target):
     target.assign_current_datetime()
+
+
+
+## Assign current date time when the transaction gets created
+@event.listens_for(CryptoSwap, 'before_insert')
+def assign_crypto_swap_time_listener(mapper, connection, target):
+    target.assign_current_datetime()
+
+
+
+## Assign current date time when the transaction gets created
+@event.listens_for(Cryptos, 'before_insert')
+def assign_crypto_time_listener(mapper, connection, target):
+    target.assign_current_datetime()
+

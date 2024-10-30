@@ -181,9 +181,13 @@ class UserCryptoWalletBalanceCheck(APIController):
                 if not user_crypto_wallet:
                     return json({'message': 'Wallet not found'}, 404)
                 
+                if not user_crypto_wallet.is_approved:
+                    return json({'message': 'Inactive Wallet'}, 400)
+                
                 if user_crypto_wallet.balance < float(amount):
                     return json({'message': 'Donot have sufficient balance in Wallet'}, 400)
                 
+
                 return json({'success': True}, 200)
 
         except Exception as e:

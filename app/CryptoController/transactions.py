@@ -10,6 +10,7 @@ from Models.fee import FeeStructure
 from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, CreateUserCryptoSwapTransactionSchema
 from app.CryptoController.calculateFee import CalculateFee
 from sqlalchemy.orm import aliased
+from app.generateID import generate_new_swap_transaction_id
 
 
 
@@ -499,6 +500,9 @@ class CryptoSwapController(APIController):
                 ))
                 crypto_swap_fee = crypto_swap_fee_obj.scalar()
 
+                ## Generate new transaction ID
+                swap_transaction_id = await generate_new_swap_transaction_id()
+
                 if crypto_swap_fee:
                     float_qty = float(swapAmount)
                     calculated_amount = await CalculateFee(crypto_swap_fee.id, float_qty)
@@ -511,7 +515,8 @@ class CryptoSwapController(APIController):
                         swap_quantity         = float(swapAmount),
                         credit_quantity       = float(convertedCrypto),
                         status                = 'Pending',
-                        fee_value             = float(calculated_amount)
+                        fee_value             = float(calculated_amount),
+                        transaction_id        = swap_transaction_id
                     )
 
                     session.add(create_crypto_swap)
@@ -527,7 +532,8 @@ class CryptoSwapController(APIController):
                         swap_quantity         = float(swapAmount),
                         credit_quantity       = float(convertedCrypto),
                         status                = 'Pending',
-                        fee_value             = float(calculated_amount)
+                        fee_value             = float(calculated_amount),
+                        transaction_id        = swap_transaction_id
                     )
 
                     session.add(create_crypto_swap)
@@ -551,20 +557,75 @@ class CryptoSwapController(APIController):
     ### Get all the swap transaction
     @auth('userauth')
     @get()
-    async def get_cryptoSwap(self, request: Request):
+    async def get_cryptoSwap(self, request: Request, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id')
 
+                combined_data = []
+
                 fromCryptoWallet = aliased(CryptoWallet)
                 ToCryptoWallet   = aliased(CryptoWallet)
+
+                ### Get all availabel rows
+                select_rows = select(func.count(CryptoSwap.id)).where(CryptoSwap.user_id == user_id)
+                exec_row    = await session.execute(select_rows)
+                total_rows  = exec_row.scalar()
+
+                paginated_rows = total_rows / limit
 
                 ### Select all the Column
                 stmt = select(
                     CryptoSwap.id,
+                    CryptoSwap.user_id,
+                    CryptoSwap.swap_quantity,
+                    CryptoSwap.credit_quantity,
+                    CryptoSwap.created_at,
+                    CryptoSwap.status,
+                    CryptoSwap.fee_value,
+                    CryptoSwap.transaction_id,
+
                     fromCryptoWallet.crypto_name.label('from_crypto_name'),
                     ToCryptoWallet.crypto_name.label('to_crypto_name'),
+
+                ).join(
+                    fromCryptoWallet, fromCryptoWallet.id == CryptoSwap.from_crypto_wallet_id
+                ).join(
+                    ToCryptoWallet, ToCryptoWallet.id == CryptoSwap.to_crypto_wallet_id
+                ).where(
+                    CryptoSwap.user_id == user_id
+                ).order_by(
+                    desc(CryptoSwap.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
+
+                ### Execute Query
+                all_crypto_swap_transaction_obj = await session.execute(stmt)
+                all_crypto_swap_transaction     = all_crypto_swap_transaction_obj.fetchall()
+
+                for transaction in all_crypto_swap_transaction:
+                    combined_data.append({
+                        'id': transaction.id,
+                        'user_id': transaction.user_id,
+                        'transaction_id': transaction.transaction_id,
+                        'swap_quantity': transaction.swap_quantity,
+                        'credit_quantity': transaction.credit_quantity,
+                        'created_at': transaction.created_at,
+                        'status': transaction.status,
+                        'fee': transaction.fee_value,
+                        'from_crypto_name': transaction.from_crypto_name,
+                        'to_crypto_name': transaction.to_crypto_name
+                    })
+
+                return json({
+                    'success': True,
+                    'user_crypto_swap_transactions': combined_data,
+                    'paginated_rows': paginated_rows
+                }, 200)
+
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

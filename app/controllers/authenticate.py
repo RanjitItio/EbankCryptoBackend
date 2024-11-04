@@ -197,3 +197,50 @@ class UserCryptoWalletBalanceCheck(APIController):
             }, 500)
                 
 
+
+
+
+### Check Crypto Wallet Active or Inactive
+class UserCryptoWalletBalanceCheck(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Check Crypto Wallet Active Status'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v1/user/crypto/wallet/active/status/'
+    
+    
+    ### Check user crypto wallet balance
+    @auth('userauth')
+    @post()
+    async def crypto_wallet_active_status(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                request_data = await request.json()
+                wallet_id    = request_data['wallet_id']
+
+                ## Get the Crypto wallet
+                user_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == wallet_id
+                ))
+                user_crypto_wallet = user_crypto_wallet_obj.scalar()
+
+                if not user_crypto_wallet:
+                    return json({'message': 'Wallet not found'}, 404)
+                
+                if not user_crypto_wallet.is_approved:
+                    return json({'message': 'Inactive Wallet'}, 400)
+
+
+                return json({'success': True}, 200)
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

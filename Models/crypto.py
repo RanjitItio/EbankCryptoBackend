@@ -71,9 +71,11 @@ class CryptoSell(SQLModel, table=True):
         self.created_at = datetime.now()
 
 
+
 class CryptoSwap(SQLModel, table=True):
         id: int | None             = Field(default=None, primary_key=True)
         user_id: int               = Field(foreign_key="users.id", index=True)
+        transaction_id: str        = Field(default='', nullable=True)
         from_crypto_wallet_id: int = Field(foreign_key="cryptowallet.id")
         to_crypto_wallet_id: int   = Field(foreign_key="cryptowallet.id")
         swap_quantity: float       = Field(default=0.00)

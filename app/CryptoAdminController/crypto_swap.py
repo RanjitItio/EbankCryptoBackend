@@ -197,7 +197,7 @@ class AdminCryptoSwapController(APIController):
                     from_crypto_wallet.balance -= total_deduct_amount
 
                     ### Add crypto into transfer Crypto Wallet
-                    to_crypto_wallet.balance += crypto_swap_quantity
+                    to_crypto_wallet.balance += crypto_swap_transaction.credit_quantity if crypto_swap_transaction.credit_quantity else 0
 
                     session.add(crypto_swap_transaction)
                     session.add(from_crypto_wallet)

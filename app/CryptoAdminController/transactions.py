@@ -23,7 +23,7 @@ class CryptoBuyController(APIController):
     def route(cls) -> str | None:
         return '/api/v3/admin/crypto/buy/'
     
-   
+    
     ## Update Crypto Deposites by Admin
     @auth('userauth')
     @put()
@@ -31,7 +31,7 @@ class CryptoBuyController(APIController):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
-                admin_id       = user_identity.claims.get('user_id')
+                admin_id      = user_identity.claims.get('user_id')
 
                 ## Admin authentication
                 admin_user_obj = await session.execute(select(Users).where(
@@ -74,9 +74,14 @@ class CryptoBuyController(APIController):
                 if not user_fiat_wallet:
                     return json({'message': 'Invalid FIAT wallet'}, 400)
                 
+                ### Calculte total amount to deduct
+                amount_buy      = user_crypto_buy_transaction.buying_amount
+                transaction_fee = user_crypto_buy_transaction.fee_value
+
+                total_deduct_amount = amount_buy + transaction_fee
 
                 ## Balance Validation
-                if user_fiat_wallet.balance <= user_crypto_buy_transaction.buying_amount:
+                if user_fiat_wallet.balance <= total_deduct_amount:
                     return json({'message': 'Insufficient funds'}, 400)
                 
                 ## Already Approved
@@ -88,13 +93,11 @@ class CryptoBuyController(APIController):
                     ## Add crypto into Crypto wallet
                     user_crypto_wallet.balance += user_crypto_buy_transaction.crypto_quantity
 
-                    ## Deduct from Fiat Wallet
-                    calculate_fee = user_crypto_buy_transaction.buying_amount + user_crypto_buy_transaction.fee_value
-
-                    user_fiat_wallet.balance -= calculate_fee
+                    ### Deduct from FIAT Wallet
+                    user_fiat_wallet.balance -= total_deduct_amount
 
                     ## Save into CryptoBuy Table
-                    user_crypto_buy_transaction.status = 'Approved'
+                    user_crypto_buy_transaction.status      = 'Approved'
                     user_crypto_buy_transaction.is_approved = True
 
                     session.add(user_fiat_wallet)
@@ -190,8 +193,16 @@ class CryptoSellController(APIController):
                 if not user_fiat_wallet:
                     return json({'message': 'Invalid FIAT wallet'}, 400)
                 
+
+                ### Calculate the amount to deduct
+                crypto_sell_quantity = user_crypto_sell_transaction.crypto_quantity
+                sell_transaction_fee = user_crypto_sell_transaction.fee_value
+
+                toal_crypto_deduct = crypto_sell_quantity + sell_transaction_fee
+
+
                 ## Balance Validation
-                if user_crypto_wallet.balance <= user_crypto_sell_transaction.received_amount:
+                if user_crypto_wallet.balance <= toal_crypto_deduct:
                     return json({'message': 'Insufficient funds'}, 400)
                 
                 ## Already Approved
@@ -202,8 +213,7 @@ class CryptoSellController(APIController):
                 if status == 'Approved':
                    
                     ## Deduct from crypto into Crypto wallet
-                    calculate_fee = user_crypto_sell_transaction.received_amount + user_crypto_sell_transaction.fee_value
-                    user_crypto_wallet.balance -= calculate_fee
+                    user_crypto_wallet.balance -= toal_crypto_deduct
 
                     ## Add into fiat Wallet
                     user_fiat_wallet.balance += user_crypto_sell_transaction.received_amount

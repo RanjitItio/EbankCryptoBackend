@@ -147,8 +147,80 @@ class AdminCryptoSwapController(APIController):
                 crypto_swap_transaction = crypto_swap_transaction_obj.scalar()
 
                 if not crypto_swap_transaction:
-                    return json({'message': 'Transaction not found'}, 404)
+                    return json({'message': 'Invalid Transaction'}, 404)
+                
+                ## Get the from Wallet
+                from_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == crypto_swap_transaction.from_crypto_wallet_id
+                ))
+                from_crypto_wallet = from_crypto_wallet_obj.scalar()
+
+                if not from_crypto_wallet:
+                    return json({'message': 'Invalid From Crypto Wallet'}, 404)
+                
+                ### Get to crypto Wallet
+                to_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                    CryptoWallet.id == crypto_swap_transaction.to_crypto_wallet_id
+                ))
+                to_crypto_wallet = to_crypto_wallet_obj.scalar()
+
+                if not to_crypto_wallet:
+                    return json({'message': 'Invalid To Crypto Wallet'}, 404)
+                
+                ### Wallets are Approved or not
+                if not from_crypto_wallet.is_approved:
+                    return json({'message': 'From Crypto Wallet has not approved yet'}, 400)
+                
+                if not to_crypto_wallet.is_approved:
+                    return json({'message': 'To Crypto Wallet has not approved yet'}, 400)
+                
+
+                ### Calculate balance to deduct
+                crypto_swap_quantity = crypto_swap_transaction.swap_quantity
+                swap_fee             = crypto_swap_transaction.fee_value
+
+                total_deduct_amount  = crypto_swap_quantity + swap_fee
+
+                ### Crypto Wallet Balance validation
+                if from_crypto_wallet.balance < total_deduct_amount:
+                    return json({'message': 'Insufficient funds In Account'}, 400)
+                
+                ### Already approved transaction
+                if crypto_swap_transaction.is_approved:
+                    return json({'message': 'Transaction already approved'}, 400)
+                
+                if status == 'Approved':
+                    crypto_swap_transaction.is_approved = True
+                    crypto_swap_transaction.status = 'Approved'
+
+                    ## Deduct crypto from from Waller
+                    from_crypto_wallet.balance -= total_deduct_amount
+
+                    ### Add crypto into transfer Crypto Wallet
+                    to_crypto_wallet.balance += crypto_swap_quantity
+
+                    session.add(crypto_swap_transaction)
+                    session.add(from_crypto_wallet)
+                    session.add(to_crypto_wallet)
+
+                else:
+                    crypto_swap_transaction.status = status
+
+                    session.add(crypto_swap_transaction)
+
+
+                await session.commit()
+
+                await session.refresh(crypto_swap_transaction)
+                await session.refresh(from_crypto_wallet)
+                await session.refresh(to_crypto_wallet)
+
+                return json({
+                    'success': True,
+                    'message': 'Updated Successfully'
+                }, 200)
         
+
         except Exception as e:
             return json({
                 'error': 'Server Error',
@@ -169,6 +241,7 @@ class AdminExportCryptoSwapTransaction(APIController):
     @classmethod
     def route(cls) -> str | None:
         return '/api/v5/admin/export/crypto/swap/'
+    
     
    ### Export Crypto Swaps
     @auth('userauth')
@@ -246,3 +319,8 @@ class AdminExportCryptoSwapTransaction(APIController):
             
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+
+
+### Filter Crypto Swap Transactions

@@ -218,7 +218,6 @@ class CryptoSellController(APIController):
                     ## Add into fiat Wallet
                     user_fiat_wallet.balance += user_crypto_sell_transaction.received_amount
 
-
                     ## Save into CryptoBuy Table
                     user_crypto_sell_transaction.status = 'Approved'
                     user_crypto_sell_transaction.is_approved = True

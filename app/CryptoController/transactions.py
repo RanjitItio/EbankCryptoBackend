@@ -9,6 +9,7 @@ from Models.models import Wallet, Currency
 from Models.fee import FeeStructure
 from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, CreateUserCryptoSwapTransactionSchema
 from app.CryptoController.calculateFee import CalculateFee
+from sqlalchemy.orm import aliased
 
 
 
@@ -544,3 +545,26 @@ class CryptoSwapController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
                 }, 500)
+        
+    
+
+    ### Get all the swap transaction
+    @auth('userauth')
+    @get()
+    async def get_cryptoSwap(self, request: Request):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                fromCryptoWallet = aliased(CryptoWallet)
+                ToCryptoWallet   = aliased(CryptoWallet)
+
+                ### Select all the Column
+                stmt = select(
+                    CryptoSwap.id,
+                    fromCryptoWallet.crypto_name.label('from_crypto_name'),
+                    ToCryptoWallet.crypto_name.label('to_crypto_name'),
+                )
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

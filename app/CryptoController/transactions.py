@@ -494,7 +494,7 @@ class CryptoSwapController(APIController):
                 if float(swapAmount) > from_crypto_wallet.balance:
                     return json({'message': 'Insufficient fund in account'}, 400)
                 
-                # Get fee to Buy Crypto
+                # Get fee to Swap Crypto
                 crypto_swap_fee_obj = await session.execute(select(FeeStructure).where(
                     FeeStructure.name == 'Crypto Swap'
                 ))

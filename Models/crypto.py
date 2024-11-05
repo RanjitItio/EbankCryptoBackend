@@ -72,6 +72,7 @@ class CryptoSell(SQLModel, table=True):
 
 
 
+### Crypto Swap Table
 class CryptoSwap(SQLModel, table=True):
         id: int | None             = Field(default=None, primary_key=True)
         user_id: int               = Field(foreign_key="users.id", index=True)
@@ -88,6 +89,26 @@ class CryptoSwap(SQLModel, table=True):
 
         def assign_current_datetime(self):
             self.created_at = datetime.now()
+
+
+
+#### Crypto Exchange Table
+class CryptoExchange(SQLModel, table=True):
+    id: int | None                = Field(default=None, primary_key=True)
+    user_id: int                  = Field(foreign_key="users.id", index=True)
+    transaction_id: str           = Field(default='', nullable=True)
+    crypto_wallet: int            = Field(foreign_key="cryptowallet.id")
+    fiat_wallet: int              = Field(foreign_key="wallet.id")
+    exchange_crypto_amount: float = Field(default=0.0)
+    converted_fiat_amount: float  = Field(default=0.00)
+    created_at:datetime           = Field(default=datetime.now())
+    status: str                   = Field(default='Pending', nullable=True)  ### Approved, Pending, Cancelled, Hold
+    is_approved: bool             = Field(default=False, nullable=True)
+    fee_value: float              = Field(default=0.00, nullable=True)
+
+
+    def assign_current_datetime(self):
+        self.created_at = datetime.now()
 
 
 
@@ -122,5 +143,12 @@ def assign_crypto_swap_time_listener(mapper, connection, target):
 ## Assign current date time when the transaction gets created
 @event.listens_for(Cryptos, 'before_insert')
 def assign_crypto_time_listener(mapper, connection, target):
+    target.assign_current_datetime()
+
+
+
+## Assign current date time when the transaction gets created
+@event.listens_for(CryptoExchange, 'before_insert')
+def assign_crypto_exchange_time_listener(mapper, connection, target):
     target.assign_current_datetime()
 

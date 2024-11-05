@@ -1,7 +1,7 @@
 from database.db import AsyncSession, async_engine
 from sqlmodel import select
 from Models.models3 import MerchantPaymentButton
-from Models.crypto import CryptoSwap
+from Models.crypto import CryptoSwap, CryptoExchange
 import uuid
 import time
 import json
@@ -56,6 +56,7 @@ async def generate_new_button_id():
                     return f"button_{unique_id}"
 
 
+
 ### Generate new transaction ID for CryptoSwap Transaction
 async def generate_new_swap_transaction_id():
     while True:
@@ -69,7 +70,24 @@ async def generate_new_swap_transaction_id():
 
                 if not unique_transaction_id:
                     return unique_id
-                
+    
+
+
+### Generate new transaction ID for CryptoExchange Transaction
+async def generate_new_crypto_exchange_transaction_id():
+    while True:
+        unique_id = str(uuid.uuid4())[:30]
+
+        async with AsyncSession(async_engine) as session:
+                unique_transaction_id_obj = await session.execute(select(CryptoExchange).where(
+                    CryptoExchange.transaction_id == unique_id
+                ))
+                unique_transaction_id = unique_transaction_id_obj.scalar()
+
+                if not unique_transaction_id:
+                    return unique_id
+
+
 
 
 def generate_random_capital_word():

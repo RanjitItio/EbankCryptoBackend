@@ -6,7 +6,9 @@ from sqlmodel import select, and_, desc, func
 from database.db import AsyncSession, async_engine
 from Models.models import Users, Wallet
 from Models.crypto import CryptoExchange, CryptoWallet
-from Models.Admin.Crypto.schema import AdminUpdateCryptoExchange
+from Models.Admin.Crypto.schema import AdminUpdateCryptoExchange, AdminFilterCryptoExchangeSchema
+from app.dateFormat import get_date_range
+from datetime import datetime
 
 
 
@@ -303,3 +305,168 @@ class ExportCryptoExchangeTransactionsController(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
             }, 500)
+        
+
+
+#### Filter Crypto Exchange Transaction By Admin
+class AdminFilterCryptoExchangeController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Filter Crypto Exchange Controller by Admin'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/admin/filter/crypto/transactions/'
+    
+
+    ### Filter Crypto Exchange Transaction
+    @auth('userauth')
+    @post()
+    async def filter_cryptoExchange(self, request: Request, schema: AdminFilterCryptoExchangeSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id       = user_identity.claims.get('user_id')
+
+                admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == admin_id
+                ))
+                admin_user = admin_user_obj.scalar()
+
+                if not admin_user.is_admin:
+                    return json({'message': 'Unauthorized'}, 401)
+                ## Admin authentication ends
+
+                ### Get the payload data
+                dateTime    = schema.dateTime
+                user_email  = schema.email
+                crypto_name = schema.crypto
+                status      = schema.status
+                startDate   = schema.start_date
+                endDate     = schema.end_date
+
+                conditions    = []
+                combined_data = []
+
+                ### Get the user email
+                if user_email:
+                    crypto_user_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{user_email}%")
+                    ))
+                    crypto_user = crypto_user_obj.scalar()
+
+                    if not crypto_user:
+                        return json({'message': 'Invalid Email'}, 400)
+                
+                    
+                stmt = select(
+                    CryptoExchange.id,
+                    CryptoExchange.user_id,
+                    CryptoExchange.transaction_id,
+                    CryptoExchange.created_at,
+                    CryptoExchange.exchange_crypto_amount,
+                    CryptoExchange.converted_fiat_amount,
+                    CryptoExchange.status,
+                    CryptoExchange.fee_value,
+
+                    CryptoWallet.crypto_name,
+                    Wallet.currency,
+
+                    Users.email,
+                    Users.full_name,
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoExchange.crypto_wallet
+                ).join(
+                    Wallet, Wallet.id == CryptoExchange.fiat_wallet
+                ).join(
+                    Users, Users.id == CryptoExchange.user_id
+                ).order_by(
+                    desc(CryptoExchange.id)
+                )
+
+                ## Mail filter
+                if user_email:
+                    conditions.append(
+                        CryptoExchange.user_id == crypto_user.id
+                    )
+                
+                ### Status wise Filter
+                if status:
+                    conditions.append(
+                        CryptoExchange.status == status
+                    )
+                
+                ### Filter Date Time Wise
+                if dateTime and dateTime == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            CryptoExchange.created_at <= end_date,
+                            CryptoExchange.created_at >= start_date
+                        )
+                    )
+                    
+                elif dateTime:
+                    start_date, end_date = get_date_range(dateTime)
+
+                    conditions.append(
+                        and_(
+                            CryptoExchange.created_at <= end_date,
+                            CryptoExchange.created_at >= start_date
+                        )
+                    )
+                
+                ### Flter Crypto Name wise
+                if crypto_name:
+                    crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                        CryptoWallet.crypto_name == crypto_name
+                    ))
+                    crypto_wallet = crypto_wallet_obj.scalars().all()
+
+                    if not crypto_wallet:
+                        return json({'message': 'No data found'}, 404)
+                    
+                    conditions.append(
+                        CryptoExchange.crypto_wallet.in_([wallet.id for wallet in crypto_wallet])
+                    )
+                
+                ### IF data found
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    all_crypto_exchange_transaction_obj = await session.execute(statement)
+                    all_crypto_exchange_transaction     = all_crypto_exchange_transaction_obj.fetchall()
+
+                    if not all_crypto_exchange_transaction:
+                        return json({'message': 'No data found'}, 404)
+                    
+                else:
+                    return json({'message': 'No data found'}, 404)
+                
+                ## Get all the data
+                for transaction in all_crypto_exchange_transaction:
+                    combined_data.append({
+                        'id': transaction.id,
+                        'user_id': transaction.user_id,
+                        'transaction_id': transaction.transaction_id,
+                        'created_at': transaction.created_at,
+                        'exchange_crypto_amount': transaction.exchange_crypto_amount,
+                        'converted_fiat_amount': transaction.converted_fiat_amount,
+                        'status': transaction.status,
+                        'fee_value': transaction.fee_value,
+                        'crypto_name': transaction.crypto_name,
+                        'fiat_currency': transaction.currency,
+                        'user_email': transaction.email,
+                        'user_name': transaction.full_name
+                    })
+
+
+                return json({
+                    'success': True,
+                    'filtered_crypto_exchange_transaction': combined_data
+                }, 200)
+            
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

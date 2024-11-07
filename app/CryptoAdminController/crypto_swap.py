@@ -5,9 +5,13 @@ from app.controllers.controllers import get, post, put
 from database.db import AsyncSession, async_engine
 from Models.models import Users
 from Models.crypto import CryptoSwap, CryptoWallet
-from sqlmodel import select, desc, func
+from sqlmodel import select, desc, func, and_
 from sqlalchemy.orm import aliased
 from Models.Crypto.schema import AdminUpdateCryptoSwap
+from Models.Admin.Crypto.schema import AdminFilterCryptoSwapSchema
+from datetime import timedelta, datetime
+from app.dateFormat import get_date_range
+
 
 
 
@@ -22,7 +26,7 @@ class AdminCryptoSwapController(APIController):
     def route(cls) -> str | None:
         return '/api/v5/admin/crypto/swap/'
     
-
+     ##### Get Crypto Swap Transaction
     @auth('userauth')
     @get()
     async def get_swapTransactions(self, request: Request, limit: int = 10, offset: int = 0):
@@ -324,3 +328,170 @@ class AdminExportCryptoSwapTransaction(APIController):
 
 
 ### Filter Crypto Swap Transactions
+class AdminFilterCryptoSwapController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'Admin Filter Crypto Swap'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v5/admin/filter/crypto/swap/'
+    
+
+    @auth('userauth')
+    @post()
+    async def filter_cryptoSwap(self, request: Request, schema: AdminFilterCryptoSwapSchema):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                admin_id       = user_identity.claims.get('user_id')
+
+                #Authenticate Admin
+                admin_user_obj = await session.execute(select(Users).where(
+                    Users.id == admin_id
+                ))
+                admin_user = admin_user_obj.scalar()
+
+                if not admin_user.is_admin:
+                    return json({'message': 'Unauthorized Access'}, 401)
+                ##Admin authentication ends
+
+                ## Get the payload data
+                dateRange   = schema.dateRange
+                user_email  = schema.email
+                crypto_name = schema.crypto
+                status      = schema.status
+                startDate   = schema.start_date
+                endDate     = schema.end_date
+
+                ### Aliased table
+                fromCryptoWallet = aliased(CryptoWallet)
+                ToCryptoWallet   = aliased(CryptoWallet)
+
+                combined_data = []
+                conditions    = []
+
+                ### Get the user email
+                if user_email:
+                    crypto_user_obj = await session.execute(select(Users).where(
+                        Users.email.ilike(f"{user_email}%")
+                    ))
+                    crypto_user = crypto_user_obj.scalar()
+
+                    if not crypto_user:
+                        return json({'message': 'Invalid Email'}, 400)
+                
+                ### Select the table
+                stmt = select(
+                    CryptoSwap.id,
+                    CryptoSwap.user_id,
+                    CryptoSwap.swap_quantity,
+                    CryptoSwap.credit_quantity,
+                    CryptoSwap.created_at,
+                    CryptoSwap.status,
+                    CryptoSwap.fee_value,
+
+                    fromCryptoWallet.crypto_name.label('from_crypto'),
+                    ToCryptoWallet.crypto_name.label('to_crypto'),
+                    Users.full_name,
+                    Users.email,
+                ).join(
+                    Users, Users.id == CryptoSwap.user_id
+                ).join(
+                    fromCryptoWallet, fromCryptoWallet.id == CryptoSwap.from_crypto_wallet_id
+                ).join(
+                    ToCryptoWallet, ToCryptoWallet.id == CryptoSwap.to_crypto_wallet_id
+                ).order_by(
+                    desc(CryptoSwap.id)
+                )
+
+                ## Mail filter
+                if user_email:
+                    conditions.append(
+                        CryptoSwap.user_id == crypto_user.id
+                    )
+                
+                ### Status wise Filter
+                if status:
+                    conditions.append(
+                        CryptoSwap.status == status
+                    )
+                
+                ### Filter Date Time Wise
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            CryptoSwap.created_at >= start_date,
+                            CryptoSwap.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+                    
+                elif dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    conditions.append(
+                        and_(
+                            CryptoSwap.created_at <= end_date,
+                            CryptoSwap.created_at >= start_date
+                        )
+                    )
+                
+                 ### Flter Crypto Name wise
+                if crypto_name:
+                    crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                        CryptoWallet.crypto_name == crypto_name
+                    ))
+                    crypto_wallet = crypto_wallet_obj.scalars().all()
+
+                    if not crypto_wallet:
+                        return json({'message': 'No data found'}, 404)
+                    
+                    conditions.append(
+                        CryptoSwap.from_crypto_wallet_id.in_([wallet.id for wallet in crypto_wallet])
+                    )
+
+                 ### IF data found
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    all_crypto_swap_transaction_obj = await session.execute(statement)
+                    all_crypto_swap_transaction     = all_crypto_swap_transaction_obj.fetchall()
+
+                    if not all_crypto_swap_transaction:
+                        return json({'message': 'No data found'}, 404)
+                    
+                else:
+                    return json({'message': 'No data found'}, 404)
+                
+                
+                ## Serialize the data
+                for crypto_swap in all_crypto_swap_transaction:
+                    combined_data.append({
+                        'id': crypto_swap.id,
+                        'user_id': crypto_swap.user_id,
+                        'from_crypto': crypto_swap.from_crypto,
+                        'to_crypto': crypto_swap.to_crypto,
+                        'full_name': crypto_swap.full_name,
+                        'email': crypto_swap.email,
+                        'swap_quantity': crypto_swap.swap_quantity,
+                        'credit_quantity': crypto_swap.credit_quantity,
+                        'created_at': crypto_swap.created_at,
+                        'status': crypto_swap.status,
+                        'fee_value': crypto_swap.fee_value,
+                    })
+                
+
+                return json({
+                    'success': True,
+                    'admin_filter_swap_data': combined_data,
+                }, 200)
+            
+
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

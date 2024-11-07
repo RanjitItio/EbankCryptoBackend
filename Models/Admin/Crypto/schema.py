@@ -15,3 +15,15 @@ class AdminFilterCryptoExchangeSchema:
     status: str      = field(default=None)
     start_date: str  = field(default=None)
     end_date: str    = field(default=None)
+
+
+
+@dataclass
+class AdminFilterCryptoSwapSchema:
+    dateRange: str  = field(default=None)
+    email: str      = field(default=None)
+    crypto: str     = field(default=None)
+    status: str     = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str   = field(default=None)
+

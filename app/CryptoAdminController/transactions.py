@@ -8,6 +8,7 @@ from Models.crypto import CryptoBuy, CryptoSell, CryptoWallet
 from sqlmodel import select, desc, and_, func
 from Models.Crypto.schema import AdminUpdateCryptoBuySchema, AdminUpdateCryptoSellSchema, AdminFilterCryptoTransactionsSchema
 from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -267,7 +268,7 @@ class CryptoTransactionController(APIController):
     ## Get all crypto transactions
     @auth('userauth')
     @get()
-    async def get_cryptoTransactions(self, request: Request,  limit: int = 4, offset: int = 0):
+    async def get_cryptoTransactions(self, request: Request,  limit: int = 5, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -440,9 +441,30 @@ class CryptoTransactionController(APIController):
                 userEmail       = schema.user_email
                 cryptoName      = schema.crypto_name
                 status          = schema.status
+                startDate       = schema.start_date
+                endDate         = schema.end_date
+
 
                 ## Filter date range wise
-                if dateRange:
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    buy_conditions.append(
+                        and_(
+                            CryptoBuy.created_at >= start_date,
+                            CryptoBuy.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+
+                    sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+
+                elif dateRange:
                     start_date, end_date = get_date_range(dateRange)
 
                     buy_conditions.append(

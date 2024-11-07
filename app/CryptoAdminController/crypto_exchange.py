@@ -8,7 +8,7 @@ from Models.models import Users, Wallet
 from Models.crypto import CryptoExchange, CryptoWallet
 from Models.Admin.Crypto.schema import AdminUpdateCryptoExchange, AdminFilterCryptoExchangeSchema
 from app.dateFormat import get_date_range
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
@@ -404,8 +404,8 @@ class AdminFilterCryptoExchangeController(APIController):
 
                     conditions.append(
                         and_(
-                            CryptoExchange.created_at <= end_date,
-                            CryptoExchange.created_at >= start_date
+                            CryptoExchange.created_at >= start_date,
+                            CryptoExchange.created_at < (end_date + timedelta(days=1))
                         )
                     )
                     

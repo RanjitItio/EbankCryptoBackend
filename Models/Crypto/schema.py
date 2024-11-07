@@ -59,6 +59,8 @@ class AdminFilterCryptoTransactionsSchema:
     user_email: str   = field(default=None)
     crypto_name: str  = field(default=None)
     status: str       = field(default=None)
+    start_date: str   = field(default=None)
+    end_date: str     = field(default=None)
 
 
 

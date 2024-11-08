@@ -483,55 +483,55 @@ class UserCryptoTransactionFilterController(APIController):
                     )
 
                 ## Execute Buy Query
-                buy_stmt = select(
-                    CryptoBuy.id,
-                    CryptoBuy.crypto_quantity,
-                    CryptoBuy.payment_type,
-                    CryptoBuy.buying_currency,
-                    CryptoBuy.buying_amount,
-                    CryptoBuy.fee_value,
-                    CryptoBuy.created_at,
-                    CryptoBuy.status,
+                # buy_stmt = select(
+                #     CryptoBuy.id,
+                #     CryptoBuy.crypto_quantity,
+                #     CryptoBuy.payment_type,
+                #     CryptoBuy.buying_currency,
+                #     CryptoBuy.buying_amount,
+                #     CryptoBuy.fee_value,
+                #     CryptoBuy.created_at,
+                #     CryptoBuy.status,
 
-                    CryptoWallet.crypto_name,
-                ).join(
-                    CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
-                ).where(
-                    CryptoBuy.user_id == user_id
-                ).order_by(
-                    desc(CryptoBuy.id)
-                ).limit(
-                    limit
-                ).offset(
-                    offset
-                )
+                #     CryptoWallet.crypto_name,
+                # ).join(
+                #     CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
+                # ).where(
+                #     CryptoBuy.user_id == user_id
+                # ).order_by(
+                #     desc(CryptoBuy.id)
+                # ).limit(
+                #     limit
+                # ).offset(
+                #     offset
+                # )
 
 
-                ## Execute Sell Query
-                sell_stmt = select(
-                    CryptoSell.id,
-                    CryptoSell.crypto_quantity,
-                    CryptoSell.payment_type,
-                    CryptoSell.received_amount,
-                    CryptoSell.fee_value,
-                    CryptoSell.created_at,
-                    CryptoSell.status,
+                # ## Execute Sell Query
+                # sell_stmt = select(
+                #     CryptoSell.id,
+                #     CryptoSell.crypto_quantity,
+                #     CryptoSell.payment_type,
+                #     CryptoSell.received_amount,
+                #     CryptoSell.fee_value,
+                #     CryptoSell.created_at,
+                #     CryptoSell.status,
 
-                    CryptoWallet.crypto_name,
-                    Wallet.currency.label('wallet_currency')
-                ).join(
-                    CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
-                ).join(
-                    Wallet, Wallet.id == CryptoSell.wallet_id
-                ).where(
-                    CryptoSell.user_id == user_id
-                ).order_by(
-                    desc(CryptoSell.id)
-                ).limit(
-                    limit
-                ).offset(
-                    offset
-                )
+                #     CryptoWallet.crypto_name,
+                #     Wallet.currency.label('wallet_currency')
+                # ).join(
+                #     CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                # ).join(
+                #     Wallet, Wallet.id == CryptoSell.wallet_id
+                # ).where(
+                #     CryptoSell.user_id == user_id
+                # ).order_by(
+                #     desc(CryptoSell.id)
+                # ).limit(
+                #     limit
+                # ).offset(
+                #     offset
+                # )
 
                 # user_buy_transaction  = []
                 # user_sell_transaction = []
@@ -588,41 +588,74 @@ class UserCryptoTransactionFilterController(APIController):
                 #     user_sell_transactio_obj = await session.execute(sell_stmt)
                 #     user_sell_transaction    = user_sell_transactio_obj.fetchall()
 
+
                 if transactionType == 'Buy' or not transactionType:
                     buy_stmt = select(
-                        CryptoBuy.id, CryptoBuy.crypto_quantity, CryptoBuy.payment_type,
-                        CryptoBuy.buying_currency, CryptoBuy.buying_amount, CryptoBuy.fee_value,
-                        CryptoBuy.created_at, CryptoBuy.status, CryptoWallet.crypto_name
-                    ).join(CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
-                    ).where(and_(*buy_conditions)
-                    ).order_by(desc(CryptoBuy.id)
-                    ).limit(limit
-                    ).offset(offset)
+                        CryptoBuy.id,
+                        CryptoBuy.crypto_quantity, 
+                        CryptoBuy.payment_type,
+                        CryptoBuy.buying_currency, 
+                        CryptoBuy.buying_amount, 
+                        CryptoBuy.fee_value,
+                        CryptoBuy.created_at, 
+                        CryptoBuy.status,
+                        CryptoWallet.crypto_name
+                    ).join(
+                        CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
+                    )
 
-                    buy_count_stmt = select(func.count()).select_from(CryptoBuy).where(and_(*buy_conditions))
+                    if buy_conditions:
+                        buy_stmt = buy_stmt.where(and_(*buy_conditions))
+
+                    # Apply ordering, limit, and offset
+                    buy_stmt = buy_stmt.order_by(desc(CryptoBuy.id)).limit(limit).offset(offset)
+
+                    # Count query
+                    buy_count_stmt = select(func.count()).select_from(CryptoBuy)
+
+                    if buy_conditions:
+                        buy_count_stmt = buy_count_stmt.where(and_(*buy_conditions))
+                    
+                    # Execute the queries
                     buy_count = (await session.execute(buy_count_stmt)).scalar()
-
                     user_buy_transaction_obj = await session.execute(buy_stmt)
                     user_buy_transaction = user_buy_transaction_obj.fetchall()
+
                 else:
                     user_buy_transaction = []
                     buy_count = 0
 
                 if transactionType == 'Sell' or not transactionType:
                     sell_stmt = select(
-                        CryptoSell.id, CryptoSell.crypto_quantity, CryptoSell.payment_type,
-                        CryptoSell.received_amount, CryptoSell.fee_value, CryptoSell.created_at,
-                        CryptoSell.status, CryptoWallet.crypto_name, Wallet.currency.label('wallet_currency')
-                    ).join(CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
-                    ).join(Wallet, Wallet.id == CryptoSell.wallet_id
-                    ).where(and_(*sell_conditions)
-                    ).order_by(desc(CryptoSell.id)
-                    ).limit(limit
-                    ).offset(offset)
+                        CryptoSell.id, 
+                        CryptoSell.crypto_quantity, 
+                        CryptoSell.payment_type,
+                        CryptoSell.received_amount, 
+                        CryptoSell.fee_value, 
+                        CryptoSell.created_at,
+                        CryptoSell.status, 
+                        CryptoWallet.crypto_name, 
+                        Wallet.currency.label('wallet_currency')
+                    ).join(
+                        CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                    ).join(
+                        Wallet, Wallet.id == CryptoSell.wallet_id
+                    )
 
-                    sell_count_stmt = select(func.count()).select_from(CryptoSell).where(and_(*sell_conditions))
+                    # Apply conditions only if sell_conditions is not empty
+                    if sell_conditions:
+                        sell_stmt = sell_stmt.where(and_(*sell_conditions))
+
+                    # Apply ordering, limit, and offset
+                    sell_stmt = sell_stmt.order_by(desc(CryptoSell.id)).limit(limit).offset(offset)
+
+                    # Count query
+                    sell_count_stmt = select(func.count()).select_from(CryptoSell)
+                    if sell_conditions:
+                        sell_count_stmt = sell_count_stmt.where(and_(*sell_conditions))
+                    
+                    # Execute the queries
                     sell_count = (await session.execute(sell_count_stmt)).scalar()
-
                     user_sell_transactio_obj = await session.execute(sell_stmt)
                     user_sell_transaction = user_sell_transactio_obj.fetchall()
 

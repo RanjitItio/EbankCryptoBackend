@@ -117,7 +117,7 @@ class CryptoFiatForgotPasswordMainSend(APIController):
     @post()
     async def reset_password_mail(self, user: ResetPasswdSMailchema, request: Request):
         """
-         Send mail while to Reset Forgot password, Mention all the API responses(error.response.data.msg)
+         Send mail while to Reset Forgot password
         """
         try:
             async with AsyncSession(async_engine) as session:

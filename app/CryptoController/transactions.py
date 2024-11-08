@@ -4,13 +4,15 @@ from blacksheep.server.controllers import APIController
 from blacksheep import json, Request
 from database.db import AsyncSession, async_engine
 from sqlmodel import select, and_, desc, func
-from Models.crypto import CryptoWallet, CryptoBuy, CryptoSell, CryptoSwap
+from Models.crypto import CryptoWallet, CryptoBuy, CryptoSell
 from Models.models import Wallet, Currency
 from Models.fee import FeeStructure
-from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, CreateUserCryptoSwapTransactionSchema
+from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, UserFilterCryptoTransactionSchema
 from app.CryptoController.calculateFee import CalculateFee
-from sqlalchemy.orm import aliased
-from app.generateID import generate_new_swap_transaction_id
+from datetime import datetime, timedelta
+from app.dateFormat import get_date_range
+
+
 
 
 
@@ -245,65 +247,6 @@ class CryptoSellController(APIController):
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
 
-
-
-### Get fee 
-class FeeController(APIController):
-
-    @classmethod
-    def class_name(cls) -> str:
-        return 'Fee Controller'
-    
-    @classmethod
-    def route(cls) -> str | None:
-        return '/api/v2/charged/fee/'
-    
-
-    @auth('userauth')
-    @post()
-    async def fee_charged(self, request: Request):
-        try:
-            async with AsyncSession(async_engine) as session:
-                user_identity = request.identity
-                user_id       = user_identity.claims.get('user_id')
-
-                request_data = await request.json()
-                feeType      = request_data['fee_type']
-                amount       = request_data['amount']
-
-                # Get fee type from FeeStrcture
-                fee_structure_obj = await session.execute(select(FeeStructure).where(
-                    FeeStructure.name == feeType
-                ))
-                fee_structure = fee_structure_obj.scalar()
-
-                calculated_fee = 0
-
-                if fee_structure:
-
-                    if fee_structure.fee_type == 'Fixed':
-                        fixed_fee = fee_structure.min_value 
-
-                        calculated_fee = fixed_fee
-
-                    elif fee_structure.fee_type == 'Percentage':
-                        percentage_fee = (float(amount) / 100) * fee_structure.tax_rate
-
-                        calculated_fee += percentage_fee
-
-                else:
-                    calculated_fee = 10
-
-                return json({
-                    'success': True,
-                    'fee': calculated_fee if calculated_fee > 0 else 10
-                })
-            
-        except Exception as e:
-            return json({
-                'error': 'Server Error',
-                'message': f'{str(e)}'
-                }, 500)
         
 
 
@@ -319,7 +262,7 @@ class CryptoTransactionControlller(APIController):
     def class_name(cls) -> str:
         return 'User Crypto Transactions'
     
-
+    ### Get all Buy and Sell Crypto Transactions
     @auth('userauth')
     @get()
     async def get_cryptoTransactions(self, request: Request, limit: int = 4, offset: int = 0):
@@ -441,191 +384,304 @@ class CryptoTransactionControlller(APIController):
                 'error': 'Server Error',
                 'message': f'{str(e)}'
                 }, 500)
+        
 
 
-
-
-### Crypto Swap Controller
-class CryptoSwapController(APIController):
+#### Filter Crypto Transactions
+class UserCryptoTransactionFilterController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'User Crypto Swap Controller'
+        return 'User Crypto Transaction Filter Controller'
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v2/user/crypto/swap/'
+        return '/api/v2/user/filter/crypto/transactions/'
     
     
-    ## Create new Crypto swap Transaction
+    ### Filter all crypto transaction
     @auth('userauth')
     @post()
-    async def create_crypto_swap(self, request: Request, schema: CreateUserCryptoSwapTransactionSchema):
+    async def filter_userCryptoTransaction(self, request: Request, schema: UserFilterCryptoTransactionSchema, limit: int = 5, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
                 user_id       = user_identity.claims.get('user_id')
+
+                buy_conditions  = []
+                sell_conditions = []
 
                 ### Get the payload data
-                fromWalletID    = schema.from_wallet_id
-                toWalletID      = schema.to_wallet_id
-                swapAmount      = schema.swap_amount
-                convertedCrypto = schema.converted_crypto
-                
-                ### Get The from Crypto Wallet
-                from_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
-                    CryptoWallet.id == fromWalletID
-                ))
-                from_crypto_wallet = from_crypto_wallet_obj.scalar()
+                dateRange       = schema.dateRange
+                transactionType = schema.transactionType
+                status          = schema.status
+                cryptoName      = schema.crypto
+                startDate       = schema.start_date
+                endDate         = schema.end_date
 
-                if not from_crypto_wallet:
-                    return json({'message': 'Invalid From Wallet'}, 404)
-                
-                ### Get To Crypto Wallet
-                to_crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
-                    CryptoWallet.id == toWalletID
-                ))
-                to_crypto_wallet = to_crypto_wallet_obj.scalar()
+                ## Filter date range wise
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
 
-                if not to_crypto_wallet:
-                    return json({'message': 'Invalid To Wallet'}, 404)
-                
-                ## Balance check
-                if float(swapAmount) > from_crypto_wallet.balance:
-                    return json({'message': 'Insufficient fund in account'}, 400)
-                
-                # Get fee to Swap Crypto
-                crypto_swap_fee_obj = await session.execute(select(FeeStructure).where(
-                    FeeStructure.name == 'Crypto Swap'
-                ))
-                crypto_swap_fee = crypto_swap_fee_obj.scalar()
-
-                ## Generate new transaction ID
-                swap_transaction_id = await generate_new_swap_transaction_id()
-
-                if crypto_swap_fee:
-                    float_qty = float(swapAmount)
-                    calculated_amount = await CalculateFee(crypto_swap_fee.id, float_qty)
-
-                    ### Create Crypto Swap Transaction
-                    create_crypto_swap = CryptoSwap(
-                        user_id               = user_id,
-                        from_crypto_wallet_id = from_crypto_wallet.id,
-                        to_crypto_wallet_id   = to_crypto_wallet.id,
-                        swap_quantity         = float(swapAmount),
-                        credit_quantity       = float(convertedCrypto),
-                        status                = 'Pending',
-                        fee_value             = float(calculated_amount),
-                        transaction_id        = swap_transaction_id
+                    buy_conditions.append(
+                        and_(
+                            CryptoBuy.created_at >= start_date,
+                            CryptoBuy.created_at < (end_date + timedelta(days=1))
+                        )
                     )
 
-                    session.add(create_crypto_swap)
+                    sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+                
+                ### Date range filter
+                elif dateRange:
+                    start_date, end_date = get_date_range(dateRange)
 
-                else:
-                    calculated_amount = 10
-
-                    ### Create Crypto Swap Transaction
-                    create_crypto_swap = CryptoSwap(
-                        user_id               = user_id,
-                        from_crypto_wallet_id = from_crypto_wallet.id,
-                        to_crypto_wallet_id   = to_crypto_wallet.id,
-                        swap_quantity         = float(swapAmount),
-                        credit_quantity       = float(convertedCrypto),
-                        status                = 'Pending',
-                        fee_value             = float(calculated_amount),
-                        transaction_id        = swap_transaction_id
+                    buy_conditions.append(
+                        and_(
+                            CryptoBuy.created_at >= start_date,
+                            CryptoBuy.created_at <= end_date
+                        )
                     )
 
-                    session.add(create_crypto_swap)
+                    sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at <= end_date
+                        )
+                    )
+                
+                # Filter Crypto Name wise
+                if cryptoName:
+                    crypto_wallet_name_obj = await session.execute(select(CryptoWallet).where(
+                        CryptoWallet.crypto_name.ilike(f"{cryptoName}%")
+                    ))
+                    crypto_wallet_name = crypto_wallet_name_obj.scalars().all()
 
-                await session.commit()
-                await session.refresh(create_crypto_swap)
+                    buy_conditions.append(
+                        CryptoBuy.crypto_wallet_id.in_([wallet.id for wallet in crypto_wallet_name])
+                    )
 
-                return json({
-                    'success': True,
-                    'message': "Created Successfully"
-                }, 201)
-            
-        except Exception as e:
-            return json({
-                'error': 'Server Error',
-                'message': f'{str(e)}'
-                }, 500)
-        
-    
+                    sell_conditions.append(
+                        CryptoSell.crypto_wallet_id.in_([wallet.id for wallet in crypto_wallet_name])
+                    )
 
-    ### Get all the swap transaction
-    @auth('userauth')
-    @get()
-    async def get_cryptoSwap(self, request: Request, limit: int = 10, offset: int = 0):
-        try:
-            async with AsyncSession(async_engine) as session:
-                user_identity = request.identity
-                user_id       = user_identity.claims.get('user_id')
+                
+                ### Filter status wise
+                if status:
+                    buy_conditions.append(
+                        CryptoBuy.status.ilike(f"{status}%")
+                    )
 
-                combined_data = []
+                    sell_conditions.append(
+                        CryptoSell.status.ilike(f"{status}%")
+                    )
 
-                fromCryptoWallet = aliased(CryptoWallet)
-                ToCryptoWallet   = aliased(CryptoWallet)
+                ## Execute Buy Query
+                buy_stmt = select(
+                    CryptoBuy.id,
+                    CryptoBuy.crypto_quantity,
+                    CryptoBuy.payment_type,
+                    CryptoBuy.buying_currency,
+                    CryptoBuy.buying_amount,
+                    CryptoBuy.fee_value,
+                    CryptoBuy.created_at,
+                    CryptoBuy.status,
 
-                ### Get all availabel rows
-                select_rows = select(func.count(CryptoSwap.id)).where(CryptoSwap.user_id == user_id)
-                exec_row    = await session.execute(select_rows)
-                total_rows  = exec_row.scalar()
-
-                paginated_rows = total_rows / limit
-
-                ### Select all the Column
-                stmt = select(
-                    CryptoSwap.id,
-                    CryptoSwap.user_id,
-                    CryptoSwap.swap_quantity,
-                    CryptoSwap.credit_quantity,
-                    CryptoSwap.created_at,
-                    CryptoSwap.status,
-                    CryptoSwap.fee_value,
-                    CryptoSwap.transaction_id,
-
-                    fromCryptoWallet.crypto_name.label('from_crypto_name'),
-                    ToCryptoWallet.crypto_name.label('to_crypto_name'),
-
+                    CryptoWallet.crypto_name,
                 ).join(
-                    fromCryptoWallet, fromCryptoWallet.id == CryptoSwap.from_crypto_wallet_id
-                ).join(
-                    ToCryptoWallet, ToCryptoWallet.id == CryptoSwap.to_crypto_wallet_id
+                    CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
                 ).where(
-                    CryptoSwap.user_id == user_id
+                    CryptoBuy.user_id == user_id
                 ).order_by(
-                    desc(CryptoSwap.id)
+                    desc(CryptoBuy.id)
                 ).limit(
                     limit
                 ).offset(
                     offset
                 )
 
-                ### Execute Query
-                all_crypto_swap_transaction_obj = await session.execute(stmt)
-                all_crypto_swap_transaction     = all_crypto_swap_transaction_obj.fetchall()
 
-                for transaction in all_crypto_swap_transaction:
-                    combined_data.append({
-                        'id': transaction.id,
-                        'user_id': transaction.user_id,
-                        'transaction_id': transaction.transaction_id,
-                        'swap_quantity': transaction.swap_quantity,
-                        'credit_quantity': transaction.credit_quantity,
-                        'created_at': transaction.created_at,
-                        'status': transaction.status,
-                        'fee': transaction.fee_value,
-                        'from_crypto_name': transaction.from_crypto_name,
-                        'to_crypto_name': transaction.to_crypto_name
-                    })
+                ## Execute Sell Query
+                sell_stmt = select(
+                    CryptoSell.id,
+                    CryptoSell.crypto_quantity,
+                    CryptoSell.payment_type,
+                    CryptoSell.received_amount,
+                    CryptoSell.fee_value,
+                    CryptoSell.created_at,
+                    CryptoSell.status,
 
+                    CryptoWallet.crypto_name,
+                    Wallet.currency.label('wallet_currency')
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                ).join(
+                    Wallet, Wallet.id == CryptoSell.wallet_id
+                ).where(
+                    CryptoSell.user_id == user_id
+                ).order_by(
+                    desc(CryptoSell.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
+                )
+
+                # user_buy_transaction  = []
+                # user_sell_transaction = []
+                # buy_count  = 0
+                # sell_count = 0
+
+                ### Buy Transaction
+                # if buy_conditions:
+                #     # Count Buy Transactions
+                #     buy_count_stmt = select(func.count()).select_from(CryptoBuy).where(
+                #         CryptoBuy.user_id == user_id, *buy_conditions
+                #     )
+                #     buy_count = (await session.execute(buy_count_stmt)).scalar()
+
+                #     pagination_limit = 10
+
+                #     buy_statement = buy_stmt.where(and_(*buy_conditions))
+
+                #     user_buy_transaction_obj = await session.execute(buy_statement)
+                #     user_buy_transaction     = user_buy_transaction_obj.fetchall()
+
+                # ### Sell Transaction
+                # if sell_conditions:
+                #      # Count Sell Transactions
+                #     sell_count_stmt = select(func.count()).select_from(CryptoSell).where(
+                #         CryptoSell.user_id == user_id, *sell_conditions
+                #     )
+                #     sell_count = (await session.execute(sell_count_stmt)).scalar()
+
+                #     pagination_limit = 10
+
+                #     sell_statement = sell_stmt.where(and_(*sell_conditions))
+
+                #     user_sell_transactio_obj = await session.execute(sell_statement)
+                #     user_sell_transaction    = user_sell_transactio_obj.fetchall()
+
+                ### Transaction Type Filter
+                # if transactionType == 'Buy':
+                #     # Count Buy Transactions
+                #     buy_count_stmt = select(func.count(CryptoBuy.id)).where(CryptoBuy.user_id == user_id)
+                #     buy_count = (await session.execute(buy_count_stmt)).scalar()
+
+                #     pagination_limit = 5
+
+                #     user_buy_transaction_obj = await session.execute(buy_stmt)
+                #     user_buy_transaction     = user_buy_transaction_obj.fetchall()
+
+                # elif transactionType == 'Sell':
+                #     sell_count_stmt = select(func.count(CryptoSell.id)).where(CryptoSell.user_id == user_id)
+                #     sell_count      = (await session.execute(sell_count_stmt)).scalar()
+
+                #     pagination_limit = 5
+
+                #     user_sell_transactio_obj = await session.execute(sell_stmt)
+                #     user_sell_transaction    = user_sell_transactio_obj.fetchall()
+
+                if transactionType == 'Buy' or not transactionType:
+                    buy_stmt = select(
+                        CryptoBuy.id, CryptoBuy.crypto_quantity, CryptoBuy.payment_type,
+                        CryptoBuy.buying_currency, CryptoBuy.buying_amount, CryptoBuy.fee_value,
+                        CryptoBuy.created_at, CryptoBuy.status, CryptoWallet.crypto_name
+                    ).join(CryptoWallet, CryptoWallet.id == CryptoBuy.crypto_wallet_id
+                    ).where(and_(*buy_conditions)
+                    ).order_by(desc(CryptoBuy.id)
+                    ).limit(limit
+                    ).offset(offset)
+
+                    buy_count_stmt = select(func.count()).select_from(CryptoBuy).where(and_(*buy_conditions))
+                    buy_count = (await session.execute(buy_count_stmt)).scalar()
+
+                    user_buy_transaction_obj = await session.execute(buy_stmt)
+                    user_buy_transaction = user_buy_transaction_obj.fetchall()
+                else:
+                    user_buy_transaction = []
+                    buy_count = 0
+
+                if transactionType == 'Sell' or not transactionType:
+                    sell_stmt = select(
+                        CryptoSell.id, CryptoSell.crypto_quantity, CryptoSell.payment_type,
+                        CryptoSell.received_amount, CryptoSell.fee_value, CryptoSell.created_at,
+                        CryptoSell.status, CryptoWallet.crypto_name, Wallet.currency.label('wallet_currency')
+                    ).join(CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                    ).join(Wallet, Wallet.id == CryptoSell.wallet_id
+                    ).where(and_(*sell_conditions)
+                    ).order_by(desc(CryptoSell.id)
+                    ).limit(limit
+                    ).offset(offset)
+
+                    sell_count_stmt = select(func.count()).select_from(CryptoSell).where(and_(*sell_conditions))
+                    sell_count = (await session.execute(sell_count_stmt)).scalar()
+
+                    user_sell_transactio_obj = await session.execute(sell_stmt)
+                    user_sell_transaction = user_sell_transactio_obj.fetchall()
+
+                else:
+                    user_sell_transaction = []
+                    sell_count = 0
+
+                ### No data found
+                if not user_buy_transaction and not user_sell_transaction:
+                    return json({'message': 'No data found'}, 404)
+
+
+                ### Count Paginated value
+                total_buy_sell_count = buy_count + sell_count
+                paginated_count      = total_buy_sell_count / limit if limit > 0 else 1
+
+                combined_transaction = [
+                    {
+                        'id': buyTransaction.id,
+                        'type': 'Buy',
+                        'crypto_name': buyTransaction.crypto_name,
+                        'crypto_qty': buyTransaction.crypto_quantity,
+                        'payment_mode': buyTransaction.payment_type,
+                        'amount': buyTransaction.buying_amount,
+                        'currency': buyTransaction.buying_currency,
+                        'status': buyTransaction.status,
+                        'created_at': buyTransaction.created_at
+
+                    } for buyTransaction in user_buy_transaction
+
+                ] + [
+                    {
+                        'id': sellTransaction.id,
+                        'type': 'Sell',
+                        'payment_mode': sellTransaction.payment_type,
+                        'crypto_name': sellTransaction.crypto_name,
+                        'crypto_qty': sellTransaction.crypto_quantity,
+                        'currency': sellTransaction.wallet_currency,
+                        'amount': sellTransaction.received_amount,
+                        'status': sellTransaction.status,
+                        'created_at': sellTransaction.created_at
+
+                    } for sellTransaction in user_sell_transaction
+                ]
+
+                
+                if not combined_transaction:
+                    return json({'message': 'No data found'}, 404)
+            
                 return json({
                     'success': True,
-                    'user_crypto_swap_transactions': combined_data,
-                    'paginated_rows': paginated_rows
+                    'filtered_user_crypto_transaction': combined_transaction,
+                    'paginated_count': paginated_count
                 }, 200)
 
         except Exception as e:
-            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)
+
+

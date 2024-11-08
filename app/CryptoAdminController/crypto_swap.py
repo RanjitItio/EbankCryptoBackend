@@ -465,8 +465,7 @@ class AdminFilterCryptoSwapController(APIController):
                     
                 else:
                     return json({'message': 'No data found'}, 404)
-                
-                
+
                 ## Serialize the data
                 for crypto_swap in all_crypto_swap_transaction:
                     combined_data.append({
@@ -482,16 +481,15 @@ class AdminFilterCryptoSwapController(APIController):
                         'status': crypto_swap.status,
                         'fee_value': crypto_swap.fee_value,
                     })
-                
 
                 return json({
                     'success': True,
                     'admin_filter_swap_data': combined_data,
                 }, 200)
-            
 
         except Exception as e:
             return json({
                 'error': 'Server Error',
                 'message': f'{str(e)}'
             }, 500)
+

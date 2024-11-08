@@ -135,3 +135,12 @@ class FiatUserWithdrawalSchema:
     fee: float
     converted_credit_amt: float
     
+
+@dataclass
+class UserFilterFIATWithdrawalSchema:
+    dateRange: str
+    fromCurrency: str
+    toCurrency: str
+    status: str
+    start_date: str
+    end_date: str

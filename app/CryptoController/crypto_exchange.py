@@ -8,9 +8,11 @@ from database.db import AsyncSession, async_engine
 from Models.crypto import CryptoExchange, CryptoWallet
 from Models.models import Wallet
 from Models.fee import FeeStructure
-from Models.Crypto.schema import UserCreateCryptoExchangeSchema
+from Models.Crypto.schema import UserCreateCryptoExchangeSchema, UserFilterCryptoExchangeSchema
 from app.generateID import generate_new_crypto_exchange_transaction_id
 from app.CryptoController.calculateFee import CalculateFee
+from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -199,3 +201,171 @@ class UserCryptoExchangeController(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+
+
+
+### Filter Crypto Exchange Transaction
+class UserFilterCryptoExchangeController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'User filter crypto exchange transaction'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/user/filter/crypto/exchange/'
+    
+
+    ### Filter Crypto Exchange Transaction
+    @auth('userauth')
+    @post()
+    async def filter_userCryptoExchange(self, request: Request, schema: UserFilterCryptoExchangeSchema, limit: int = 10, offset: int = 0):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                ### Get payload Data
+                dateRange  = schema.dateRange
+                cryptoName = schema.crypto_name
+                fiat       = schema.fiat
+                status     = schema.status
+                startDate  = schema.start_date
+                endDate    = schema.end_date
+
+                conditions = []
+                combined_data = []
+
+                ## Select the data
+                stmt = select(
+                    CryptoExchange.id,
+                    CryptoExchange.user_id,
+                    CryptoExchange.transaction_id,
+                    CryptoExchange.created_at,
+                    CryptoExchange.exchange_crypto_amount,
+                    CryptoExchange.converted_fiat_amount,
+                    CryptoExchange.status,
+                    CryptoExchange.fee_value,
+
+                    CryptoWallet.crypto_name,
+                    Wallet.currency,
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoExchange.crypto_wallet
+                ).join(
+                    Wallet, Wallet.id == CryptoExchange.fiat_wallet
+                ).where(
+                    CryptoExchange.user_id == user_id
+                ).order_by(
+                    desc(CryptoExchange.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
+                )
+
+                ### Status wise Filter
+                if status:
+                    conditions.append(
+                        CryptoExchange.status == status
+                    )
+
+                ### Filter Date Time Wise
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            CryptoExchange.created_at >= start_date,
+                            CryptoExchange.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+                    
+                elif dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    conditions.append(
+                        and_(
+                            CryptoExchange.created_at <= end_date,
+                            CryptoExchange.created_at >= start_date
+                        )
+                    )
+                
+                ### Flter Crypto Name wise
+                if cryptoName:
+                    crypto_wallet_obj = await session.execute(select(CryptoWallet).where(
+                        CryptoWallet.crypto_name == cryptoName
+                    ))
+                    crypto_wallet = crypto_wallet_obj.scalars().all()
+
+                    if not crypto_wallet:
+                        return json({'message': 'No data found'}, 404)
+                    
+                    conditions.append(
+                        CryptoExchange.crypto_wallet.in_([wallet.id for wallet in crypto_wallet])
+                    )
+
+                ### Filter FIAT Wallet Wise
+                if fiat:
+                    user_wallet_obj = await session.execute(select(Wallet).where(
+                        and_(
+                            Wallet.currency == fiat,
+                            Wallet.user_id == user_id
+                            )
+                    ))
+                    user_wallet = user_wallet_obj.scalar()
+
+                    if not user_wallet:
+                        return json({'message': 'Invalid FIAT Wallet'}, 404)
+                    
+                    conditions.append(
+                        CryptoExchange.fiat_wallet == user_wallet.id
+                    )
+
+                # Count Exchange Transactions
+                swap_count_stmt = select(func.count()).select_from(CryptoExchange).where(
+                    CryptoExchange.user_id == user_id, *conditions
+                )
+                swap_count = (await session.execute(swap_count_stmt)).scalar()
+
+                paginated_value = swap_count / limit
+
+                ### IF data found
+                if conditions:
+                    statement = stmt.where(and_(*conditions))
+                    all_crypto_exchange_transaction_obj = await session.execute(statement)
+                    all_crypto_exchange_transaction     = all_crypto_exchange_transaction_obj.fetchall()
+
+                    if not all_crypto_exchange_transaction:
+                        return json({'message': 'No data found'}, 404)
+                    
+                else:
+                    return json({'message': 'No data found'}, 404)
+                
+
+                ### Get all data in a list
+                for transaction in all_crypto_exchange_transaction:
+                    combined_data.append({
+                        'id': transaction.id,
+                        'user_id': transaction.user_id,
+                        'transaction_id': transaction.transaction_id,
+                        'created_at': transaction.created_at,
+                        'exchange_crypto_amount': transaction.exchange_crypto_amount,
+                        'converted_fiat_amount': transaction.converted_fiat_amount,
+                        'status': transaction.status,
+                        'fee_value': transaction.fee_value,
+                        'crypto_name': transaction.crypto_name,
+                        'fiat_currency': transaction.currency
+                    })
+                
+                return json({
+                    'success': True,
+                    'user_filtered_crypto_exchange': combined_data,
+                    'paginated_count': paginated_value
+                })
+            
+        except Exception as e:
+            return json({
+                'error': 'Server Error',
+                'message': f'{str(e)}'
+            }, 500)

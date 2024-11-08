@@ -86,4 +86,35 @@ class UserCreateCryptoExchangeSchema:
       fiat_wallet_id: int
       exchange_amount: float
       converted_amount: float
-      
+
+
+
+@dataclass
+class UserFilterCryptoSwapSchema:
+    dateRange: str       = field(default=None)
+    status: str          = field(default=None)
+    from_crypto: str     = field(default=None)
+    to_crypto: str       = field(default=None)
+    start_date: str      = field(default=None)
+    end_date: str        = field(default=None)
+
+
+
+@dataclass
+class UserFilterCryptoTransactionSchema:
+    dateRange: str       = field(default=None)
+    transactionType: str = field(default=None)
+    status: str          = field(default=None)
+    crypto: str          = field(default=None)
+    start_date: str      = field(default=None)
+    end_date: str        = field(default=None)
+    
+
+@dataclass
+class UserFilterCryptoExchangeSchema:
+    dateRange: str   = field(default=None)
+    crypto_name: str = field(default=None)
+    fiat: str        = field(default=None)
+    status: str      = field(default=None)
+    start_date: str  = field(default=None)
+    end_date: str    = field(default=None)

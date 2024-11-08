@@ -372,7 +372,6 @@ class AdminFilterFiatWithdrawal(APIController):
                 conditions    = []
                 combined_data = []
 
-
                 if email:
                     # Get the user
                     fiat_user_obj = await session.execute(select(Users).where(
@@ -439,6 +438,7 @@ class AdminFilterFiatWithdrawal(APIController):
                         FiatWithdrawalTransaction.wallet_currency == filter_currency.id
                     )
                 
+                ### Filter Status wise
                 if status:
                     conditions.append(
                         FiatWithdrawalTransaction.status.ilike(f"{status}%")

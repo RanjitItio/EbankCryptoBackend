@@ -9,6 +9,7 @@ from Models.models4 import FiatWithdrawalTransaction
 from Models.Admin.FiatWithdrawal.schema import UpdateFiatWithdrawalsSchema, AdminFIATWithdrawalFilterSchema
 from decouple import config
 from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -347,7 +348,7 @@ class AdminFilterFiatWithdrawal(APIController):
     
     @auth('userauth')
     @post()
-    async def filter_fiat_withdrawal(self, request: Request, schema: AdminFIATWithdrawalFilterSchema):
+    async def filter_fiat_withdrawal(self, request: Request, schema: AdminFIATWithdrawalFilterSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -368,10 +369,14 @@ class AdminFilterFiatWithdrawal(APIController):
                 email     = schema.email
                 currency  = schema.currency
                 status    = schema.status
+                startDate = schema.start_date
+                endDate   = schema.end_date
 
                 conditions    = []
                 combined_data = []
+                paginated_value = 0
 
+                ### Email Validation
                 if email:
                     # Get the user
                     fiat_user_obj = await session.execute(select(Users).where(
@@ -408,10 +413,26 @@ class AdminFilterFiatWithdrawal(APIController):
                     Users, Users.id == FiatWithdrawalTransaction.user_id
                 ).order_by(
                     desc(FiatWithdrawalTransaction.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
+
                 ## Filter datetime wise
-                if date_time:
+                if date_time and date_time == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            FiatWithdrawalTransaction.created_At < (end_date + timedelta(days=1)),
+                            FiatWithdrawalTransaction.created_At >= start_date
+                        )
+                    )
+
+                elif date_time:
                     start_date, end_date = get_date_range(date_time)
 
                     conditions.append(
@@ -444,12 +465,22 @@ class AdminFilterFiatWithdrawal(APIController):
                         FiatWithdrawalTransaction.status.ilike(f"{status}%")
                     )
                 
+
                 if conditions:
                     statement = stmt.where(and_(*conditions))
                     # Get the withdrdrawlas
 
                     withdrawals_obj      = await session.execute(statement)
                     all_fiat_withdrawals = withdrawals_obj.all()
+
+                    ### Count Paginated Value
+                    count_withdrawal_transaction_stmt = select(func.count()).select_from(FiatWithdrawalTransaction).where(
+                        *conditions
+                    )
+                    withdrawal_transaction_count = (await session.execute(count_withdrawal_transaction_stmt)).scalar()
+
+                    paginated_value = withdrawal_transaction_count / limit
+
 
                     if not all_fiat_withdrawals:
                         return json({'message': 'No Withdrawal found'}, 404)
@@ -485,8 +516,11 @@ class AdminFilterFiatWithdrawal(APIController):
 
                 return json({
                     'success': True,
-                    'all_admin_fiat_filter_withdrawals': combined_data
+                    'all_admin_fiat_filter_withdrawals': combined_data,
+                    'paginated_count': paginated_value
+
                 }, 200)
+
 
         except Exception as e:
             return json({

@@ -12,6 +12,7 @@ from Models.Admin.Transfer.schemas import AdminFilterTransferTransaction
 from httpx import AsyncClient
 from decouple import config
 from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -702,7 +703,7 @@ class FilterTransferTransactionController(APIController):
     ## Filter all transfer transaction by Admin
     @auth('userauth')
     @post()
-    async def filter_transferTransaction(self, request: Request, schema: AdminFilterTransferTransaction):
+    async def filter_transferTransaction(self, request: Request, schema: AdminFilterTransferTransaction, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -717,17 +718,31 @@ class FilterTransferTransactionController(APIController):
                 # Admin authentication ends
 
                 ## Get payload data
-                dateTime = schema.date_time
-                email    = schema.email
-                status   = schema.status
-                currency = schema.currency
+                dateTime  = schema.date_time
+                email     = schema.email
+                status    = schema.status
+                currency  = schema.currency
+                startDate = schema.start_date
+                endDate   = schema.end_date
 
                 conditions = []   ## apply all conditions
                 combined_data = []  ## Append all data
+                paginatedValue = 0
 
 
                 ### Filter datetime wise
-                if dateTime:
+                if dateTime and dateTime == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            TransferTransaction.created_At < (end_date + timedelta(days=1)),
+                            TransferTransaction.created_At >= start_date
+                            )
+                        )
+                
+                elif dateTime:
                     start_date, end_date = get_date_range(dateTime) 
 
                     conditions.append(
@@ -735,7 +750,8 @@ class FilterTransferTransactionController(APIController):
                             TransferTransaction.created_At <= end_date,
                             TransferTransaction.created_At >= start_date
                             )
-                    )
+                        )
+                
 
                 # Filter Email wise
                 if email:
@@ -769,15 +785,23 @@ class FilterTransferTransactionController(APIController):
                         TransferTransaction.currency == filter_currency.id
                     )
 
-                ### Select the column
+                ### Select the Table
                 select_transfer = select(TransferTransaction)
 
                 if conditions:
                     #Get all transaction Data
                     query_ = select_transfer.where(and_(*conditions))
 
-                    result       = await session.execute(query_.order_by(desc(TransferTransaction.id)))
+                    result           = await session.execute(query_.order_by(desc(TransferTransaction.id)).limit(limit).offset(offset))
                     all_transactions = result.scalars().all()
+
+                    ### Count Paginated Value
+                    count_transfer_transaction_stmt = select(func.count()).select_from(TransferTransaction).where(
+                        *conditions
+                    )
+                    transfer_transaction_count = (await session.execute(count_transfer_transaction_stmt)).scalar()
+
+                    paginated_value = transfer_transaction_count / limit
 
                     if not all_transactions:
                         return json({'message': 'No transaction found'}, 404)
@@ -785,16 +809,14 @@ class FilterTransferTransactionController(APIController):
                 else:
                     return json({'message': 'No transaction found'}, 404)
                 
-
-                #Get the Currency
+                # Get the Currency
                 all_currency_obj = await session.execute(select(Currency))
                 all_currency     = all_currency_obj.scalars().all()
 
                 if not all_currency:
                     return json({'message': 'Currency not available'}, 404)
                 
-
-                #Get the user data
+                # Get the user data
                 user_obj      = await session.execute(select(Users))
                 user_obj_data = user_obj.scalars().all()
 
@@ -837,7 +859,9 @@ class FilterTransferTransactionController(APIController):
 
                 return json({
                     'success': True,
-                    'filtered_transaction_data': combined_data
+                    'filtered_transaction_data': combined_data,
+                    'paginated_count': paginated_value
+
                 }, 200)
 
         except Exception as e:

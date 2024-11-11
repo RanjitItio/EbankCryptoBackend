@@ -11,6 +11,7 @@ from sqlmodel import select, desc, func, and_
 from decouple import config
 from httpx import AsyncClient
 from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -403,10 +404,11 @@ class AdminFiletrFIATDepositController(APIController):
     def route(cls) -> str | None:
         return '/api/v1/admin/filter/fiat/deposit/'
     
-
+    
+    ### Filter Fiat Deposits
     @auth('userauth')
     @post()
-    async def Filter_Fiat_Deposit(self, request: Request, schema: AdminFilterFIATDeposits):
+    async def Filter_Fiat_Deposit(self, request: Request, schema: AdminFilterFIATDeposits, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -424,9 +426,12 @@ class AdminFiletrFIATDepositController(APIController):
                 user_email = schema.email
                 status     = schema.status
                 currency   = schema.currency
+                startDate  = schema.start_date
+                endDate    = schema.end_date
 
                 conditions    = []
                 combined_data = []
+                paginated_value = 0
 
                 ## Get The user from Mail
                 if user_email:
@@ -459,6 +464,10 @@ class AdminFiletrFIATDepositController(APIController):
                         Currency, Currency.id == DepositTransaction.currency
                     ).order_by(
                         desc(DepositTransaction.id)
+                    ).limit(
+                        limit
+                    ).offset(
+                        offset
                     )
                 
                 ## Filter email wise
@@ -474,7 +483,18 @@ class AdminFiletrFIATDepositController(APIController):
                     )
 
                 ## Filter date time wise
-                if dateTime:
+                if dateTime and dateTime == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            DepositTransaction.created_At < (end_date + timedelta(days=1)),
+                            DepositTransaction.created_At >= start_date
+                        )
+                    )
+
+                elif dateTime:
                     start_date, end_date = get_date_range(dateTime)
 
                     conditions.append(
@@ -502,12 +522,21 @@ class AdminFiletrFIATDepositController(APIController):
                     fiat_deposit_transactions_obj = await session.execute(statement)
                     fiat_deposit_transactions     = fiat_deposit_transactions_obj.fetchall()
 
+                    ### Count paginated value
+                    count_deposit_transaction_stmt = select(func.count()).select_from(DepositTransaction).where(
+                        *conditions
+                    )
+                    deposit_transaction_count = (await session.execute(count_deposit_transaction_stmt)).scalar()
+
+                    paginated_value = deposit_transaction_count / limit
+
                     if not fiat_deposit_transactions:
                         return json({'message': 'No data found'}, 404)
                 
                 else:
                     return json({'message': 'No data found'}, 404)
                 
+
                 ## Get all data in combined_data
                 for transaction in fiat_deposit_transactions:
 
@@ -527,9 +556,11 @@ class AdminFiletrFIATDepositController(APIController):
                     })
 
                 return json({
+                    'success': True,
                     'message': 'Deposit Transaction data fetched successfully', 
                     'filter_deposit_transactions': combined_data,
-                    'success': True
+                    'paginated_count': paginated_value
+
                 }, 200)
             
         except Exception as e:

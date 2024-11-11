@@ -18,3 +18,5 @@ class AdminFilterTransferTransaction:
     email: str      = field(default=None)
     status: str     = field(default=None)
     currency: str   = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str   = field(default=None)

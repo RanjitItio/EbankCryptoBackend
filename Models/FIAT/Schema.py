@@ -90,3 +90,14 @@ class UserFIATTransactionFilterSchema:
     status: str           = field(default=None)
     start_date: str       = field(default=None)
     end_date: str         = field(default=None)
+
+
+
+@dataclass
+class UserFilterFIATExchangesSchema:
+    dateRange: str     = field(default=None)
+    from_currency: str = field(default=None)
+    to_currency: str   = field(default=None)
+    status: str        = field(default=None)
+    start_date: str    = field(default=None)
+    end_date: str      = field(default=None)

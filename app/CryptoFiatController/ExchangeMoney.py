@@ -3,10 +3,12 @@ from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from blacksheep import json, Request
 from database.db import AsyncSession, async_engine
-from Models.FIAT.Schema import FiatExchangeMoneySchema
+from Models.FIAT.Schema import FiatExchangeMoneySchema, UserFilterFIATExchangesSchema
 from Models.models import Wallet, Currency, Users
 from Models.models4 import FIATExchangeMoney
 from sqlmodel import select, and_, desc, func
+from datetime import datetime, timedelta
+from app.dateFormat import get_date_range
 
 
 
@@ -181,3 +183,174 @@ class ExchangeMoneyController(APIController):
                 "message": f'{str(e)}'
                 }, 500)
 
+
+
+
+
+#### Filter FIAT Exchange 
+class UserFilterFIATExchangeController(APIController):
+
+    @classmethod
+    def class_name(cls) -> str:
+        return 'User Filter FIAT Transaction Controller'
+    
+    @classmethod
+    def route(cls) -> str | None:
+        return '/api/v6/user/filter/fiat/exchanges/'
+    
+    
+    #### Filter FIAT Exchange Transactions
+    @auth('userauth')
+    @post()
+    async def filter_userExchanges(self, request: Request, schema: UserFilterFIATExchangesSchema, limit: int = 10, offset: int = 0):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                ### Get the payload data
+                dateRange    = schema.dateRange
+                fromCurrency = schema.from_currency
+                toCurrency   = schema.to_currency
+                status       = schema.status
+                startDate    = schema.start_date
+                endDate      = schema.end_date
+
+                exchange_conditions = []
+                combined_data       = []
+
+                print('startDate', startDate)
+                print('endDate', endDate)
+
+                ## Filter date range wise
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    exchange_conditions.append(
+                        and_(
+                            FIATExchangeMoney.created_At >= start_date,
+                            FIATExchangeMoney.created_At < (end_date + timedelta(days=1))
+                        )
+                    )
+
+                elif dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    exchange_conditions.append(
+                        and_(
+                            FIATExchangeMoney.created_At >= start_date,
+                            FIATExchangeMoney.created_At <= end_date
+                        )
+                    )
+
+                ### Filter From Currency wise
+                if fromCurrency:
+                    from_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{fromCurrency}%")
+                    ))
+                    from_currency = from_currency_obj.scalar()
+
+                    if not from_currency:
+                        return json({'message': 'Invalid From Currency'}, 404)
+                    
+                    exchange_conditions.append(
+                        FIATExchangeMoney.from_currency == from_currency.id
+                    )
+
+                ### Filter To Currency wise
+                if toCurrency:
+                    to_currency_obj = await session.execute(select(Currency).where(
+                        Currency.name.ilike(f"{toCurrency}%")
+                    ))
+                    to_currency = to_currency_obj.scalar()
+
+                    if not to_currency:
+                        return json({'message': 'Invalid To Currency'}, 404)
+                    
+                    exchange_conditions.append(
+                        FIATExchangeMoney.to_currency == to_currency.id
+                    )
+
+                ### Filter Status Wise
+                if status:
+                    exchange_conditions.append(
+                        FIATExchangeMoney.status == status
+                    )
+
+                ## Select columns
+                exchange_stmt = select(
+                    FIATExchangeMoney.id,
+                    FIATExchangeMoney.user_id,
+                    FIATExchangeMoney.to_currency,
+                    FIATExchangeMoney.exchange_amount,
+                    FIATExchangeMoney.converted_amount,
+                    FIATExchangeMoney.transaction_fee,
+                    FIATExchangeMoney.status,
+                    FIATExchangeMoney.created_At,
+
+                    Currency.name.label('from_currency')
+                ).join(
+                    Currency, Currency.id == FIATExchangeMoney.from_currency
+                ).where(
+                    FIATExchangeMoney.user_id == user_id
+                ).order_by(
+                    desc(FIATExchangeMoney.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
+                )
+
+                ### IF data found
+                if exchange_conditions:
+                    exchange_transaction = exchange_stmt.where(and_(*exchange_conditions))
+
+                    user_fiat_exchange_requests_obj = await session.execute(exchange_transaction)
+                    user_fiat_exchange_requests     = user_fiat_exchange_requests_obj.fetchall()
+
+                if not user_fiat_exchange_requests:
+                    return json({'message': 'No data found'}, 404)
+                
+
+                ### Count Paginated Value
+                exchange_count_stmt = select(func.count()).select_from(FIATExchangeMoney).where(
+                    FIATExchangeMoney.user_id == user_id
+                )
+                if exchange_conditions:
+                    exchange_count_stmt = exchange_count_stmt.where(and_(*exchange_conditions))
+
+                # Execute the count query and get the count value
+                exchange_count_result = await session.execute(exchange_count_stmt)
+                exchange_count = exchange_count_result.scalar() or 0
+                paginated_value = exchange_count / limit
+
+
+                ## Add all data into combined_data
+                for transaction in user_fiat_exchange_requests:
+                    toCurrencyObj = await session.execute(select(Currency).where(
+                        Currency.id == transaction.to_currency
+                    ))
+                    toCurrency = toCurrencyObj.scalar()
+
+                    combined_data.append({
+                        'id': transaction.id,
+                        'user_id': transaction.user_id,
+                        'from_currency': transaction.from_currency,
+                        'to_currency': toCurrency.name,
+                        'exchange_amount': transaction.exchange_amount,
+                        'converted_amount': transaction.converted_amount,
+                        'transaction_fee': transaction.transaction_fee,
+                        'status': transaction.status,
+                        'created_At': transaction.created_At
+                    })
+
+                return json({
+                    'success': True,
+                    'user_filter_fiat_exchange_data': combined_data,
+                    'paginated_count': paginated_value
+
+                }, 200)
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

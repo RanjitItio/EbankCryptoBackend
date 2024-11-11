@@ -1,12 +1,17 @@
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from blacksheep import Request, json
-from Models.models import Transection, Currency, Users
+from Models.models import Currency, Users
 from Models.models4 import DepositTransaction, TransferTransaction
+from Models.FIAT.Schema import UserFIATTransactionFilterSchema
 from database.db import async_engine, AsyncSession
-from app.controllers.controllers import get
+from app.controllers.controllers import get, post
 from blacksheep.server.authorization import auth
 from sqlmodel import select, and_, desc, func
+from datetime import datetime, timedelta
+from app.dateFormat import get_date_range
+from sqlalchemy.orm import aliased
+
 
 
 
@@ -23,7 +28,7 @@ class UserFiatTransactionController(APIController):
 
     @classmethod
     def class_name(cls):
-        return "User wise Transaction"
+        return "User wise Transaction Controller"
     
 
     @auth('userauth')
@@ -257,3 +262,283 @@ class UserFiatRecentTransactionController(APIController):
 
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+
+
+# All Fiat Transactions of a user
+class UserFiatTransactionFilterController(APIController):
+
+    @classmethod
+    def route(cls):
+        return '/api/v4/users/filter/fiat/transactions/'
+    
+
+    @classmethod
+    def class_name(cls):
+        return "Filter User Transaction Controller"
+    
+
+    @auth('userauth')
+    @post()
+    async def filter_userFIATTransaction(self, request: Request,schema: UserFIATTransactionFilterSchema,  limit: int = 5, offset: int = 0):
+        try:
+            async with AsyncSession(async_engine) as session:
+                # Authenticate user
+                user_identity = request.identity
+                user_id       = user_identity.claims.get("user_id") if user_identity else None
+
+
+                #### Get the payload data
+                dateRange       = schema.dateRange
+                transactionType = schema.transaction_type
+                filterCurrency  = schema.currency
+                status          = schema.status
+                startDate       = schema.start_date
+                endDate         = schema.end_date
+
+                deposit_conditions   = []
+                transfer_conditions  = []
+
+                #### Aliased table
+                TransferTransactionSender   = aliased(Users)
+
+                ## Filter date range wise
+                if dateRange and dateRange == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    deposit_conditions.append(
+                        and_(
+                            DepositTransaction.created_At >= start_date,
+                            DepositTransaction.created_At < (end_date + timedelta(days=1))
+                        )
+                    )
+
+                    transfer_conditions.append(
+                        and_(
+                            TransferTransaction.created_At >= start_date,
+                            TransferTransaction.created_At < (end_date + timedelta(days=1))
+                        )
+                    )
+
+                elif dateRange:
+                    start_date, end_date = get_date_range(dateRange)
+
+                    deposit_conditions.append(
+                        and_(
+                            DepositTransaction.created_At >= start_date,
+                            DepositTransaction.created_At <= end_date
+                        )
+                    )
+
+                    transfer_conditions.append(
+                        and_(
+                            TransferTransaction.created_At >= start_date,
+                            TransferTransaction.created_At <= end_date
+                        )
+                    )
+                
+                ### Filter Currency Wise
+                if filterCurrency:
+                    currency_obj = await session.execute(select(Currency).where(
+                        Currency.name == filterCurrency
+                    ))
+                    currency = currency_obj.scalar()
+
+                    if not currency:
+                        return json({'message': 'Invalid Currency'}, 404)
+                    
+                    deposit_conditions.append(
+                        DepositTransaction.currency == currency.id
+                    )
+
+                    transfer_conditions.append(
+                        TransferTransaction.currency == currency.id
+                    )
+
+                ### Filter Status wise
+                if status:
+                    deposit_conditions.append(
+                        DepositTransaction.status == status
+                    )
+
+                    transfer_conditions.append(
+                        TransferTransaction.status == status
+                    )
+                
+                #### Filter transaction Type wise
+                if transactionType == 'Deposit' or not transactionType:
+                    deposit_stmt = select(
+                        DepositTransaction.id,
+                        DepositTransaction.user_id,
+                        DepositTransaction.transaction_id,
+                        DepositTransaction.amount,
+                        DepositTransaction.currency,
+                        DepositTransaction.transaction_fee,
+                        DepositTransaction.payout_amount,
+                        DepositTransaction.status,
+                        DepositTransaction.payment_mode,
+                        DepositTransaction.is_completed,
+                        DepositTransaction.selected_wallet,
+                        DepositTransaction.credited_amount,
+                        DepositTransaction.credited_currency,
+                        DepositTransaction.created_At,
+
+                        Currency.name.label('deposit_currency'),
+                        Currency.id.label('deposit_currency_id'),
+
+                        Users.first_name.label("deposit_user_first_name"),
+                        Users.lastname.label("deposit_user_last_name"),
+                        Users.id.label("deposit_user_id"),
+                    ).join(
+                        Currency, Currency.id == DepositTransaction.currency
+                    ).join(
+                        Users, Users.id == DepositTransaction.user_id
+                    ).where(
+                        DepositTransaction.user_id == user_id
+                    )
+
+                    if deposit_conditions:
+                        deposit_stmt = deposit_stmt.where(and_(*deposit_conditions))
+
+                    deposit_stmt = deposit_stmt.order_by(desc(DepositTransaction.id)).limit(limit).offset(offset)
+
+                    # Count query
+                    deposit_count_stmt = select(func.count()).select_from(DepositTransaction).where(DepositTransaction.user_id == user_id)
+
+                    if deposit_conditions:
+                        deposit_count_stmt = deposit_count_stmt.where(and_(*deposit_conditions))
+
+                    # Execute the queries
+                    deposit_count = (await session.execute(deposit_count_stmt)).scalar()
+
+                    user_deposit_transaction_obj = await session.execute(deposit_stmt)
+                    user_deposit_transaction     = user_deposit_transaction_obj.fetchall()
+
+                else:
+                    user_deposit_transaction = []
+                    deposit_count = 0
+
+                ### If transaction Type is equal to Transfer
+                if transactionType == 'Transfer' or not transactionType:
+                    transfer_stmt = select(
+                        TransferTransaction.id,
+                        TransferTransaction.user_id,
+                        TransferTransaction.transaction_id,
+                        TransferTransaction.receiver,
+                        TransferTransaction.amount,
+                        TransferTransaction.transaction_fee,
+                        TransferTransaction.payout_amount,
+                        TransferTransaction.currency,
+                        TransferTransaction.massage,
+                        TransferTransaction.status,
+                        TransferTransaction.payment_mode,
+                        TransferTransaction.receiver_payment_mode,
+                        TransferTransaction.receiver_currency,
+                        TransferTransaction.receiver_detail,
+                        TransferTransaction.credited_amount,
+                        TransferTransaction.credited_currency,
+                        TransferTransaction.is_completed,
+                        TransferTransaction.created_At,
+
+                        Currency.name.label('transfer_currency'),
+                        Currency.id.label('transfer_currency_id'),
+
+                        TransferTransactionSender.first_name.label('sender_first_name'),
+                        TransferTransactionSender.lastname.label('sender_last_name'),
+                        TransferTransactionSender.id.label('sender_id'),
+
+                    ).join(
+                        Currency, Currency.id == TransferTransaction.currency
+                    ).join(
+                        TransferTransactionSender, TransferTransactionSender.id == TransferTransaction.user_id
+                    ).where(
+                        TransferTransaction.user_id == user_id
+                    )
+
+                    if transfer_conditions:
+                        transfer_stmt = transfer_stmt.where(and_(*transfer_conditions))
+
+                    transfer_stmt = transfer_stmt.order_by(desc(TransferTransaction.id)).limit(limit).offset(offset)
+
+                    # Count query
+                    transfer_count_stmt = select(func.count()).select_from(TransferTransaction).where(TransferTransaction.user_id == user_id)
+
+                    if transfer_conditions:
+                        transfer_count_stmt = transfer_count_stmt.where(and_(*transfer_conditions))
+
+                    transfer_count  = (await session.execute(transfer_count_stmt)).scalar()
+
+                    user_transfer_transaction_obj = await session.execute(transfer_stmt)
+                    user_transfer_transaction     = user_transfer_transaction_obj.fetchall()
+
+                else:
+                    user_transfer_transaction = []
+                    transfer_count = 0
+
+                
+                if not user_transfer_transaction and not user_deposit_transaction:
+                    return json({"message": 'No data found'}, 404)
+                
+                ### Count Paginated value
+                total_deposit_transfer_count = deposit_count + transfer_count
+                paginated_count = total_deposit_transfer_count / (limit * 2) if limit > 0 else 1
+
+                ### Get Receiver Data
+                all_user_obj      = await session.execute(select(Users))
+                all_user_obj_data = all_user_obj.scalars().all()
+
+                receiver_dict = {receiver.id: receiver for receiver in all_user_obj_data}
+
+                ### Append all data inside a list
+                combined_transactions = [
+                        {
+                            "type": "Deposit", 
+                            "data": deposit._asdict(),
+                            "currency": {
+                                "id": deposit.deposit_currency_id,
+                                "name": deposit.deposit_currency,
+                            },
+                            "user": {
+                                "first_name": deposit.deposit_user_first_name,
+                                "lastname": deposit.deposit_user_last_name,
+                                "id": deposit.deposit_user_id
+                            },
+                            "receiver": None
+                            } for deposit in user_deposit_transaction
+                    ] + [
+                        {
+                            "type": "Transfer", 
+                            "data": transfer._asdict(),
+                            "currency": {
+                                "id": transfer.transfer_currency_id,
+                                "name": transfer.transfer_currency,
+                            },
+                            "user": {
+                                    "first_name": transfer.sender_first_name,
+                                    "lastname": transfer.sender_last_name,
+                                    "id": transfer.sender_id
+                                },
+                            "receiver": {
+                                "first_name": receiver_dict[transfer.receiver].first_name,
+                                "lastname": receiver_dict[transfer.receiver].lastname,
+                                "id": receiver_dict[transfer.receiver].id
+                            } if transfer.receiver in receiver_dict else None, 
+
+                         } for transfer in user_transfer_transaction
+                    ]
+                
+
+                return json({
+                    'success': True,
+                    'filtered_user_fiat_transaction': combined_transactions,
+                    'paginated_count': paginated_count
+                }, 200)
+
+
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+
+
+

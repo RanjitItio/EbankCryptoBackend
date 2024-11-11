@@ -636,6 +636,7 @@ class UserCryptoTransactionFilterController(APIController):
                         CryptoSell.status, 
                         CryptoWallet.crypto_name, 
                         Wallet.currency.label('wallet_currency')
+                        
                     ).join(
                         CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
                     ).join(

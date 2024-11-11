@@ -9,7 +9,6 @@ class DepositTransaction(SQLModel, table=True):
     id: int | None              = Field(default=None, primary_key=True)
     user_id: int                = Field(foreign_key="users.id")
     transaction_id: str         = Field(index=True, unique=True)
-    created_At: datetime        = Field(default=datetime.now())
     amount: float               = Field(default_factory=0.00)
     currency: int               = Field(foreign_key="currency.id")
     transaction_fee: float      = Field(default=0.00)
@@ -20,6 +19,7 @@ class DepositTransaction(SQLModel, table=True):
     selected_wallet: int        = Field(foreign_key='wallet.id', nullable=True)
     credited_amount: float      = Field(default=0.00 , nullable=True)
     credited_currency: str      = Field(nullable=True, default='')
+    created_At: datetime        = Field(default=datetime.now())
 
     def assign_current_datetime(self):
         self.created_At = datetime.now()

@@ -79,3 +79,14 @@ class AdminFilterExchangeTransaction:
     email: str     = field(default=None)
     status: str    = field(default=None)
     currency: str  = field(default=None)
+
+
+
+@dataclass
+class UserFIATTransactionFilterSchema:
+    dateRange: str        = field(default=None)
+    transaction_type: str = field(default=None)
+    currency: str         = field(default=None)
+    status: str           = field(default=None)
+    start_date: str       = field(default=None)
+    end_date: str         = field(default=None)

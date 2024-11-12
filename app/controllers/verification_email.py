@@ -30,7 +30,7 @@ async def SendVerificationMailToUser(email: str):
         return json({
             'success': True,
             'otp': random_number
-        }, 400)
+        }, 200)
     
     except Exception as e:
         return json({

@@ -51,7 +51,7 @@ class AdminCryptoSwapController(APIController):
                 combined_data = []
 
                 ### Calculate Paginated value
-                row_stmt      = select(func.count(CryptoWallet.id))
+                row_stmt      = select(func.count(CryptoSwap.id))
                 exec_row_stmt = await session.execute(row_stmt)
                 total_rows    = exec_row_stmt.scalar()
 
@@ -341,7 +341,7 @@ class AdminFilterCryptoSwapController(APIController):
 
     @auth('userauth')
     @post()
-    async def filter_cryptoSwap(self, request: Request, schema: AdminFilterCryptoSwapSchema):
+    async def filter_cryptoSwap(self, request: Request, schema: AdminFilterCryptoSwapSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -371,6 +371,7 @@ class AdminFilterCryptoSwapController(APIController):
 
                 combined_data = []
                 conditions    = []
+                swap_count    = 0
 
                 ### Get the user email
                 if user_email:
@@ -404,7 +405,12 @@ class AdminFilterCryptoSwapController(APIController):
                     ToCryptoWallet, ToCryptoWallet.id == CryptoSwap.to_crypto_wallet_id
                 ).order_by(
                     desc(CryptoSwap.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
+                
 
                 ## Mail filter
                 if user_email:
@@ -460,11 +466,21 @@ class AdminFilterCryptoSwapController(APIController):
                     all_crypto_swap_transaction_obj = await session.execute(statement)
                     all_crypto_swap_transaction     = all_crypto_swap_transaction_obj.fetchall()
 
+                    ### Count Swap Rows
+                    swap_count_stmt = select(func.count()).select_from(CryptoSwap)
+                    swap_count_stmt = swap_count_stmt.where(and_(*conditions))
+                    swap_count      = (await session.execute(swap_count_stmt)).scalar()
+
                     if not all_crypto_swap_transaction:
                         return json({'message': 'No data found'}, 404)
                     
                 else:
                     return json({'message': 'No data found'}, 404)
+                
+                ### Count Paginated Value
+                total_swap_count = swap_count
+                paginated_count      = total_swap_count / limit if limit > 0 else 1
+
 
                 ## Serialize the data
                 for crypto_swap in all_crypto_swap_transaction:
@@ -485,6 +501,8 @@ class AdminFilterCryptoSwapController(APIController):
                 return json({
                     'success': True,
                     'admin_filter_swap_data': combined_data,
+                    'paginated_count': paginated_count
+
                 }, 200)
 
         except Exception as e:

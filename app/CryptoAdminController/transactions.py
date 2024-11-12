@@ -416,7 +416,7 @@ class CryptoTransactionController(APIController):
     ## Filter Crypto Transactions
     @auth('userauth')
     @post()
-    async def filter_cryptoTransactions(self, request: Request, schema: AdminFilterCryptoTransactionsSchema):
+    async def filter_cryptoTransactions(self, request: Request, schema: AdminFilterCryptoTransactionsSchema, limit: int = 5, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -435,6 +435,8 @@ class CryptoTransactionController(APIController):
                 combined_transaction = []
                 buy_conditions  = []
                 sell_conditions = []
+                buy_count       = 0
+                sell_count      = 0
 
                 ## Get payload data
                 dateRange       = schema.date_range
@@ -544,6 +546,10 @@ class CryptoTransactionController(APIController):
                     Users, Users.id == CryptoBuy.user_id
                 ).order_by(
                     desc(CryptoBuy.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
                 # Execute Sell Query
@@ -571,26 +577,47 @@ class CryptoTransactionController(APIController):
                     Users, Users.id == CryptoSell.user_id
                 ).order_by(
                     desc(CryptoSell.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
+
 
                 user_buy_transaction  = []
                 user_sell_transaction = []
 
+                ### Buy transaction fond
                 if buy_conditions:
                     buy_statement = buy_stmt.where(and_(*buy_conditions))
 
                     user_buy_transaction_obj = await session.execute(buy_statement)
                     user_buy_transaction     = user_buy_transaction_obj.fetchall()
 
+                    ### Count Buy Rows
+                    buy_count_stmt = select(func.count()).select_from(CryptoBuy)
+                    buy_count_stmt = buy_count_stmt.where(and_(*buy_conditions))
+                    buy_count      = (await session.execute(buy_count_stmt)).scalar()
+
+                ### If sell transaction Found
                 if sell_conditions:
                     sell_statement = sell_stmt.where(and_(*sell_conditions))
 
                     user_sell_transactio_obj = await session.execute(sell_statement)
                     user_sell_transaction    = user_sell_transactio_obj.fetchall()
 
+                    ### Count Sell rows
+                    sell_count_stmt = select(func.count()).select_from(CryptoSell)
+                    sell_count_stmt = sell_count_stmt.where(and_(*sell_conditions))
+                    sell_count      = (await session.execute(sell_count_stmt)).scalar()
 
                 if not user_buy_transaction and not user_sell_transaction:
                     return json({'message': 'No data found'}, 404)
+                
+
+                ### Count Paginated Value
+                total_buy_sell_count = buy_count + sell_count
+                paginated_count      = total_buy_sell_count / (limit * 2) if limit > 0 else 1
 
 
                 ## Combine all the data
@@ -631,7 +658,9 @@ class CryptoTransactionController(APIController):
 
                 return json({
                     'success': True,
-                    'filtered_data': combined_transaction
+                    'filtered_data': combined_transaction,
+                    'paginated_count': paginated_count
+
                 }, 200)
 
         except Exception as e:

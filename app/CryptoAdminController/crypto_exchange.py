@@ -317,13 +317,13 @@ class AdminFilterCryptoExchangeController(APIController):
     
     @classmethod
     def route(cls) -> str | None:
-        return '/api/v6/admin/filter/crypto/transactions/'
+        return '/api/v6/admin/filter/crypto/exchange/transactions/'
     
-
+    
     ### Filter Crypto Exchange Transaction
     @auth('userauth')
     @post()
-    async def filter_cryptoExchange(self, request: Request, schema: AdminFilterCryptoExchangeSchema):
+    async def filter_cryptoExchange(self, request: Request, schema: AdminFilterCryptoExchangeSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -348,6 +348,8 @@ class AdminFilterCryptoExchangeController(APIController):
 
                 conditions    = []
                 combined_data = []
+                exchange_count = 0
+
 
                 ### Get the user email
                 if user_email:
@@ -383,7 +385,12 @@ class AdminFilterCryptoExchangeController(APIController):
                     Users, Users.id == CryptoExchange.user_id
                 ).order_by(
                     desc(CryptoExchange.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
+
 
                 ## Mail filter
                 if user_email:
@@ -439,12 +446,22 @@ class AdminFilterCryptoExchangeController(APIController):
                     all_crypto_exchange_transaction_obj = await session.execute(statement)
                     all_crypto_exchange_transaction     = all_crypto_exchange_transaction_obj.fetchall()
 
+                     ### Count Swap Rows
+                    exchange_count_stmt = select(func.count()).select_from(CryptoExchange)
+                    exchange_count_stmt = exchange_count_stmt.where(and_(*conditions))
+                    exchange_count      = (await session.execute(exchange_count_stmt)).scalar()
+
                     if not all_crypto_exchange_transaction:
                         return json({'message': 'No data found'}, 404)
                     
                 else:
                     return json({'message': 'No data found'}, 404)
                 
+                ### Count Paginated Value
+                total_swap_count = exchange_count
+                paginated_count  = total_swap_count / limit if limit > 0 else 1
+                
+
                 ## Get all the data
                 for transaction in all_crypto_exchange_transaction:
                     combined_data.append({
@@ -465,7 +482,9 @@ class AdminFilterCryptoExchangeController(APIController):
 
                 return json({
                     'success': True,
-                    'filtered_crypto_exchange_transaction': combined_data
+                    'filtered_crypto_exchange_transaction': combined_data,
+                    'paginated_count': paginated_count
+
                 }, 200)
             
         except Exception as e:

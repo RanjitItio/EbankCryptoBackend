@@ -618,6 +618,7 @@ class UserCryptoTransactionFilterController(APIController):
                     
                     # Execute the queries
                     buy_count = (await session.execute(buy_count_stmt)).scalar()
+
                     user_buy_transaction_obj = await session.execute(buy_stmt)
                     user_buy_transaction = user_buy_transaction_obj.fetchall()
 
@@ -657,6 +658,7 @@ class UserCryptoTransactionFilterController(APIController):
                     
                     # Execute the queries
                     sell_count = (await session.execute(sell_count_stmt)).scalar()
+                    
                     user_sell_transactio_obj = await session.execute(sell_stmt)
                     user_sell_transaction = user_sell_transactio_obj.fetchall()
 

@@ -238,6 +238,9 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     total__balance = merchant_transaction.amount - charged_fee
 
                     if merchant_account_balance:
+                        if merchant_account_balance.immature_balance < total__balance:
+                            return json({'message': 'Insufficient Immature Balance'}, 400)
+                        
                         merchant_account_balance.immature_balance -= total__balance
                         merchant_account_balance.frozen_balance   += total__balance
 
@@ -333,6 +336,10 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     total__balance = merchant_transaction.amount - charged_fee
 
                     if merchant_account_balance:
+
+                        if merchant_account_balance.frozen_balance < total__balance:
+                            return json({'message': 'Insufficient Frozen balance'}, 400)
+                        
                         merchant_account_balance.frozen_balance   -= total__balance
                         merchant_account_balance.immature_balance += total__balance
 
@@ -352,6 +359,9 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     total__balance = merchant_transaction.amount - charged_fee
 
                     if merchant_account_balance:
+                        if merchant_account_balance.frozen_balance < total__balance:
+                            return json({'message': 'Insufficient Frozen balance'}, 400)
+                        
                         merchant_account_balance.frozen_balance -= total__balance
 
                         session.add(merchant_account_balance)

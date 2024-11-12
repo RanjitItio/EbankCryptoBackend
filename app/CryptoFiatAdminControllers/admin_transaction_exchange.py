@@ -8,6 +8,7 @@ from Models.models import Users, Currency, Wallet
 from Models.models4 import FIATExchangeMoney
 from Models.FIAT.Schema import AdminUpdateExchangeMoneySchema, AdminFilterExchangeTransaction
 from app.dateFormat import get_date_range
+from datetime import datetime, timedelta
 
 
 
@@ -235,7 +236,7 @@ class AdminFilterExchangeMoneyTransaction(APIController):
     ### Filter Exchange money
     @auth('userauth')
     @post()
-    async def filter_exchange_money(self, request: Request, schema: AdminFilterExchangeTransaction):
+    async def filter_exchange_money(self, request: Request, schema: AdminFilterExchangeTransaction, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -249,14 +250,17 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                     return json({'msg': 'Only admin can view the Transactions'}, 400)
                 # Admin authentication ends
 
-                ### Get pauload data
-                dateTime = schema.date_time
-                email    = schema.email
-                status   = schema.status
-                currency = schema.currency
+                ### Get payload data
+                dateTime  = schema.date_time
+                email     = schema.email
+                status    = schema.status
+                currency  = schema.currency
+                startDate = schema.start_date
+                endDate   = schema.end_date
 
                 conditions    = []
                 combined_data = []
+                paginated_value = 0
 
                 ## Filter Email wise
                 if email:
@@ -273,7 +277,18 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                     )
 
                 ## Filter Date time wise
-                if dateTime:
+                if dateTime and dateTime == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            FIATExchangeMoney.created_At < (end_date + timedelta(days=1)),
+                            FIATExchangeMoney.created_At >= start_date
+                        )
+                    )
+
+                elif dateTime:
                     start_date, end_date = get_date_range(dateTime)
 
                     conditions.append(
@@ -282,7 +297,7 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                             FIATExchangeMoney.created_At >= start_date
                         )
                     )
-
+                
                 ### Filter status wise
                 if status:
                     conditions.append(
@@ -318,6 +333,10 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                     Users, Users.id == FIATExchangeMoney.user_id
                 ).order_by(
                     desc(FIATExchangeMoney.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
                 ## If data available
@@ -326,12 +345,22 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                     all_exchange_transactions_obj = await session.execute(statement)
                     all_exchange_transactions     = all_exchange_transactions_obj.fetchall()
 
+                    ### Count paginated value
+                    count_exchange_transaction_stmt = select(func.count()).select_from(FIATExchangeMoney).where(
+                        *conditions
+                    )
+                    exchange_transaction_count = (await session.execute(count_exchange_transaction_stmt)).scalar()
+
+                    paginated_value = exchange_transaction_count / limit
+
+
                     if not all_exchange_transactions:
                         return json({'message': 'No data found'}, 404)
                 else:
                     return json({'message': 'No data found'}, 404)
                 
-
+                 
+                ### Get all the data inside a List
                 for transaction in all_exchange_transactions:
                     # From Currency
                     from_currency_obj = await session.execute(select(Currency).where(
@@ -360,9 +389,12 @@ class AdminFilterExchangeMoneyTransaction(APIController):
                         "status": transaction.status
                     })
 
+
                 return json({
                     'success': True,
-                    'filter_exchange_data': combined_data
+                    'filter_exchange_data': combined_data,
+                    'paginated_count': paginated_value
+
                 }, 200)
 
         except Exception as e:

@@ -195,15 +195,15 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             merchant_account_balance = merchant_account_balance_Obj.scalar()
 
             ##############################
-            ## For Initiated Trasaction ##
-            #############################
+            #### For Initiated Trasaction
+            ###############################
             if merchant_transaction.status == 'PAYMENT_INITIATED':
                 
                 if schema.status == 'PAYMENT_SUCCESS':
                     merchant_transaction.is_completd = True
 
                     await CalculateMerchantAccountBalance(
-                        merchant_transaction.amount, 
+                        merchant_transaction.amount,
                         merchant_transaction.currency, 
                         merchant_transaction.transaction_fee, 
                         merchant_transaction.merchant_id
@@ -260,6 +260,9 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     total__balance = merchant_transaction.amount - charged_fee
 
                     if merchant_account_balance:
+                        if merchant_account_balance.immature_balance < total__balance:
+                            return json({'message': 'Insufficient Immature Balance'}, 400)
+
                         merchant_account_balance.immature_balance -= total__balance
 
                         session.add(merchant_account_balance)

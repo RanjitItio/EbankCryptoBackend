@@ -60,6 +60,8 @@ class UserController(APIController):
     async def create_user(self, request: Request, user: UserCreateSchema):
         try:
             async with AsyncSession(async_engine) as session:
+                new_group = []
+
                 # Check for existing mail
                 try:
                     existing_user = await session.execute(select(Users).where(Users.email == user.email))
@@ -104,6 +106,7 @@ class UserController(APIController):
                         user_group_id = new_group.id
                     else:
                         user_group_id = user_group_obj.id
+                        
                 # For Regular User
                 else:
                     user_group     = await session.execute(select(Group).where(Group.name == 'Default User'))
@@ -156,7 +159,7 @@ class UserController(APIController):
 
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'}, 400)
-            
+
                 userID          = user_instance.id
                 user_first_name = user_instance.first_name
                 user_last_name  = user_instance.lastname

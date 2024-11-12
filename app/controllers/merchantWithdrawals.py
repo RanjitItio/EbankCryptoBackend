@@ -25,6 +25,7 @@ class MerchantWithdrawalController(APIController):
     def route(cls) -> str | None:
         return '/api/v3/merchant/withdrawal/'
     
+
     # Create new Withdrawal Request
     @auth('userauth')
     @post()
@@ -40,7 +41,6 @@ class MerchantWithdrawalController(APIController):
                 merchantBankCurrency = schema.bank_currency_id # To be deposited Currency
                 accountCurrency      = schema.account_currency # From Account Balance currency
                 withdrawalAmount     = schema.withdrawal_amount  # Withdrawal amount
-
 
                 # Check the merchant bank account is exist and active or not
                 merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
@@ -81,10 +81,10 @@ class MerchantWithdrawalController(APIController):
                 # Withdrawal balance is lesser than Account balance or not
                 merchant_account_balance = merchant_account_balance_.mature_balance
                 
-                if withdrawalAmount >= merchant_account_balance:
+                if withdrawalAmount > merchant_account_balance:
                     return json({'error': 'Donot have sufficient balance in Account'}, 400)
                 
-                if withdrawalAmount <= merchant_user.minimum_withdrawal_amount:
+                if withdrawalAmount < merchant_user.minimum_withdrawal_amount:
                     return json({'message': 'Withdrawal amount must be greater than minimum withdrawal amount'}, 400)
                 
                 # Currency

@@ -372,7 +372,7 @@ class FilterMerchantWithdrawalsController(APIController):
 
     @auth('userauth')
     @post()
-    async def filter_merchant_withdrawals(self, request: Request, schema: FilterWithdrawalTransactionSchema):
+    async def filter_merchant_withdrawals(self, request: Request, schema: FilterWithdrawalTransactionSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -385,25 +385,46 @@ class FilterMerchantWithdrawalsController(APIController):
                 bankName            = schema.bank_name
                 withdrawal_currency = schema.withdrawal_currency
                 withdrawal_amount   = schema.withdrawal_amount
+                startDate           = schema.start_date
+                endDate             = schema.end_date
 
                 conditions  = []
+                paginated_value = 0
 
                 # Select the table
                 stmt = select(
                     MerchantWithdrawals
+                ).where(
+                    MerchantWithdrawals.merchant_id == user_id
+                ).order_by(
+                    desc(MerchantWithdrawals.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
                 # Filter date wise
-                if date_time:
+                if date_time and date_time == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            MerchantWithdrawals.createdAt >= start_date,
+                            MerchantWithdrawals.createdAt < (end_date + timedelta(days=1))
+                        ))
+
+                elif date_time:
                     start_date, end_date = self.get_date_range(date_time)
 
                     conditions.append(
                         and_(
                             MerchantWithdrawals.createdAt   >= start_date,
                             MerchantWithdrawals.createdAt   <= end_date,
-                            MerchantWithdrawals.merchant_id == user_id
                         )
                     )
+
                 
                 # Filter bank name wise
                 if bankName:
@@ -412,8 +433,7 @@ class FilterMerchantWithdrawalsController(APIController):
                     # Get The merchant bank Account
                     merchant_bank_account_obj = await session.execute(select(MerchantBankAccount).where(
                         and_(
-                            MerchantBankAccount.bank_name.like(f"{bankName}%"),
-                            MerchantBankAccount.user      == user_id
+                                MerchantBankAccount.bank_name.like(f"{bankName}%")
                             )
                     ))
                     merchant_bank_account  = merchant_bank_account_obj.scalar()
@@ -423,14 +443,12 @@ class FilterMerchantWithdrawalsController(APIController):
                     
                     conditions.append(
                         and_(
-                            MerchantWithdrawals.bank_id     == merchant_bank_account.id,
-                            MerchantWithdrawals.merchant_id == user_id
+                            MerchantWithdrawals.bank_id     == merchant_bank_account.id
                         )
                     )
 
                 # Filter Withdrawal currency wise
                 if withdrawal_currency:
-                    withdrawal_currency = schema.withdrawal_currency.upper()
 
                     # Get the currency ID
                     currency_obj = await session.execute(select(Currency).where(
@@ -443,8 +461,7 @@ class FilterMerchantWithdrawalsController(APIController):
 
                     conditions.append(
                         and_(
-                            MerchantWithdrawals.currency == currency.id,
-                            MerchantWithdrawals.merchant_id == user_id
+                            MerchantWithdrawals.currency == currency.id
                             )
                         )
                 
@@ -454,8 +471,7 @@ class FilterMerchantWithdrawalsController(APIController):
 
                     conditions.append(
                         and_(
-                            MerchantWithdrawals.amount == withdrawal_amount,
-                            MerchantWithdrawals.merchant_id == user_id
+                            MerchantWithdrawals.amount == withdrawal_amount
                             )
                         )
                 
@@ -465,6 +481,14 @@ class FilterMerchantWithdrawalsController(APIController):
 
                     merchant_withdrawal_transaction_obj = await session.execute(statement)
                     merchant_withdrawal_transaction     = merchant_withdrawal_transaction_obj.scalars().all()
+
+                     ### Count paginated value
+                    count_withdrawal_stmt = select(func.count()).select_from(MerchantWithdrawals).where(
+                            *conditions
+                    )
+                    withdrawal_count = (await session.execute(count_withdrawal_stmt)).scalar()
+
+                    paginated_value = withdrawal_count / limit
 
                     if not merchant_withdrawal_transaction:
                         return json({'error': 'No withdrawal request found'}, 404)
@@ -516,7 +540,9 @@ class FilterMerchantWithdrawalsController(APIController):
 
                 return json({
                     'success': True,
-                    'merchantWithdrawalRequests': combined_data
+                    'merchantWithdrawalRequests': combined_data,
+                    'paginated_count': paginated_value
+                    
                     }, 200)
 
         except Exception as e:

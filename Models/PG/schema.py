@@ -117,6 +117,8 @@ class FilterWithdrawalTransactionSchema:
     bank_name: str = field(default=None)
     withdrawal_currency: str = field(default=None)
     withdrawal_amount: float = field(default=None)
+    start_date: str     = field(default=None)
+    end_date: str       = field(default=None)
 
 
 

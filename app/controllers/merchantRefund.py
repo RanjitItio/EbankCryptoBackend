@@ -489,10 +489,10 @@ class FilterMerchantRefunds(APIController):
         
         return start_date, end_date
     
-
+    #### Filter merchant Refunds
     @auth('userauth')
     @post()
-    async def filter_merchant_refund(self, request: Request, schema: FilterMerchantRefundSchema):
+    async def filter_merchant_refund(self, request: Request, schema: FilterMerchantRefundSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -505,8 +505,11 @@ class FilterMerchantRefunds(APIController):
                 transactionId = schema.transaction_id
                 refundAmount  = schema.refund_amount
                 status        = schema.status
+                startDate     = schema.start_date
+                endDate       = schema.end_date
 
                 conditions = []
+                paginated_value = 0
 
                 # Select table
                 stmt = select(
@@ -529,15 +532,32 @@ class FilterMerchantRefunds(APIController):
                         Currency, Currency.id == MerchantRefund.currency
                     ).join(
                         MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
+                    ).where(
+                        MerchantRefund.merchant_id == user_id
+                    ).order_by(
+                        desc(MerchantRefund.id)
+                    ).limit(
+                        limit
+                    ).offset(
+                        offset
                     )
                 
                 # Filter Date wise
-                if date_time:
+                if date_time and date_time == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            MerchantRefund.createdAt   >= start_date,
+                            MerchantRefund.createdAt   < (end_date + timedelta(days=1))
+                        ))
+
+                elif date_time:
                     start_date, end_date = self.get_date_range(date_time)
 
                     conditions.append(
                         and_(
-                            MerchantRefund.merchant_id == user_id,
                             MerchantRefund.createdAt   >= start_date,
                             MerchantRefund.createdAt   <= end_date
                         ))
@@ -548,7 +568,6 @@ class FilterMerchantRefunds(APIController):
                     
                     conditions.append(
                         and_(
-                            MerchantRefund.merchant_id == user_id,
                             MerchantRefund.status.like(f"{status}%")
                         )
                     )
@@ -589,6 +608,14 @@ class FilterMerchantRefunds(APIController):
                     merchant_refunds_obj = await session.execute(statement)
                     merchant_refunds     = merchant_refunds_obj.fetchall()
 
+                    ### Count paginated value
+                    count_refund_stmt = select(func.count()).select_from(MerchantRefund).where(
+                            *conditions
+                    )
+                    refund_count = (await session.execute(count_refund_stmt)).scalar()
+
+                    paginated_value = refund_count / limit
+
                     if not merchant_refunds:
                         return json({'message': 'No refund requests available'}, 404)
                     
@@ -613,7 +640,9 @@ class FilterMerchantRefunds(APIController):
 
                 return json({
                     'success': True, 
-                    'merchant_refunds': combined_data
+                    'merchant_refunds': combined_data,
+                    'paginated_count': paginated_value
+                    
                     }, 200)
 
         except Exception as e:

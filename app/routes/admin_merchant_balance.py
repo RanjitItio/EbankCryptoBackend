@@ -87,6 +87,7 @@ async def merchant_account_balance(request: Request, user_id: int, currency: str
 
             if merchant_account_balance:
                 merchant_mature_account_balance = merchant_account_balance.mature_balance
+                
             else:
                 merchant_mature_account_balance = 0
 

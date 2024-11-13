@@ -65,8 +65,9 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
                             
                             if merchant_account_balance:
                                 # Update the mature and immature balance
-                                merchant_account_balance.immature_balance -= merchant__balance
-                                merchant_account_balance.mature_balance   += merchant__balance
+                                if merchant_account_balance.immature_balance > 0:
+                                    merchant_account_balance.immature_balance -= merchant__balance
+                                    merchant_account_balance.mature_balance   += merchant__balance
 
                                 transaction.balance_status = 'Mature'
 

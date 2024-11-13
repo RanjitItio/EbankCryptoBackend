@@ -62,13 +62,14 @@ class MerchantAccountBalanceController(APIController):
                                 ))
                                 merchant_account_balance = merchant_account_balance_Obj.scalar()
 
-                                charged_fee = (transaction.amount / 100) * transaction.transaction_fee
+                                charged_fee       = (transaction.amount / 100) * transaction.transaction_fee
                                 merchant__balance = transaction.amount - charged_fee
                                 
                                 if merchant_account_balance:
                                     # Update the mature and immature balance
-                                    merchant_account_balance.immature_balance -= merchant__balance
-                                    merchant_account_balance.mature_balance   += merchant__balance
+                                    if merchant_account_balance.immature_balance > 0:
+                                        merchant_account_balance.immature_balance -= merchant__balance
+                                        merchant_account_balance.mature_balance   += merchant__balance
 
                                     transaction.balance_status = 'Mature'
 

@@ -6,7 +6,7 @@ from Models.models import MerchantBankAccount, Users, Currency
 from Models.models2 import MerchantAccountBalance
 from Models.Admin.PG.schema import AdminWithdrawalUpdateSchema
 from sqlmodel import select, and_, or_, cast, Date, Time, func, desc
-from datetime import datetime
+from datetime import datetime, timedelta
 from Models.Admin.PG.schema import FilterMerchantWithdrawalsSchema
 from app.dateFormat import get_date_range
 
@@ -15,7 +15,7 @@ from app.dateFormat import get_date_range
 # Get all merchant withdrawals
 @auth('userauth')
 @get('/api/v4/admin/merchant/pg/withdrawals/')
-async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, offset: int = 0):
+async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -53,7 +53,13 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
                                Users, Users.id == MerchantWithdrawals.merchant_id
                           ).join(
                                MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
-                          ).order_by(desc(MerchantWithdrawals.id))
+                          ).order_by(
+                               desc(MerchantWithdrawals.id)
+                         ).limit(
+                              limit
+                         ).offset(
+                              offset
+                         )
           
             merchant_withdrawals_object = await session.execute(stmt)
             merchant_withdrawals        = merchant_withdrawals_object.all()
@@ -69,42 +75,42 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 15, off
             total_withdrawal_row_count = total_withdrawal_rows / limit
 
             for withdrawals in merchant_withdrawals:
-                    # Get the withdrawal currency and Bank Currecy
+               # Get the withdrawal currency and Bank Currecy
 
-                    merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
-                        Currency.id == withdrawals.currency
-                    ))
-                    merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
+               merchant_withdrawal_currency_obj = await session.execute(select(Currency).where(
+                    Currency.id == withdrawals.currency
+               ))
+               merchant_withdrawal_currency = merchant_withdrawal_currency_obj.scalar()
 
-                    # Get the merchant Bank Currency
-                    merchant_bank_currency_obj = await session.execute(select(Currency).where(
-                        Currency.id == withdrawals.bank_currency
-                    ))
-                    merchant_bank_currency = merchant_bank_currency_obj.scalar()
+               # Get the merchant Bank Currency
+               merchant_bank_currency_obj = await session.execute(select(Currency).where(
+                    Currency.id == withdrawals.bank_currency
+               ))
+               merchant_bank_currency = merchant_bank_currency_obj.scalar()
 
-                    # Get merchant account balance
-                    merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
-                         and_(MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
-                              MerchantAccountBalance.currency    == merchant_withdrawal_currency.name
-                              )
-                    ))
-                    merchant_account_balance_ = merchant_account_balance_obj.scalar()
+               # Get merchant account balance
+               merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
+                    and_(MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
+                         MerchantAccountBalance.currency    == merchant_withdrawal_currency.name
+                         )
+               ))
+               merchant_account_balance_ = merchant_account_balance_obj.scalar()
 
-                    combined_data.append({
-                        'id': withdrawals.id,
-                        'merchant_id': withdrawals.merchant_id,
-                        'merchant_name': withdrawals.full_name,
-                        'merchant_email': withdrawals.email,
-                        'bank_account': withdrawals.bank_name,
-                        'bankCurrency': merchant_bank_currency.name,
-                        'withdrawalAmount': withdrawals.amount,
-                        'withdrawalCurrency': merchant_withdrawal_currency.name,
-                        'createdAt': withdrawals.createdAt,
-                        'status':   withdrawals.status,
-                        'is_completed': withdrawals.is_completed,
-                        'account_balance': merchant_account_balance_.mature_balance if merchant_account_balance_ else None,
-                        'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
-                    })
+               combined_data.append({
+                    'id': withdrawals.id,
+                    'merchant_id': withdrawals.merchant_id,
+                    'merchant_name': withdrawals.full_name,
+                    'merchant_email': withdrawals.email,
+                    'bank_account': withdrawals.bank_name,
+                    'bankCurrency': merchant_bank_currency.name,
+                    'withdrawalAmount': withdrawals.amount,
+                    'withdrawalCurrency': merchant_withdrawal_currency.name,
+                    'createdAt': withdrawals.createdAt,
+                    'status':   withdrawals.status,
+                    'is_completed': withdrawals.is_completed,
+                    'account_balance': merchant_account_balance_.mature_balance if merchant_account_balance_ else None,
+                    'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
+               })
 
             return json({
                     'success': True, 
@@ -465,7 +471,7 @@ async def AdminMerchantExportWithdrawalRequests(request: Request):
 ## Filter Merchant Withdrawals by Admin
 @auth('userauth')
 @post('/api/v4/admin/filter/merchant/withdrawals/')
-async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWithdrawalsSchema):
+async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWithdrawalsSchema, limit: int = 10, offset: int = 0):
      try:
           async with AsyncSession(async_engine) as session:
                user_identity = request.identity
@@ -488,18 +494,11 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                merchant_email       = schema.email
                withdrawal_amount    = schema.amount
                withdrawal_status    = schema.status
+               startDate            = schema.start_date
+               endDate              = schema.end_date
 
-
-               # Filter merchant email wise
-               if merchant_email:
-                    # Get the user
-                    merchant_user_obj = await session.execute(select(Users).where(
-                         Users.email.like(f"{merchant_email}%") 
-                    ))
-                    merchant_user = merchant_user_obj.scalar()
-
-                    if not merchant_user:
-                         return json({'message': 'Invalid Email'}, 400)
+               conditions = []
+               paginated_value = 0
                     
 
                # Get all the merchant withdrawals
@@ -521,12 +520,38 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                          Users, Users.id == MerchantWithdrawals.merchant_id
                     ).join(
                          MerchantBankAccount, MerchantBankAccount.id == MerchantWithdrawals.bank_id
+                    ).order_by(
+                         desc(MerchantWithdrawals.id)
+                    ).limit(
+                         limit
+                    ).offset(
+                         offset
+                    )
+               
+               # Filter merchant email wise
+               if merchant_email:
+                    # Get the user
+                    merchant_user_obj = await session.execute(select(Users).where(
+                         Users.email.like(f"{merchant_email}%") 
+                    ))
+                    merchant_user = merchant_user_obj.scalar()
+
+                    if not merchant_user:
+                         return json({'message': 'Invalid Email'}, 400)
+
+               # Date time wise filter
+               if date_time and date_time == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                         and_(
+                             MerchantWithdrawals.createdAt >= start_date,
+                             MerchantWithdrawals.createdAt  < (end_date + timedelta(days=1))
+                         )
                     )
 
-               conditions = []
-
-               # Date time 
-               if date_time:
+               elif date_time:
                     start_date, end_date = get_date_range(date_time)
 
                     conditions.append(
@@ -535,29 +560,41 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                              MerchantWithdrawals.createdAt <= end_date 
                          )
                     )
-               
+
+               ### Email wise filter
                if merchant_email:
                     conditions.append(
                          MerchantWithdrawals.merchant_id == merchant_user.id
                     )
                
+               ### Withdrawal amount wise filter
                if withdrawal_amount:
                     withdrawal_amount = float(schema.amount)
 
                     conditions.append(
                          MerchantWithdrawals.amount == withdrawal_amount
                     )
-
+               
+               #### Withdrawal status wise filter
                if withdrawal_status:
                     conditions.append(
                          MerchantWithdrawals.status.ilike(f"{withdrawal_status}%")
                     )
                
+               ### If fitltered data found
                if conditions:
                     statement = stmt.where(and_(*conditions))
                     
                     merchant_withdrawals_object = await session.execute(statement)
                     merchant_withdrawals        = merchant_withdrawals_object.fetchall()
+
+                    ### Count paginated value
+                    count_withdrawal_stmt = select(func.count()).select_from(MerchantWithdrawals).where(
+                         *conditions
+                    )
+                    withdrawal_count = (await session.execute(count_withdrawal_stmt)).scalar()
+
+                    paginated_value = withdrawal_count / limit
      
                     if not merchant_withdrawals:
                          return json({'message': 'No transaction found'}, 404)
@@ -582,9 +619,10 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
 
                     # Get merchant account balance
                     merchant_account_balance_obj = await session.execute(select(MerchantAccountBalance).where(
-                         and_(MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
+                         and_(
+                              MerchantAccountBalance.merchant_id == withdrawals.merchant_id,
                               MerchantAccountBalance.currency    == merchant_withdrawal_currency.name
-                              )
+                         )
                     ))
                     merchant_account_balance_ = merchant_account_balance_obj.scalar()
 
@@ -600,13 +638,14 @@ async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWi
                         'createdAt': withdrawals.createdAt,
                         'status':   withdrawals.status,
                         'is_completed': withdrawals.is_completed,
-                        'account_balance': merchant_account_balance_.amount if merchant_account_balance_ else None,
+                        'account_balance': merchant_account_balance_.mature_balance if merchant_account_balance_ else None,
                         'account_currency': merchant_account_balance_.currency if merchant_account_balance_ else None
                     })
 
                return json({
                          'success': True, 
                          'AdminMerchantWithdrawalRequests': combined_data,
+                         'paginated_count': paginated_value
                     }, 200)
 
      except Exception as e:

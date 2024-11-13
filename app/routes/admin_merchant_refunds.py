@@ -6,7 +6,7 @@ from Models.models2 import MerchantProdTransaction, MerchantAccountBalance
 from Models.models3 import MerchantRefund
 from Models.Admin.PG.schema import AdminUpdateMerchantRefundSchema, FilterMerchantRefunds
 from sqlmodel import select, and_, desc, func, cast, Date, Time, or_
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.dateFormat import get_date_range
 
 
@@ -423,7 +423,7 @@ async def SearchMerchantRefunds(request: Request, query: str):
 
 @auth('userauth')
 @post('/api/v6/admin/filter/merchant/refunds/')
-async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefunds):
+async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefunds, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -444,9 +444,12 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
             merchant_mail   = schema.email
             refund_currency = schema.currency
             refund_amount   = schema.amount
+            startDate       = schema.start_date
+            endDate         = schema.end_date
 
             conditions = []
             combined_data = []
+            paginated_value = 0
 
             # Select data
             stmt = select(
@@ -471,10 +474,27 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
                     MerchantProdTransaction, MerchantProdTransaction.id == MerchantRefund.transaction_id
                 ).join(
                      Users, Users.id == MerchantRefund.merchant_id
+                ).order_by(
+                    desc(MerchantRefund.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
+
             # Filter time wise
-            if date_time:
+            if date_time and date_time == 'CustomRange':
+                start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                conditions.append(
+                    and_(
+                        MerchantRefund.createdAt >= start_date,
+                        MerchantRefund.createdAt < (end_date + timedelta(days=1))
+                    ))
+                
+            elif date_time:
                 # Convert according to date time format
                 start_date, end_date = get_date_range(date_time)
 
@@ -484,6 +504,7 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
                         MerchantRefund.createdAt <= end_date
                     ))
              
+
             # Filter Merchant email wise
             if merchant_mail:
                 merchant_email_obj = await session.execute(select(Users).where(
@@ -497,6 +518,7 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
                 conditions.append(
                     MerchantRefund.merchant_id == merchant_email.id
                 )
+
 
             # Filter currency wise
             if refund_currency:
@@ -519,11 +541,20 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
                     MerchantRefund.amount == refund_amount
                 )
             
+            ### IF filtered data present
             if conditions:
                 statement = stmt.where(and_(*conditions))
 
                 merchant_refunds_obj = await session.execute(statement)
                 merchant_refunds     = merchant_refunds_obj.fetchall()
+
+                ### Count paginated value
+                count_refund_stmt = select(func.count()).select_from(MerchantRefund).where(
+                        *conditions
+                )
+                refund_count = (await session.execute(count_refund_stmt)).scalar()
+
+                paginated_value = refund_count / limit
 
                 if not merchant_refunds:
                     return json({'message': 'No transaction found'}, 404)
@@ -550,7 +581,9 @@ async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefund
 
             return json({
                 'success': True, 
-                'admin_merchant_filter_refunds': combined_data
+                'admin_merchant_filter_refunds': combined_data,
+                'paginated_count': paginated_value
+
                 }, 200)
 
     except Exception as e:

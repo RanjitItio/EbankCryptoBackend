@@ -55,6 +55,8 @@ class FilterMerchantRefunds:
     email: str = field(default=None)
     currency: str = field(default=None)
     amount: float = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str = field(default=None)
 
 
 

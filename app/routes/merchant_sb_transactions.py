@@ -4,7 +4,7 @@ from database.db import AsyncSession, async_engine
 from Models.models import Users
 from Models.models2 import MerchantSandBoxTransaction
 from sqlmodel import select, func, desc, cast, Date, Time, and_
-from datetime import datetime
+from datetime import datetime, timedelta
 from Models.Admin.PG.schema import AllSandboxTransactionFilterSchema
 from app.dateFormat import get_date_range
 
@@ -15,7 +15,7 @@ from app.dateFormat import get_date_range
 # Get all the merchant sandbox transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sandbox/transactions/')
-async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 15, offset : int = 0):
+async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 10, offset : int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -273,7 +273,7 @@ async def search_merchant_pg_sandbox_transactions(request: Request, query: str):
 # Filter Merchant Sandbox Transactions
 @auth('userauth')
 @post('/api/v2/admin/merchant/filter/sandbox/transaction/')
-async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandboxTransactionFilterSchema):
+async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandboxTransactionFilterSchema, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -296,18 +296,41 @@ async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandb
             transactionID      = schema.transaction_id
             transaction_amount = schema.transaction_amount
             business_name      = schema.business_name
+            startDate          = schema.start_date
+            endDate            = schema.end_date
+            
 
-            if date_time:
+            conditions = []
+            paginated_value = 0
+
+            
+            ### Select the table and column
+            stmt = select(
+                MerchantSandBoxTransaction
+            ).order_by(
+                desc(MerchantSandBoxTransaction.id)
+            ).limit(
+                limit
+            ).offset(
+                offset
+            )
+
+            ## Filter according to the Input date time
+            if date_time and date_time == 'CustomRange':
+                start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                conditions.append(
+                    and_(
+                        MerchantSandBoxTransaction.createdAt >= start_date,
+                        MerchantSandBoxTransaction.createdAt < (end_date + timedelta(days=1))
+                    )
+                )
+
+            elif date_time:
                 # Convert according to date time format
                 start_date, end_date = get_date_range(date_time)
 
-            conditions = []
-
-            stmt = select(
-                MerchantSandBoxTransaction
-            )
-            ## Filter according to the Input date time
-            if date_time:
                 conditions.append(
                     and_(
                         MerchantSandBoxTransaction.createdAt >= start_date,
@@ -335,11 +358,20 @@ async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandb
                     MerchantSandBoxTransaction.business_name == business_name
                 )
             
+            ### IF data found
             if conditions:
                 statement = stmt.where(and_(*conditions))
 
                 merchant_transactions_obj = await session.execute(statement)
                 merchant_transactions     = merchant_transactions_obj.scalars().all()
+
+                ### Count paginated value
+                count_transaction_stmt = select(func.count()).select_from(MerchantSandBoxTransaction).where(
+                    *conditions
+                )
+                transaction_count = (await session.execute(count_transaction_stmt)).scalar()
+
+                paginated_value = transaction_count / limit
 
                 if not merchant_transactions:
                     return json({'message': 'No transaction found'}, 404)
@@ -383,6 +415,7 @@ async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandb
                 'success': True, 
                 'message': 'Transaction fetched successfuly', 
                 'AdminmerchantPGSandboxTransactions': combined_data,
+                'paginated_count': paginated_value
                 }, 200)
 
     except Exception as e:

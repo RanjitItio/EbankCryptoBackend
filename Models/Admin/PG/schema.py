@@ -24,6 +24,8 @@ class AllTransactionFilterSchema:
     transaction_id: str = field(default=None)
     transaction_amount: float = field(default=None)
     business_name: str = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str = field(default=None)
     
 
 @dataclass
@@ -31,7 +33,9 @@ class AllSandboxTransactionFilterSchema:
     date: str = field(default=None)
     transaction_id: str = field(default=None)
     transaction_amount: float = field(default=None)
-    business_name: str = field(default=None)
+    business_name: str   = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str = field(default=None)
 
 
 @dataclass
@@ -57,7 +61,9 @@ class FilterBusinsessPage:
     date: str = field(default=None)
     merchant_name: str = field(default=None)
     business_name: str = field(default=None)
-    status: str = field(default=None)
+    status: str     = field(default=None)
+    start_date: str = field(default=None)
+    end_date: str   = field(default=None)
 
 
 @dataclass

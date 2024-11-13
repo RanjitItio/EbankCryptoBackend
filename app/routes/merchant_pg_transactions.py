@@ -849,7 +849,7 @@ async def merchant_pg_transaction(request: Request, query: int, limit: int = 15,
 # Filter All production transaction
 @auth('userauth')
 @post('/api/v2/admin/filter/merchant/transaction/')
-async def filter_merchant_pg_production_transaction(request: Request, schema: AllTransactionFilterSchema):
+async def filter_merchant_pg_production_transaction(request: Request, schema: AllTransactionFilterSchema, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -867,20 +867,42 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
 
             combined_data = []
 
-            # Get The payload data
+            ### Get The payload data
             date_time          = schema.date
             transactionID      = schema.transaction_id
             transaction_amount = schema.transaction_amount
             business_name      = schema.business_name
+            startDate          = schema.start_date
+            endDate            = schema.end_date
 
             conditions = []
+            transaction_count = 0
+            paginated_value = 0
+
 
             stmt = select(
                 MerchantProdTransaction
+            ).order_by(
+                desc(MerchantProdTransaction.id)
+            ).limit(
+                limit
+            ).offset(
+                offset
             )
 
             ## Filter according to the Input date time
-            if date_time:
+            if date_time and date_time == 'CustomRange':
+                start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                conditions.append(
+                    and_(
+                        MerchantProdTransaction.createdAt >= start_date,
+                        MerchantProdTransaction.createdAt < (end_date + timedelta(days=1))
+                    )
+                )
+
+            elif date_time:
                 start_date, end_date = get_date_range(date_time)
 
                 conditions.append(
@@ -915,11 +937,20 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
                 merchant_transactions_obj = await session.execute(statement)
                 merchant_transactions     = merchant_transactions_obj.scalars().all()
 
+                ### Count paginated value
+                count_transaction_stmt = select(func.count()).select_from(MerchantProdTransaction).where(
+                    *conditions
+                )
+                transaction_count = (await session.execute(count_transaction_stmt)).scalar()
+
+                paginated_value = transaction_count / limit
+
                 if not merchant_transactions:
                     return json({'message': 'No transaction found'}, 404)
+                
             else:
                 return json({'message': 'No data found'}, 404)
-
+            
             # Get all the users
             user_obj   = await session.execute(select(Users))
             users      = user_obj.scalars().all()
@@ -956,7 +987,9 @@ async def filter_merchant_pg_production_transaction(request: Request, schema: Al
             return json({
                 'success': True, 
                 'message': 'Transaction fetched successfuly', 
-                'AdminmerchantPGTransactions': combined_data
+                'AdminmerchantPGTransactions': combined_data,
+                'paginated_count': paginated_value
+                
                 }, 200)
 
     except Exception as e:

@@ -2,7 +2,7 @@ from blacksheep import json, Request, get, put, post
 from database.db import AsyncSession, async_engine
 from blacksheep.server.authorization import auth
 from Models.models import Users, MerchantGroup, BusinessProfile, Currency
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from blacksheep.exceptions import BadRequest
 from pathlib import Path
 from decouple import config
@@ -14,15 +14,18 @@ import uuid
 import re
 
 
+
 is_development  = config('IS_DEVELOPMENT')
 development_url = config('DEVELOPMENT_URL_MEDIA')
 production_url  = config('PRODUCTION_URL_MEDIA')
+
 
 
 if is_development == 'True':
     url = development_url
 else:
     url = production_url
+
 
 
 async def save_business_logo(request: Request):
@@ -596,7 +599,7 @@ async def exportMerchantBusiness(request: Request):
 ## Filter business by Admin
 @auth('userauth')
 @post('/api/v2/admin/filter/merchant/business/')
-async def filter_business(request: Request, schema: FilterBusinsessPage):
+async def filter_business(request: Request, schema: FilterBusinsessPage, limit: int = 10, offset: int = 0):
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -617,16 +620,38 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
             merchant_name = schema.merchant_name
             business_name = schema.business_name
             status        = schema.status
+            startDate     = schema.start_date
+            endDate       = schema.end_date
 
-            conditions = []
-            combined_data = []
+            conditions      = []
+            combined_data   = []
+            business_count  = 0
+            paginated_value = 0
+
 
             stmt = select(
                 BusinessProfile
+            ).order_by(
+                desc(BusinessProfile.id)
+            ).limit(
+                limit
+            ).offset(
+                offset
             )
 
+
             # Filter date wise
-            if date_time:
+            if date_time and date_time == 'CustomRange':
+                start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                conditions.append(
+                    and_(
+                        BusinessProfile.created_date >= start_date,
+                        BusinessProfile.created_date < (end_date + timedelta(days=1))
+                    ))
+            
+            elif date_time:
                 start_date, end_date = get_date_range(date_time)
 
                 conditions.append(
@@ -634,6 +659,7 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
                         BusinessProfile.created_date >= start_date,
                         BusinessProfile.created_date <= end_date
                     ))
+
 
             # Filter merchant name wise
             if merchant_name:
@@ -667,6 +693,14 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
 
                 business_profile_obj = await session.execute(statement)
                 business_profile     = business_profile_obj.scalars().all()
+
+                ### Count paginated value
+                count_business_stmt = select(func.count()).select_from(BusinessProfile).where(
+                    *conditions
+                )
+                business_count = (await session.execute(count_business_stmt)).scalar()
+
+                paginated_value = business_count / limit
 
                 if not business_profile:
                     return json({'message': 'No business found'}, 404)
@@ -733,8 +767,9 @@ async def filter_business(request: Request, schema: FilterBusinsessPage):
             return json({
                     'msg': 'Merchant data fetched successfully', 
                     'filtered_business': combined_data,
-                    'success': True
-                    }, 200)
+                    'paginated_count': paginated_value,
+                    'success': True,
+                }, 200)
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

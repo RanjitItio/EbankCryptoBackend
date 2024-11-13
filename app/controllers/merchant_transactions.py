@@ -505,7 +505,7 @@ class FilterMerchantTransactionController(APIController):
 
     @auth('userauth')
     @post()
-    async def filter_merchant_transaction(self, request: Request, schema: FilterTransactionSchema):
+    async def filter_merchant_transaction(self, request: Request, schema: FilterTransactionSchema, limit: int = 10, offset: int = 0):
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -514,20 +514,43 @@ class FilterMerchantTransactionController(APIController):
                 combined_data = []
 
                 # Get payload data
-                currenct_time_date = schema.date
+                date_time          = schema.date
                 orderID            = schema.order_id
                 transactionID      = schema.transaction_id
                 businessName       = schema.business_name
+                startDate          = schema.start_date
+                endDate            = schema.end_date
 
                 conditions = []
+                paginated_value = 0
 
                 stmt = select(
                     MerchantProdTransaction
+                ).order_by(
+                    desc(MerchantProdTransaction.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
                 )
 
-                if currenct_time_date:
+                #### Filter Date range wise
+                if date_time and date_time == 'CustomRange':
+                    start_date = datetime.strptime(startDate, "%Y-%m-%d")
+                    end_date   = datetime.strptime(endDate, "%Y-%m-%d")
+
+                    conditions.append(
+                        and_(
+                            MerchantProdTransaction.merchant_id == user_id,
+                            MerchantProdTransaction.createdAt  >= start_date,
+                            MerchantProdTransaction.createdAt  < (end_date + timedelta(days=1))
+                            )
+                        )
+
+                elif date_time:
                     # Convert to date time format
-                    start_date, end_date = self.get_date_range(currenct_time_date)
+                    start_date, end_date = self.get_date_range(date_time)
+
                     conditions.append(
                         and_(
                             MerchantProdTransaction.merchant_id == user_id,
@@ -535,6 +558,7 @@ class FilterMerchantTransactionController(APIController):
                             MerchantProdTransaction.createdAt  <= end_date,)
                         )
                 
+
                 # Filter order ID wise
                 if orderID:
                     conditions.append(
@@ -571,11 +595,20 @@ class FilterMerchantTransactionController(APIController):
                     merchant_pg_transaction_obj = await session.execute(statement)
                     merchant_pg_transaction     = merchant_pg_transaction_obj.scalars().all()
 
+                     ### Count paginated value
+                    count_transaction_stmt = select(func.count()).select_from(MerchantProdTransaction).where(
+                            *conditions
+                    )
+                    transaction_count = (await session.execute(count_transaction_stmt)).scalar()
+
+                    paginated_value = transaction_count / limit
+
                     if not merchant_pg_transaction:
                         return json({'message': 'No transaction available'}, 404)
                 else:
                     return json({'message': 'No transaction available'}, 400)
                 
+
                 # Store all the data inside a list
                 for transaction in merchant_pg_transaction:
 
@@ -604,7 +637,8 @@ class FilterMerchantTransactionController(APIController):
 
                 return json({
                     'success': True,
-                    'merchant_prod_trasactions': combined_data
+                    'merchant_prod_trasactions': combined_data,
+                    'paginated_count': paginated_value
                     }, 200)
 
         except Exception as e:

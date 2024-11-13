@@ -107,6 +107,8 @@ class FilterTransactionSchema:
     order_id: str       = field(default=None)
     transaction_id: str = field(default=None)
     business_name: str  = field(default=None)
+    start_date: str     = field(default=None)
+    end_date: str       = field(default=None)
 
 
 @dataclass

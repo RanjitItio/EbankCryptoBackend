@@ -202,7 +202,7 @@ class MerchantAccountBalance(SQLModel, table=True):
     account_balance: float  = Field(default=0.00, nullable=True)
     frozen_balance: float   = Field(default=0.00, nullable=True)
     currency: str           = Field(default='', index=True)
-    last_updated: datetime  = Field(default=datetime.utcnow, nullable=True)
+    last_updated: datetime  = Field(default=datetime.now(), nullable=True)
 
 
     def update_account_balance(self):

@@ -162,7 +162,7 @@ class UserCryptoExchangeController(APIController):
                 ).join(
                     CryptoWallet, CryptoWallet.id == CryptoExchange.crypto_wallet
                 ).join(
-                    Wallet, Wallet.id == CryptoExchange.fiat_wallet
+                    Wallet, and_(Wallet.id == CryptoExchange.fiat_wallet)
                 ).where(
                     CryptoExchange.user_id == user_id
                 ).order_by(

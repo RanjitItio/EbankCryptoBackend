@@ -142,23 +142,29 @@ class UserController(APIController):
                     await session.commit()
                     await session.refresh(user_instance)
 
-                    # If user is a Merchant then assign Public and secret key
-                    if user.is_merchent:
-                        _secret_key = await generate_merchant_secret_key(user_instance.id)
-                        public_key_ = await generate_merchant_unique_public_key()
-
-                        merchant_secret_key = UserKeys(
-                            user_id    = user_instance.id,
-                            secret_key = _secret_key,
-                            public_key = public_key_
-                        )
-
-                        session.add(merchant_secret_key)
-                        await session.commit()
-                        await session.refresh(merchant_secret_key)
-
                 except Exception as e:
                     return json({'msg': f'user create error {str(e)}'}, 400)
+                
+
+                # try:
+                #      # If user is a Merchant then assign Public and secret key
+                #     if user.is_merchent:
+                #         _secret_key = await generate_merchant_secret_key(user_instance.id)
+                #         public_key_ = await generate_merchant_unique_public_key()
+
+                #         merchant_secret_key = UserKeys(
+                #             user_id    = user_instance.id,
+                #             secret_key = _secret_key,
+                #             public_key = public_key_
+                #         )
+
+                #         session.add(merchant_secret_key)
+                #         await session.commit()
+                #         await session.refresh(merchant_secret_key)
+
+                # except Exception as e:
+                #     return json({'message': 'Unable to create keys for user', 'message': f'{str(e)}'}, 400)
+                
 
                 userID          = user_instance.id
                 user_first_name = user_instance.first_name

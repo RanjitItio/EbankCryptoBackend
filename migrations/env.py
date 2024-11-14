@@ -10,6 +10,7 @@ from Models.models3 import *
 from Models.models4 import *
 from Models.crypto import *
 from Models.fee import *
+from Models.card import *
 from alembic import context
 
 

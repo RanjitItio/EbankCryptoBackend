@@ -2,6 +2,7 @@ from database.db import AsyncSession, async_engine
 from sqlmodel import select
 from Models.models3 import MerchantPaymentButton
 from Models.crypto import CryptoSwap, CryptoExchange
+from Models.card import FiatCard
 import uuid
 import time
 import json
@@ -120,3 +121,13 @@ def generate_random_word(length=30):
 
     return ''.join(characters)
 
+
+
+#### Generate 16 digit number for card
+async def generate_unique_16_digit_number():
+    random_number     = random.randint(10**15, 10**16 - 1)
+    str_random_number = str(random_number)
+
+    return str_random_number
+
+            

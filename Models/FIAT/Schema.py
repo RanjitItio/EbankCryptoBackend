@@ -106,3 +106,19 @@ class UserFilterFIATExchangesSchema:
     status: str        = field(default=None)
     start_date: str    = field(default=None)
     end_date: str      = field(default=None)
+
+
+
+@dataclass
+class UserCreateFiatCardSchema:
+    card_name: str
+    currency: str
+
+
+
+@dataclass
+class UserUpdateFiatCardSchema:
+    card_name: str 
+    cvv: str
+    status: str
+    card_id: int

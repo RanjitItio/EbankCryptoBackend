@@ -122,3 +122,9 @@ class UserUpdateFiatCardSchema:
     cvv: str
     status: str
     card_id: int
+
+
+@dataclass
+class UserUpdateFIATCardPINSchema:
+    card_id: int
+    pin: str

@@ -3,7 +3,7 @@ from blacksheep.server.authorization import auth
 from blacksheep import Request, json
 from Models.models import Currency, Users, Wallet
 from Models.models4 import DepositTransaction, TransferTransaction
-from Models.crypto import CryptoExchange, CryptoWallet
+from Models.crypto import CryptoExchange, CryptoWallet, CryptoSell
 from Models.FIAT.Schema import UserFIATTransactionFilterSchema
 from database.db import async_engine, AsyncSession
 from app.controllers.controllers import get, post
@@ -52,15 +52,20 @@ class UserFiatTransactionController(APIController):
                 total_transfer_rows       = exec_select_transfer_rows.scalar()
 
                 ### Count available rows in Crypto Exchange table
-                ### Count all availble rows for paginated data
                 select_exchange_rows = select(func.count(CryptoExchange.id)).where(CryptoExchange.user_id == user_id)
                 exec_exchange_query  = await session.execute(select_exchange_rows)
 
                 total_exchange_rows = exec_exchange_query.scalar()
 
+                ###Count available rows in Crypto Sell Transaction
+                select_crypto_sell_rows = select(func.count(CryptoSell.id)).where(CryptoSell.user_id == user_id)
+                exec_crypto_sell_query  = await session.execute(select_crypto_sell_rows)
+
+                total_crypto_sell_rows = exec_crypto_sell_query.scalar()
+
                 ## Count total avaible rows
-                total_rows           = total_deposit_rows + total_transfer_rows + total_exchange_rows
-                total_paginated_rows = total_rows / (limit * 3)
+                total_rows           = total_deposit_rows + total_transfer_rows + total_exchange_rows + total_crypto_sell_rows
+                total_paginated_rows = total_rows / (limit * 4)
 
                 # Get all deposit Transaction
                 deposit_transaction_obj = await session.execute(select(DepositTransaction).where(
@@ -113,9 +118,39 @@ class UserFiatTransactionController(APIController):
                     offset
                 )
 
+                crypto_sell_stmt = select(
+                    CryptoSell.id,
+                    CryptoSell.crypto_quantity,
+                    CryptoSell.payment_type,
+                    CryptoSell.received_amount,
+                    CryptoSell.fee_value,
+                    CryptoSell.created_at,
+                    CryptoSell.status,
+                    CryptoSell.transaction_id,
+
+                    CryptoWallet.crypto_name,
+                    Wallet.currency.label('wallet_currency'),
+                ).join(
+                    CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                ).join(
+                    Wallet, Wallet.id == CryptoSell.wallet_id
+                ).where(
+                    CryptoSell.user_id == user_id
+                ).order_by(
+                    desc(CryptoSell.id)
+                ).limit(
+                    limit
+                ).offset(
+                    offset
+                )
+
                 #### Get all available Crypto Exchange Transactions
                 all_crypto_exchange_transaction_obj = await session.execute(stmt)
                 all_crypto_exchange_transaction     = all_crypto_exchange_transaction_obj.fetchall()
+
+                ### Get all Crypto Sell Transactions
+                crypto_sell_transaction_obj = await session.execute(crypto_sell_stmt)
+                crypto_sell_transaction = crypto_sell_transaction_obj.fetchall()
 
                 # Fetch all the available Currencies
                 currency     = await session.execute(select(Currency))
@@ -187,11 +222,33 @@ class UserFiatTransactionController(APIController):
                                 'transaction_fee': transaction.fee_value, ###transaction_fee
                                 'crypto_name': transaction.crypto_name,
                                 'credited_currency': transaction.currency,
+                                
                             },
                             'currency': {
                                     'name': transaction.currency
                             }
                         } for transaction in all_crypto_exchange_transaction
+
+                    ] + [
+                        {
+                            "type": "CryptoSell",
+                            "data": {
+                                'id': transaction.id,
+                                'amount': transaction.crypto_quantity,
+                                'payment_type': transaction.payment_type,
+                                'credited_amount': transaction.received_amount,
+                                'transaction_fee': transaction.fee_value,
+                                'created_At': transaction.created_at,
+                                'status': transaction.status,
+                                'crypto_name': transaction.crypto_name,
+                                'credited_currency': transaction.wallet_currency,
+                                'transaction_id': transaction.transaction_id
+                            },
+                            'currency': {
+                                'name': transaction.wallet_currency
+                            }
+
+                        } for transaction in crypto_sell_transaction
                     ]
 
                 return json({
@@ -335,7 +392,7 @@ class UserFiatTransactionFilterController(APIController):
     def class_name(cls):
         return "Filter User Transaction Controller"
     
-
+    #### User Filter FIAT Transactions
     @auth('userauth')
     @post()
     async def filter_userFIATTransaction(self, request: Request,schema: UserFIATTransactionFilterSchema,  limit: int = 5, offset: int = 0):
@@ -357,6 +414,8 @@ class UserFiatTransactionFilterController(APIController):
                 deposit_conditions   = []
                 transfer_conditions  = []
                 crypto_exchange_conditions = []
+                crypto_sell_conditions = []
+
 
                 #### Aliased table
                 TransferTransactionSender   = aliased(Users)
@@ -387,6 +446,13 @@ class UserFiatTransactionFilterController(APIController):
                         )
                     )
 
+                    crypto_sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at < (end_date + timedelta(days=1))
+                        )
+                    )
+
                 elif dateRange:
                     start_date, end_date = get_date_range(dateRange)
 
@@ -410,6 +476,13 @@ class UserFiatTransactionFilterController(APIController):
                             CryptoExchange.created_at <= end_date
                         )
                     )
+
+                    crypto_sell_conditions.append(
+                        and_(
+                            CryptoSell.created_at >= start_date,
+                            CryptoSell.created_at <= end_date
+                        )
+                    )
                 
                 ### Filter Currency Wise
                 if filterCurrency:
@@ -424,7 +497,7 @@ class UserFiatTransactionFilterController(APIController):
                             Wallet.user_id == user_id
                         )
                     ))
-                    fiat_wallet__obj = fiat_wallet__obj.scalar()
+                    fiat_wallet = fiat_wallet__obj.scalar()
 
                     if not currency:
                         return json({'message': 'Invalid Currency'}, 404)
@@ -438,8 +511,13 @@ class UserFiatTransactionFilterController(APIController):
                     )
 
                     crypto_exchange_conditions.append(
-                        CryptoExchange.fiat_wallet == fiat_wallet__obj.id
+                        CryptoExchange.fiat_wallet == fiat_wallet.id
                     )
+
+                    crypto_sell_conditions.append(
+                        CryptoSell.wallet_id == fiat_wallet.id
+                    )
+
 
                 ### Filter Status wise
                 if status:
@@ -453,6 +531,10 @@ class UserFiatTransactionFilterController(APIController):
 
                     crypto_exchange_conditions.append(
                         CryptoExchange.status == status
+                    )
+
+                    crypto_sell_conditions.append(
+                        CryptoSell.status == status
                     )
                 
                 #### Filter transaction Type wise
@@ -565,7 +647,7 @@ class UserFiatTransactionFilterController(APIController):
                     user_transfer_transaction = []
                     transfer_count = 0
 
-                 ### Transaction Type wise filter
+                ### Transaction Type wise filter
                 if transactionType == 'CryptoExchange' or not transactionType:
                     crypto_exchange_stmt = select(
                         CryptoExchange.id,
@@ -607,13 +689,56 @@ class UserFiatTransactionFilterController(APIController):
                     user_exchange_transaction = []
                     exchange_count = 0
 
+                #### Filter Crypto Sell Transaction Type
+                if transactionType == 'CryptoSell' or not transactionType:
+                    crypto_sell_stmt = select(
+                        CryptoSell.id,
+                        CryptoSell.crypto_quantity,
+                        CryptoSell.payment_type,
+                        CryptoSell.received_amount,
+                        CryptoSell.fee_value,
+                        CryptoSell.created_at,
+                        CryptoSell.status,
+                        CryptoSell.transaction_id,
+
+                        CryptoWallet.crypto_name,
+                        Wallet.currency.label('wallet_currency')
+                        
+                    ).join(
+                        CryptoWallet, CryptoWallet.id == CryptoSell.crypto_wallet_id
+                    ).join(
+                        Wallet, Wallet.id == CryptoSell.wallet_id
+                    ).where(
+                        CryptoSell.user_id == user_id
+                    )
+
+                    if crypto_sell_conditions:
+                        crypto_sell_stmt = crypto_sell_stmt.where(and_(*crypto_sell_conditions))
+                        
+                    crypto_sell_stmt = crypto_sell_stmt.order_by(desc(CryptoSell.id)).limit(limit).offset(offset)
+
+                    # Count query
+                    sell_count_stmt = select(func.count()).select_from(CryptoSell).where(CryptoSell.user_id == user_id)
+
+                    if crypto_sell_conditions:
+                        sell_count_stmt = sell_count_stmt.where(and_(*crypto_sell_conditions))
+
+                    sell_count  = (await session.execute(sell_count_stmt)).scalar()
+
+                    user_crypto_sell_transaction_obj = await session.execute(crypto_sell_stmt)
+                    user_crypto_sell_transaction     = user_crypto_sell_transaction_obj.fetchall()
+                
+                else:
+                    user_crypto_sell_transaction = []
+                    sell_count = 0
+
                 ### If noo data found
-                if not user_transfer_transaction and not user_deposit_transaction and not user_exchange_transaction:
+                if not user_transfer_transaction and not user_deposit_transaction and not user_exchange_transaction and not user_crypto_sell_transaction:
                     return json({"message": 'No data found'}, 404)
                 
                 ### Count Paginated value
-                total_deposit_transfer_count = deposit_count + transfer_count + exchange_count
-                paginated_count = total_deposit_transfer_count / (limit * 3) if limit > 0 else 1
+                total_deposit_transfer_count = deposit_count + transfer_count + exchange_count + sell_count
+                paginated_count = total_deposit_transfer_count / (limit * 4) if limit > 0 else 1
 
                 ### Get Receiver Data
                 all_user_obj      = await session.execute(select(Users))
@@ -679,6 +804,26 @@ class UserFiatTransactionFilterController(APIController):
                                     'name': transaction.currency
                             }
                         } for transaction in user_exchange_transaction
+                    ] + [
+                        {
+                            "type": "CryptoSell",
+                            "data": {
+                                'id': transaction.id,
+                                'amount': transaction.crypto_quantity,
+                                'payment_type': transaction.payment_type,
+                                'credited_amount': transaction.received_amount,
+                                'transaction_fee': transaction.fee_value,
+                                'created_At': transaction.created_at,
+                                'status': transaction.status,
+                                'crypto_name': transaction.crypto_name,
+                                'credited_currency': transaction.wallet_currency,
+                                'transaction_id': transaction.transaction_id
+                            },
+                            'currency': {
+                                'name': transaction.wallet_currency
+                            }
+
+                        } for transaction in user_crypto_sell_transaction
                     ]
                 
                 return json({

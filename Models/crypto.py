@@ -55,6 +55,7 @@ class CryptoBuy(SQLModel, table=True):
 class CryptoSell(SQLModel, table=True):
     id: int | None          = Field(default=None, primary_key=True)
     user_id: int            = Field(foreign_key="users.id", index=True)
+    transaction_id: str     = Field(default='', nullable=True)
     crypto_wallet_id: int   = Field(foreign_key="cryptowallet.id")
     crypto_quantity: float  = Field(default=0.00)
     payment_type: str       = Field(default='', nullable=True)

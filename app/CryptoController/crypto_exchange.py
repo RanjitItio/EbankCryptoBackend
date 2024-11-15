@@ -27,7 +27,7 @@ class UserCryptoExchangeController(APIController):
     def route(cls) -> str | None:
         return '/api/v6/user/crypto/exchange/'
     
-
+    
     ### Create new Crypto Exchange Transaction for user
     @auth('userauth')
     @post()

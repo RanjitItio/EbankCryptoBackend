@@ -11,6 +11,7 @@ from Models.Crypto.schema import BuyUserCryptoSchema, SellUserCryptoSchema, User
 from app.CryptoController.calculateFee import CalculateFee
 from datetime import datetime, timedelta
 from app.dateFormat import get_date_range
+import uuid
 
 
 
@@ -138,7 +139,7 @@ class CryptoBuyController(APIController):
         
 
 
-## Buy Crypto Wallet
+## Sell Crypto Controller
 class CryptoSellController(APIController):
 
     @classmethod
@@ -149,7 +150,8 @@ class CryptoSellController(APIController):
     def class_name(cls) -> str:
         return 'Sell Crypto'
     
-
+    
+    #### Create new Crypto Sell Transaction
     @auth('userauth')
     @post()
     async def create_cryptoSell(self, request: Request, schema: SellUserCryptoSchema):
@@ -202,12 +204,16 @@ class CryptoSellController(APIController):
                 ))
                 crypto_sell_fee = crypto_sell_fee_obj.scalar()
 
+                unique_id = str(uuid.uuid4())[:33]
+
                 if crypto_sell_fee:
                     float_qty = float(sellingQty)
 
                     calculated_amount = await CalculateFee(crypto_sell_fee.id, float_qty)
-                    
-                    crypto_buy = CryptoSell(
+
+                    unique_id = str(uuid.uuid4())[:30]
+
+                    crypto_sell = CryptoSell(
                         user_id          = user_id,
                         crypto_wallet_id = user_crypto_wallet.id,
                         crypto_quantity  = float(sellingQty),
@@ -215,28 +221,30 @@ class CryptoSellController(APIController):
                         received_amount  = float(received_amt),
                         fee_id           = crypto_sell_fee.id,
                         fee_value        = float(calculated_amount),
-                        status           = 'Pending'   
+                        status           = 'Pending',
+                        transaction_id   = unique_id
                     )
 
-                    session.add(crypto_buy)
+                    session.add(crypto_sell)
 
                 else:
                     calculated_amount = 10
 
                     # Create Crypto Buy request
-                    crypto_buy = CryptoSell(
+                    crypto_sell = CryptoSell(
                         user_id          = user_id,
                         crypto_wallet_id = user_crypto_wallet.id,
                         crypto_quantity  = float(sellingQty),
                         wallet_id        = user_wallet.id,
                         received_amount  = float(received_amt),
                         fee_value        = calculated_amount,
-                        status           = 'Pending'   
+                        status           = 'Pending',
+                        transaction_id   = unique_id 
                     )
-                    session.add(crypto_buy)
+                    session.add(crypto_sell)
 
                 await session.commit()
-                await session.refresh(crypto_buy)
+                await session.refresh(crypto_sell)
 
                 return json({
                     'success': True,
@@ -261,6 +269,7 @@ class CryptoTransactionControlller(APIController):
     @classmethod
     def class_name(cls) -> str:
         return 'User Crypto Transactions'
+    
     
     ### Get all Buy and Sell Crypto Transactions
     @auth('userauth')

@@ -77,7 +77,8 @@ class UserCreateFiatCardController(APIController):
                     valid_from  = datetime.now(),
                     valid_thru  = datetime.now() + timedelta(days=500 * 3),
                     cvv         = str(generate_cvv),
-                    pin         = str(generate_pin)
+                    pin         = str(generate_pin),
+                    status      = 'Active'
                 )
 
                 session.add(generate_new_card)
@@ -111,7 +112,10 @@ class UserCreateFiatCardController(APIController):
 
                 ### Get the car
                 user_fiat_card_obj = await session.execute(select(FiatCard).where(
-                    FiatCard.id == cardId
+                    and_(
+                        FiatCard.id == cardId,
+                        FiatCard.user_id == user_id
+                        )
                 ))
                 user_fiat_card = user_fiat_card_obj.scalar()
 

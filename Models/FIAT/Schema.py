@@ -119,7 +119,6 @@ class UserCreateFiatCardSchema:
 @dataclass
 class UserUpdateFiatCardSchema:
     card_name: str 
-    cvv: str
     status: str
     card_id: int
 

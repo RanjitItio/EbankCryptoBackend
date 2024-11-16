@@ -17,6 +17,7 @@ class FiatCard(SQLModel, table=True):
     cvv: str             = Field(default=None)
     pin: str             = Field(default=None)
     status: str          = Field(nullable=True)  ### Active and Inactive
+    is_active: bool      = Field(default=True, nullable=True)
 
     def assign_current_datetime(self):
         self.created_at = datetime.now()

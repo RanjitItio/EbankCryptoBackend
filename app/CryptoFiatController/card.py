@@ -1,4 +1,4 @@
-from app.controllers.controllers import get, post, put
+from app.controllers.controllers import get, post, put, delete
 from blacksheep.server.authorization import auth
 from blacksheep.server.controllers import APIController
 from blacksheep import json, Request
@@ -106,7 +106,6 @@ class UserCreateFiatCardController(APIController):
 
                 ### Get the payload data
                 cardName = schema.card_name
-                cvv      = schema.cvv
                 status   = schema.status
                 cardId   = schema.card_id
 
@@ -123,11 +122,20 @@ class UserCreateFiatCardController(APIController):
                     return json({'message': 'Invalid Card'}, 400)
                 
                 ### Update the Fiat Card
-                user_fiat_card.card_name = cardName
-                user_fiat_card.cvv       = cvv
-                user_fiat_card.status    = status
+                if status == 'Active':
+                    user_fiat_card.card_name = cardName
+                    user_fiat_card.status    = status
+                    user_fiat_card.is_active = True
 
-                session.add(user_fiat_card)
+                    session.add(user_fiat_card)
+
+                elif status == 'Inactive':
+                    user_fiat_card.card_name = cardName
+                    user_fiat_card.status    = status
+                    user_fiat_card.is_active = False
+
+                    session.add(user_fiat_card)
+
                 await session.commit()
                 await session.refresh(user_fiat_card)
 
@@ -200,6 +208,39 @@ class UserCreateFiatCardController(APIController):
                     'success': True,
                     'user_fiat_cards': combined_data
                 }, 200)
+            
+        except Exception as e:
+            return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+        
+
+    #### Delete card
+    @auth('userauth')
+    @delete()
+    async def delete_UserFiatCard(self, request: Request, card_id: int):
+        try:
+            async with AsyncSession(async_engine) as session:
+                user_identity = request.identity
+                user_id       = user_identity.claims.get('user_id')
+
+                #### Get the Fiat card of the user
+                user_fiat_card_obj = await session.execute(select(FiatCard).where(
+                    and_(
+                        FiatCard.id == card_id,
+                        FiatCard.user_id == user_id
+                        )
+                ))
+                user_fiat_card = user_fiat_card_obj.scalar()
+
+                if not user_fiat_card:
+                    return json({'message': 'Invalid Card'}, 400)
+                
+                await session.delete(user_fiat_card)
+                await session.commit()
+
+                return json({
+                    'success': True,
+                    'message': 'Card deleted successfully'
+                    }, 200)
             
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)

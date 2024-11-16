@@ -123,7 +123,7 @@ class UserWalletBalanceController(APIController):
                 ))
                 currency = currency_obj.scalar()
 
-
+                #### User Wallet
                 user_wallet_obj = await session.execute(select(Wallet).where(
                     and_(
                         Wallet.user_id == user_id,

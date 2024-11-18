@@ -1379,6 +1379,10 @@ class MasterCardRedirectResponse(APIController):
 
                     return redirect(f'{successFailURL}/merchant/payment/success/?transaction={transaction_id}&url={redirect_url}')
                 
+                else:
+                    return redirect(f'{successFailURL}/merchant/payment/fail/?transaction={transaction_id}&url={redirect_url}')
+
+                
         except Exception as e:
             return pretty_json({'error': 'Server Error' }, 500)
 

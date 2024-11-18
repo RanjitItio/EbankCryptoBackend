@@ -42,7 +42,7 @@ else:
 
 
 ##########################################
-# Production Payment
+## Production Payment
 ##########################################
 class PaymentGatewayProductionAPI(APIController):
 
@@ -76,8 +76,8 @@ class PaymentGatewayProductionAPI(APIController):
                 decoded_payload = base64_decode(payload)
                 payload_dict    = json.loads(decoded_payload)
 
-    
-                # Get all the data from Payload
+
+                ## Get all the data from Payload
                 merchant_public_key = payload_dict.get('merchantPublicKey')
                 merchant_secret_key = payload_dict.get('merchantSecretKey') 
                 merchant_order_id   = payload_dict.get('merchantOrderId')   
@@ -444,8 +444,8 @@ class PaymentGatewayProductionAPI(APIController):
                             "merchantOrderId": merchant_order_id,
                             "transactionID":  merchant_prod_transaction.transaction_id,
                             "amount": exact_amount,
-                            'time': '',
-                            'currency': '',
+                            'time': merchant_prod_transaction.createdAt,
+                            'currency': merchant_prod_transaction.currency,
                             "instrumentResponse": {
                                 "type": "PAY_PAGE",
                                 "redirectInfo": {
@@ -1055,6 +1055,7 @@ class ReceiveMasterCardWebhook(APIController):
                         # Merchant Public Key
                         merchantPublicKey = merchant_key_.public_key
 
+                    #### Webhook URL
                     if merchant_webhook_url:
                         webhook_payload_dict = {
                                 "success": False,
@@ -1065,6 +1066,8 @@ class ReceiveMasterCardWebhook(APIController):
                                     "merchantOrderId": merchant_order_id,
                                     'transactionID': transaction_id,
                                     'time': str(transactionTime),
+                                    'amount': transactionAmount,
+                                    'currency': transactionCurrency,
                                     "paymentInstrument": {
                                         "type": "Card"
                                     }

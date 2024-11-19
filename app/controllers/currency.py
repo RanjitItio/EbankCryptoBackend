@@ -50,15 +50,24 @@ class CurrencyController(APIController):
 
 
     @post()
-    async  def create_currency(self, request: Request, currency: CurrencySchemas):
+    async  def create_currency(self, request: Request, currency_schema: CurrencySchemas):
         try:
             async with AsyncSession(async_engine) as session:
+                ### Get the currency with same name
+                currency_obj = await session.execute(select(Currency).where(
+                    Currency.name == currency_schema.name
+                ))
+                currency = currency_obj.scalar()
+
+                if currency:
+                    return json({'message': 'Currency Already exists'}, 400)
+                
                 try:
                     CreateCurrency = Currency(
-                        name           = currency.name,
-                        symbol         = currency.symbol,
-                        fee            = currency.fee,
-                        decimal_places = currency.decimal_places
+                        name           = currency_schema.name,
+                        symbol         = currency_schema.name,
+                        fee            = 0,
+                        decimal_places = 0
                     )
                 except Exception as e:
                     return json({'msg': 'Not able to create currency'}, 400)

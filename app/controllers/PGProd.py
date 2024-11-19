@@ -1112,15 +1112,17 @@ class ReceiveMasterCardWebhook(APIController):
                         webhook_payload_dict = {
                                 "success": False,
                                 "status": "PAYMENT_SUCCESS",
-                                "message": 'Transaction Successful',
+                                "message": 'Transaction Successfull',
                                 "data": {
                                     "merchantPublicKey": merchantPublicKey,
                                     "merchantOrderId": merchant_order_id,
                                     'transactionID': transactionId,
                                     'time': str(transactionTime),
-                                   "paymentInstrument": {
-                                        "type": "Card"
-                                    }
+                                    'amount': transactionAmount,
+                                    'currency': transactionCurrency,
+                                    "paymentInstrument": {
+                                            "type": "Card"
+                                        }
                                 }
                             }
                 
@@ -1211,6 +1213,7 @@ class MastercardTransactionStatus(APIController):
         
 
 
+
 # Merchant Transaction Status
 class MerchantTransactionStatus(APIController):
 
@@ -1222,6 +1225,7 @@ class MerchantTransactionStatus(APIController):
     def route(cls) -> str | None:
         return '/api/v1/pg/prod/merchant/transaction/status/{merchant_public_key}/{merchant_order_id}'
     
+
     @get()
     async def MerchantTransactionStatus(request: Request, merchant_public_key: str, merchant_order_id: str):
         try:
@@ -1251,6 +1255,7 @@ class MerchantTransactionStatus(APIController):
                     ))
                 merchant_transaction = merchant_transaction_obj.scalar()
 
+
                 if not merchant_transaction:
                     return pretty_json({"error": {
                             "success": False,
@@ -1266,34 +1271,35 @@ class MerchantTransactionStatus(APIController):
 
 
                 if payment_status == 'PAYMENT_INITIATED':
-                    message = 'Payment Initiated remained to complete the transaction'
-                    status   = 'STARTED'
+                    message      = 'Payment Initiated remained to complete the transaction'
+                    status       = 'STARTED'
                     responseCode = 'INITIATED'
-                    success = False
+                    success      = False
 
                 elif payment_status == 'PAYMENT_SUCCESS':
-                    message      = 'Payment Successfull'
-                    responseCode = 'SUCCESS'
+                    message       = 'Payment Successfull'
+                    responseCode  = 'SUCCESS'
                     status        = 'COMPLETED'
-                    success      = True
+                    success       = True
                     
 
                 elif payment_status == 'PAYMENT_PENDING':
-                    message      = 'Payment Pending'
-                    responseCode = 'PENDING'
+                    message       = 'Payment Pending'
+                    responseCode  = 'PENDING'
                     status        = 'PENDING'
-                    success      = False
+                    success       = False
 
                 elif payment_status == 'PAYMENT_FAILED':
-                    message      = 'Payment Failed'
-                    responseCode = 'FAILED'
+                    message       = 'Payment Failed'
+                    responseCode  = 'FAILED'
                     status        = 'FAILED'
-                    success      = False
+                    success       = False
+
                 else:
-                    message      = 'PAYMENT_ERROR'
-                    responseCode = 'FAILED'
+                    message       = 'PAYMENT_ERROR'
+                    responseCode  = 'FAILED'
                     status        = 'FAILED'
-                    success      = False
+                    success       = False
 
 
                 return pretty_json({

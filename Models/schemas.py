@@ -193,7 +193,7 @@ class ConfirmMail(BaseModel):
        token: str
 
 
-from dataclasses import dataclass
+
 
 
 @dataclass
@@ -205,10 +205,10 @@ class RequestMoneySchemas:
 
 
 class CurrencySchemas(BaseModel):
-    name: str
-    symbol: str
-    fee: float
-    decimal_places: int
+    name: str    
+    symbol: str  = field(default=None)
+    fee: float   = field(default=None)
+    decimal_places: int  = field(default=None)
 
 
 class CreateWalletSchemas(BaseModel):

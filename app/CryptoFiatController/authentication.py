@@ -42,11 +42,11 @@ class CryptoFiatUserRegisterController(APIController):
                 
                 # IF email exists
                 if existing_user:
-                    return json({'msg': f"{existing_user.email} already exists"}, 400)
+                    return json({'msg': f"Email address already exists"}, 400)
                 
                 # If mobile number exists
                 if mobileno:
-                    return json({'msg': f"{mobileno.phoneno} number already exists"}, 400)
+                    return json({'msg': f"Mobile number already exists"}, 400)
                 
                 # If password did not Match
                 if user.password != user.password1:

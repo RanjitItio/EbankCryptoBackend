@@ -384,7 +384,7 @@ class MerchantController(APIController):
 
 
 # #Get all Created Businesses by Merchant user
-class UserAvailableMerchantController(APIController):
+class UserAvailableBusinessController(APIController):
 
     @classmethod
     def class_name(cls):
@@ -401,7 +401,20 @@ class UserAvailableMerchantController(APIController):
         
     @auth('userauth')
     @get()
-    async def get_user_created_merchants(self, request: Request, limit : int = 15, offset: int = 0):
+    async def get_user_created_business(self, request: Request, limit : int = 15, offset: int = 0):
+        """
+            Fetches all available businesses created by a specific merchant.<br/><br/>
+    
+            Parameters:<br/>
+            - request (Request): The request object containing user identity and other information.<br/>
+            - limit (int): The maximum number of businesses to fetch per request. Default is 15.<br/>
+            - offset (int): The number of businesses to skip before fetching. Default is 0.<br/><br/>
+    
+            Returns:<br/>
+            - JSON response containing the fetched businesses, their currencies, and total row count.<br/>
+            If no businesses are found, returns a 404 status code with a 'Merchant not available' message.<br/>
+            If an error occurs during the process, returns a 500 status code with a 'Server error' message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

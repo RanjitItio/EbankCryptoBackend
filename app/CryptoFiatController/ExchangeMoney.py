@@ -28,6 +28,16 @@ class ExchangeMoneyController(APIController):
     @auth('userauth')
     @post()
     async def create_exchange_money_request(self, request: Request, schema: FiatExchangeMoneySchema):
+        """
+        This function handles the creation of a new FIAT exchange money request <br/>
+<br/>
+        Parameters:<br/>
+        - request (Request): The request object containing user identity and payload data.<br/>
+        - schema (FiatExchangeMoneySchema): The schema object containing validated payload data.<br/>
+<br/>
+        Returns:<br/>
+        - JSON response with success status, message, or error details.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -105,6 +115,22 @@ class ExchangeMoneyController(APIController):
     @auth('userauth')
     @get()
     async def get_userExchangeTransactions(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This function retrieves a user's exchange transactions, including details like currency,
+            amounts, fees, and status, and returns them in paginated form along with the total number of
+            rows.<br/><br/>
+
+            Parameters:<br/>
+               - request: request object.<br/>
+               - limit(int): The `limit` parameter specifies the maximum number of exchange transactions to retrieve in a single request. By default, the limit is set to 10.<br/>
+               - offset(int): The `offset` parameter specifies the starting point from which the data should be retrieved. By default, the offset is set to 0.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response containing the user's fiat exchange data, total paginated rows, and a success message.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

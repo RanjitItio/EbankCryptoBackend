@@ -29,6 +29,24 @@ class AdminCryptoExchangeController(APIController):
     @auth('userauth')
     @get()
     async def get_adminCryptoExchanges(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+        This function retrieves all crypto exchange transactions for admin users.<br/>
+        It fetches data from the database, performs pagination, and returns the result in JSON format.<br/>
+        
+        Parameters:<br/>
+        - request: The request object containing user identity and other relevant information.<br/>
+        - limit: The maximum number of records to return per page. Default is 10.<br/>
+        - offset: The number of records to skip before starting to return records. Default is 0.<br/><br/>
+
+        Returns:<br/>
+        - A JSON response containing the following keys:<br/>
+          - success: A boolean indicating whether the request was successful.<br/>
+          - admin_user_crypto_exchange_data: A list of dictionaries, each representing a crypto exchange transaction.<br/>
+          - paginated_rows: The total number of pages available for pagination.<br/><br/>
+
+        Raises:<br/>
+        - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -123,6 +141,18 @@ class AdminCryptoExchangeController(APIController):
     @auth('userauth')
     @put()
     async def update_cryptoExchange(self, request: Request, schema: AdminUpdateCryptoExchange):
+        """
+        This function is responsible for updating the status of a crypto exchange transaction.<br/>
+        It also handles the approval process, deducting the required amount from the user's crypto wallet
+        and adding it to their fiat wallet.<br/><br/>
+
+        Parameters:<br/>
+        - request: The request object containing the user's identity and other relevant data.<br/>
+        - schema: The schema object containing the updated status and transaction ID.<br/><br/>
+
+        Returns:<br/>
+        - A JSON response indicating success or failure, along with an appropriate message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -236,6 +266,19 @@ class ExportCryptoExchangeTransactionsController(APIController):
     @auth('userauth')
     @get()
     async def export_crypto_exchange(self, request: Request):
+        """
+            This Python function exports crypto exchange transaction data after authenticating the user as an admin.<br/><br/>
+
+            Parameters:<br/>
+               - request: In this specific context, the `request` parameter is used to extract the identity of the user.
+                          This identity is used to verify if the user making the request is authorized to access the endpoint.<br/><br/>
+                          The `request` object allows access to the user's identity and other relevant data. <br/>
+
+            Returns:<br/>
+            - JSON response containing the success status and the exported exchange data.<br/>
+            - JSON response containing success status and the exported exchange data, if the user is an admin.<br/>
+            - JSON response containing error status and an error message, if the user is not an admin or if an exception occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -324,6 +367,25 @@ class AdminFilterCryptoExchangeController(APIController):
     @auth('userauth')
     @post()
     async def filter_cryptoExchange(self, request: Request, schema: AdminFilterCryptoExchangeSchema, limit: int = 10, offset: int = 0):
+        """
+            The filter_cryptoExchange function is responsible for filtering crypto exchange transactions based on various criteria 
+            such as user email, status, date, and crypto name. It provides paginated results along with the total count of matching records.<br/><br/>
+            
+            Parameters:<br/>
+              - request(Request): The incoming request object containing information about the client's request.<br/>
+              - limit(int): The maximum number of results to return in a single query.<br/>
+              - offset(int): The starting point from which to retrieve data in a paginated query.<br/>
+              - schema(AdminFilterCryptoExchangeSchema): The schema containing the filtering criteria such as user email, status, date, and crypto name.<br/><br/>
+
+            Returns:<br/>
+              - A JSON response containing the following keys:<br/>
+                -'success': A boolean indicating if the operation was successful<br/>
+                - 'filtered_crypto_exchange_transaction': A list of dictionaries containing details of filtered crypto exchange transactions<br/>
+                - 'paginated_count': The total count of paginated values<br/>
+                - If an error occurs, it will return a JSON response with the keys: 'error': 'Server Error'<br/>
+                - 'No data found' if no matching records are found<br/>
+                - 'Invalid Email' if the provided email is not found in the database<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

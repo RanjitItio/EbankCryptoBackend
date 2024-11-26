@@ -31,6 +31,26 @@ class CryptoFiatUserRegisterController(APIController):
 
     @post()
     async def create_crypto_user(self, request: Request, user: UserCreateSchema):
+        """
+            This function creates a new user with specified details, assigns them to a 
+            user group, generates keys for merchants, creates wallets for the user with initial balance, and <br/>
+            sends a welcome email for account verification.<br/><br/>
+
+            Parameters:<br/>
+              - request:The `request` parameter in the `create_crypto_user` function represents the HTTP
+                        request object that contains information about the incoming request such as headers, body,<br/>
+                        method, URL, etc. It is used to extract data from the incoming request and interact with the
+                        client making the request.<br/>
+               - user(UserCreateSchema): The function takes in the user object as parameters<br/><br/>
+
+            Returns: <br/>
+                The code is returning JSON responses based on different scenarios:<br/>
+                1. If the email address already exists, it returns a message stating "Email address already<br/>
+                    exists" with a status code of 400.<br/>
+                2. If the mobile number already exists, it returns a message stating "Mobile number already<br/>
+                    exists" with a status code of 400.<br/>
+                3. If the passwords do not match, it returns a message<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Check for existing mail
@@ -193,6 +213,28 @@ class CryptoFiatUserLoginController(APIController):
     
     @post()
     async def login_crypto_user(self, user: UserLoginSchema):
+        """
+            This function handles the login process for crypto users. It checks the user's credentials, <br/>
+            validates the KYC status, and generates access and refresh tokens for authenticated users. <br/><br/>
+
+            Parameters:<br/>
+            user (UserLoginSchema): An instance of UserLoginSchema containing the user's email and password.<br/><br/>
+    
+            Returns:<br/>
+            JSON response with the following structure:<br/>
+            - If successful login:<br/>
+                {<br/>
+                   &nbsp; 'is_merchant': bool,<br/>
+                   &nbsp; 'user_name': str,<br/>
+                   &nbsp; 'access_token': str,<br/>
+                   &nbsp; 'refresh_token': str<br/>
+                }<br/>
+            - If any error occurs during the login process:<br/>
+                {<br/>
+                     &nbsp;'msg': str,<br/>
+                     &nbsp;'error': str (optional)<br/>
+                }
+        """
         
         try:
             async with AsyncSession(async_engine) as session:

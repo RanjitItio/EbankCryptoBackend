@@ -38,7 +38,20 @@ class AllTransferTransactions(APIController):
     @get()
     async def get_transfer_transaction(self, request: Request, limit: int = 15, offset: int = 0):
         """
-        Get all transfer Transactions
+            Get all transfer Transactions<br/><br/>
+        
+            This function retrieves all transfer transactions from the database.<br/>
+            It requires an instance of the `Request` class to access the user's identity and perform authentication.<br/>
+            The function also requires the `limit` and `offset` parameters to paginate the results.<br/>
+            The function returns a JSON response containing the transfer transactions data, a success flag, and the total number of rows in the table.<br/><br/>
+
+            Args:<br/>
+            - request (Request): An instance of the `Request` class containing the user's identity and other request details.<br/>
+            - limit (int): The maximum number of transfer transactions to retrieve. Default is 15.<br/>
+            - offset (int): The starting index of the transfer transactions to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+            - dict: A JSON response containing the transfer transactions data, a success flag, and the total number of rows in the table.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -693,7 +706,7 @@ class FilterTransferTransactionController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Filter Transfer Transaction'
+        return 'Filter FIAT Transfer Transaction'
     
     @classmethod
     def route(cls) -> str | None:
@@ -704,6 +717,21 @@ class FilterTransferTransactionController(APIController):
     @auth('userauth')
     @post()
     async def filter_transferTransaction(self, request: Request, schema: AdminFilterTransferTransaction, limit: int = 10, offset: int = 0):
+        """
+            This function filters transfer transactions based on various criteria and returns paginated results with additional user and currency information.<br/><br/>
+
+            Parameters:<br/>
+            - request(Request): The HTTP request object containing the payload data.<br/>
+            - schema(AdminFilterTransferTransaction): The schema object containing the filter parameters.<br/>
+            - limit(int, optional): The maximum number of records to return. Defaults to 10.<br/>
+            - offset(int, optional): The number of records to skip before starting to return records. Defaults to 0.<br/><br/>
+            
+            Returns:<br/>
+            - JSON: A JSON response containing the success status, a list of transfer transaction data,
+                and the total row count. If the user is not an admin, returns a JSON response with an error message.<br/>
+            - If no transfer transactions are found, returns a JSON response with a 'No data found' message.<br/>
+            - In case of a server error, returns a JSON response with an error message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -872,7 +900,7 @@ class FilterTransferTransactionController(APIController):
 
 
 
-### Export Transfer Transactions
+### Export FIAT Transfer Transactions
 class ExportTransferTransactions(APIController):
 
     @classmethod
@@ -887,6 +915,28 @@ class ExportTransferTransactions(APIController):
     @auth('userauth')
     @get()
     async def export_transferTransaction(self, request: Request):
+        """
+            This function exports FIAT transfer transaction data after performing admin authentication and
+            retrieving related information from the database.<br/><br/>
+
+            Parameters:<br/>
+            - request: This parameter is used to extract the identity of the user making the request.<br/><br/>
+           
+            Returns:<br/>
+            - If successful, it returns a JSON object with a key'success' set to True and another key
+              'export_transfer_transaction_data' containing a list of dictionaries with transaction details.<br/>
+            - If there is an error, it returns a JSON object with an 'error' key set to 'Server Error' and a
+              'message' key containing the error message.<br/><br/>
+            
+            Rasterization:<br/>
+            - This function uses the SQLAlchemy ORM to fetch and process the transfer transaction data.<br/>
+            - The function uses the Blacksheep framework's JSON serialization to convert the data into a JSON
+              object.<br/><br/>
+            
+            Raises:<br/>
+            - SQLAlchemyError: If there is a problem with the database connection or query execution.<br/>
+            - Exception: If there is an error while processing the data or generating the JSON response.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

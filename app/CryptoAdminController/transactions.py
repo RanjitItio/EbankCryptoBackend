@@ -257,7 +257,7 @@ class CryptoTransactionController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Crypto Sell Controller'
+        return 'Crypto Transaction Controller'
     
 
     @classmethod
@@ -269,6 +269,26 @@ class CryptoTransactionController(APIController):
     @auth('userauth')
     @get()
     async def get_cryptoTransactions(self, request: Request,  limit: int = 5, offset: int = 0):
+        """
+            This function retrieves crypto buy and sell transactions with pagination and combines them into
+            a single list.<br/><br/>
+
+            Params:<br/>    
+               - request(Request): The `request` parameter represents the HTTP request object
+                                   that contains information about the incoming request, such as headers, query parameters, and the<br/>
+                                   request body. It allows the function to access and process data sent by the client.<br/>
+               - limit(int): The `limit` parameter specifies the maximum number of transactions to retrieve in a single request. It determines the number of<br/>
+                             transactions that will be returned in the response. the default value for `limit` is set to 5, meaning, defaults to 5 transactions per page.<br/>
+               - offset(int): The `offset` parameter is used to specify the starting point from which data should be retrieved. It determines how many records
+                              to skip before fetching the data.<br/><br/>
+
+            Returns:<br/>
+                A JSON response containing the following keys:<br/>
+                  - success(bool): Indicates if the operation was successful.<br/>
+                  - pagination_count(float): The total number of pages based on the `limit`.<br/>
+                  - admin_crypto_transactions(list): A list of dictionaries, each containing details of a crypto transaction.<br/>
+                  - total_rows(int): The total number of records available for the admin user.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -410,13 +430,44 @@ class CryptoTransactionController(APIController):
             return json({
                 'error': 'Server Error',
                 'message': f'{str(e)}'
-                }, 500)
+                }, 500) 
         
     
     ## Filter Crypto Transactions
     @auth('userauth')
     @post()
     async def filter_cryptoTransactions(self, request: Request, schema: AdminFilterCryptoTransactionsSchema, limit: int = 5, offset: int = 0):
+        """
+            This function filters crypto transactions based on various criteria
+            such as date range, user email, crypto name, and status, and returns paginated results along
+            with total count.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The `request` parameter represents the HTTP request object that contains information about the incoming request such as headers,
+                                    body, method, etc.<br/>
+                - schema(AdminFilterCryptoTransactionsSchema): The `schema` parameter function represents the schema object that contains the filtering criteria for the crypto transactions. It includes
+                          fields such as `date_range`, `user_email`, `crypto_name`, `status`, `start_date`, and `end_date`.<br/>
+                - limit(int): The `limit` parameter determines the maximum number of transactions to retrieve in a single request. It is used for pagination,
+                         allowing you to control how many transactions are returned per page or request. <br/>
+                - offset(int): The `offset` parameter is used to specify the starting point from which data should be retrieved. It determines how many records
+                               should be skipped from the beginning of the result set before returning data.<br/><br/>
+
+            Returns:<br/>
+            - JSON: A JSON response containing the following keys and values:<br/>
+            - 'Success': True if the operation was successful<br/>
+            - 'filtered_data': A list of crypto transaction data, including details such as transaction ID, type (Buy or Sell), crypto name, quantity, payment mode, amount, currency, status, creation date, user name, user email, and fee<br/>
+            - 'paginated_count': True if pagination is applied to the result set<br/><br/>
+
+            Raises ValueError:<br/>
+            - If any invalid input is provided in the request parameters.<br/>
+            - HTTPException: If the request payload is invalid or if the admin is not authenticated.<br/>
+            - HTTPStatus: 400 Bad Request if the request payload is invalid.<br/>
+            - HTTPException: If the admin is not authenticated.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/><br/>
+
+            Exception:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -687,6 +738,18 @@ class ExportCryptoTransactionDataController(APIController):
     @auth('userauth')
     @get()
     async def export_cryptoTransaction(self, request: Request):
+        """
+            This function exports combined cryptocurrency buy and sell transactions for an authenticated admin user.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object.<br/><br/>
+            
+            Returns:<br/>
+              - JSON response: A JSON object containing the combined transaction data for both crypto buy and sell transactions.<br/>
+              - If the user is not an admin, returns a JSON response with an error message.<br/>
+              - If no transactions are found, returns a JSON response with a 'No data found' message.<br/>
+              - In case of an error, returns a JSON response with an error message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

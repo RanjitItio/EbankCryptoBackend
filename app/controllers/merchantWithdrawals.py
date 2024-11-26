@@ -373,6 +373,30 @@ class FilterMerchantWithdrawalsController(APIController):
     @auth('userauth')
     @post()
     async def filter_merchant_withdrawals(self, request: Request, schema: FilterWithdrawalTransactionSchema, limit: int = 10, offset: int = 0):
+        """
+            This function filters merchant withdrawals based on various criteria and returns paginated
+            results along with relevant details.<br/>
+            Note: The input dates should be in 'YYYY-MM-DD' format.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The HTTP request object containing the payload data.<br/>
+                - schema (FilterWithdrawalTransactionSchema): The schema object containing the validated
+                  payload data.<br/>
+                - limit (int): The maximum number of withdrawal transactions to retrieve in a single request.<br/>
+                - offset (int): The offset for pagination. It determines the starting point from where the
+                  results should be returned. Defaults to 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON response: A JSON object containing the following keys:<br/>
+                - 'paginated_count': The paginated value calculated based on the number of withdrawal
+                   transactions and the limit<br/>
+                - for successful responses retruns 'success': True and 'merchantWithdrawalRequests': A list of dictionaries containing details of merchant
+                   withdrawal transactions.<br/>
+                - 'error': A string containing an error message if the request fails.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

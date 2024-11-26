@@ -26,6 +26,20 @@ class AdminFeeController(APIController):
     @auth('userauth')
     @post()
     async def add_fee(self, request: Request, schema: AdminAddFeeSchema):
+        """
+            This handles the addition of a fee by an admin user after authentication and validation checks.<br/><br/>
+            
+            Parameters:<br/>
+               - request - Request object.<br/>
+               - schema(AdminAddFeeSchema): The `schema` parameter in the `add_fee` function represents the data schema for
+                                            adding a fee. It contains fee_name (str), fee_type (str), tax_rate (float), fixed_value (float)<br/><br/>
+
+            Returns:<br/>
+                - A JSON response indicating success or failure, along with an appropriate message.<br/>
+                - If the fee name already exists in the database, it returns a message indicating that the fee name already exists.<br/>
+                - If the user making the request is not an admin, it returns a message indicating unauthorized access.<br/>
+                - If the fee is successfully created and added to the database, it returns a success message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                     user_identity = request.identity
@@ -85,6 +99,24 @@ class AdminFeeController(APIController):
     @auth('userauth')
     @put()
     async def update_fee(self, request: Request, schema: AdminUpdateFeeSchema):
+        """
+            This function updates a fee structure in a database after performing user authentication and input validation.<br/><br/>
+
+            Parameters: <br/>
+               - request(Request): The request object.<br/>
+               - schema(AdminUpdateFeeSchema): The `schema` parameter represents the data schema for updating a fee. 
+                                               It contains the following attributes: fee_id (int), fee_name (str), fee_type (str), tax_rate (float), fixed_value (float)<br/><br/>
+           
+            Returns:<br/>
+                - The code snippet returns a JSON response with a success message and status code.<br/>
+                - If the fee is successfully updated, it returns a JSON object with the keys 'success' set to True and
+                  'message' set to 'Fee Updated Successfully' along with a status code of 200.<br/>
+                - If the fee does not exist or the user making the request is not an admin, it returns a JSON object
+                  with the keys 'error' set to 'Fee Not Found' and a status code of 404.<br/>
+                - If an exception occurs during the update process, it returns a generic success message with a status code of 404.<br/>
+                - If the request is not authenticated, it returns a JSON object with the keys 'error' set to 'Unauthorized' and a status code of 401.<br/>
+                - If the request is not valid, it returns a JSON object with the keys 'error' set to 'Invalid Request' and a status code of 400.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -156,6 +188,17 @@ class AdminFeeController(APIController):
     @auth('userauth')
     @get()
     async def get_fees(self, request: Request):
+        """
+            This function retrieves fee structure data after verifying admin authentication.<br/><br/>
+            
+            Parameters:<br/>
+            - request (Request): The incoming request object containing user identity and other relevant data.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with success status 200 and fee structure data if the user is authenticated as an admin.<br/>
+            - JSON response with error status 401 and message if the user is not authenticated as an admin.<br/>
+            - JSON response with error status 500 and message if any exception occurs during the database operations.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -190,6 +233,18 @@ class AdminFeeController(APIController):
     @auth('userauth')
     @delete()
     async def delete_fees(self, request: Request):
+        """
+            This function deletes a fee structure after verifying the admin user's authentication.<br/><br/>
+
+            Parameters:
+            - request (Request): The incoming request object containing user identity and other relevant data.<br/><br/>
+            
+            Returns:
+            - JSON response with success status 200 and a message 'Fee Structure deleted successfully' if the user is authenticated as an admin.<br/>
+            - JSON response with error status 401 and message if the user is not authenticated as an admin.<br/>
+            - JSON response with error status 500 and message if any exception occurs during the database operations.<br/>
+            - If the fee structure with the provided ID does not exist, it returns a JSON response with a message 'Fee Structure not available' and status code 400.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

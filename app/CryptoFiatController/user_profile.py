@@ -30,6 +30,21 @@ class CryprtoFIATUserProfileController(APIController):
     @auth('userauth')
     @get()
     async def get_FiatCryptoUserProfile(self, request: Request):
+        """
+            This function retrieves the Fiat-Crypto user profile information.<br/>
+
+            Parameters:<br/>
+            - request (Request): The request object containing user identity and other relevant information.<br/>
+    <br/>
+            Returns:<br/>
+            - JSON response with the following structure:<br/>
+            - success (bool): Indicates whether the operation was successful.<br/>
+            - message (str): Provides a message describing the outcome of the operation.<br/>
+            - user_profile (dict): Contains the user profile information if the operation was successful.<br/>
+    <br/>
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or processing.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -103,6 +118,21 @@ class CryprtoFIATUserProfileController(APIController):
     @auth('userauth')
     @put()
     async def update_CryptoFiatUserProfile(self, request: Request, schema: UpdateFiatCryptoUserProfileSchema):
+        """
+            This function updates the Fiat-Crypto user profile information.<br/>
+    <br/>
+            Parameters:<br/>
+            - request (Request): The request object containing user identity and other relevant information.<br/>
+            - schema (UpdateFiatCryptoUserProfileSchema): The schema object containing the user profile data.<br/>
+    <br/>
+            Returns:<br/>
+            - JSON response with the following structure:<br/>
+            - success (bool): Indicates whether the operation was successful.<br/>
+            - message (str): Provides a message describing the outcome of the operation.<br/>
+    <br/>
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or processing.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

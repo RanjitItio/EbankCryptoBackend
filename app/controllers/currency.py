@@ -32,6 +32,14 @@ class CurrencyController(APIController):
 
     @get()
     async def get_currency():
+        """
+            This function retrieves all available currencies using SQLAlchemy in an asynchronous manner and returns them as JSON.<br/><br/>
+
+            Returns:<br/>
+            - JSON response with a list of currencies if they are available in the database.<br/>
+            - If there is an error during the execution, it will return an empty list of currencies.<br/>
+            - If there is an error during the execution, it will return an appropriate error message along with the corresponding status code.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 try:
@@ -51,6 +59,17 @@ class CurrencyController(APIController):
 
     @post()
     async  def create_currency(self, request: Request, currency_schema: CurrencySchemas):
+        """
+        This function is responsible for creating a new currency in the system.<br/>
+<br/>
+        Parameters:<br/>
+        - request (Request): The incoming request object containing the currency data.<br/>
+        - currency_schema (CurrencySchemas): The validated currency data schema.<br/>
+<br/>
+        Returns:<br/>
+        - JSON response with a success message if the currency is created successfully.<br/>
+        - JSON response with an error message if the currency already exists or if there is an error creating the currency.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 ### Get the currency with same name
@@ -79,12 +98,23 @@ class CurrencyController(APIController):
                 return json({'msg': 'Currency created successfully'})
 
         except Exception as e:
-            return json({'msg': f'{str(e)}'})
+            return json({'msg': f'{str(e)}'}, 500)
     
 
     @put()
     async def update_currency(self, request: Request):
+        """
+            This function updates a currency object in a database based on the provided request data.<br/><br/>
 
+            Parameters:<br/>
+               - request: The `request` parameter in the `update_currency` method is of type `Request`,
+                          which is used to represent an HTTP request. It contains information about the incoming request
+                          such as headers, body, method, URL, etc.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with a success message 'Currency updated successfully' if the currency update operation is successful.<br/>
+            - JSON response with an error message if the currency update operation fails.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 try:
@@ -120,10 +150,23 @@ class CurrencyController(APIController):
                     return json({'error1': f'{str(e)}'})
 
         except Exception as e:
-            return json({'error': f'{str(e)}'})
+            return json({'error': f'{str(e)}'}, 500)
     
     @delete()
     async def delete_currency(self, request: Request):
+        """
+            This Python function deletes a currency object from a database based on the provided currency ID.<br/><br/>
+
+            Parameters:<br/>
+            - request: The `request` parameter in the `delete_currency` method represents the HTTP
+                        request object that contains information about the incoming request, such as headers, body, and currency ID<br/><br/>
+
+            Returns:<br/>
+            - JSON response with a success message 'Currency deleted successfully' if the currency deletion operation is successful.<br/>
+            - JSON response with an error message if the currency deletion operation fails.<br/>
+            - If the currency with the given ID is not found, it returns a JSON response indicating that
+              the currency is not available in the given ID.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 try:
@@ -140,20 +183,20 @@ class CurrencyController(APIController):
                             await session.delete(get_currency_obj)
                             await session.commit()
                         else:
-                            return json({'msg': 'Currency is not available in given ID'})
+                            return json({'msg': 'Currency is not available in given ID'}, 400)
 
                     except Exception as e:
                         return json({'msg': f'Unable to locate currency{str(e)}'}, 404)
                     
                 except Exception as e:
-                    return json({'msg': f'{str(e)}'})
+                    return json({'msg': f'{str(e)}'}, 500)
                 
         except Exception as e:
-            return json({'finalerror': f'{str(e)}'})
+            return json({'finalerror': f'{str(e)}'}, 500)
         
 
 
-
+#### Convert Currency using Rapid API
 class CurrencyConverterController(APIController):
 
     @classmethod
@@ -166,6 +209,19 @@ class CurrencyConverterController(APIController):
 
     @post()
     async def convert_currency(self, request: Request):
+        """
+            This function converts currency using an external API and returns the converted amount.<br/><br/>
+
+            Parameters:<br/>
+            from_currency (str): The currency to be converted from.<br/>
+            to_currency (str): The currency to be converted to.<br/>
+            amount (float): The amount to be converted.<br/><br/>
+            
+            Returns:<br/>
+            - A JSON response containing the converted amount if the currency conversion is successful.<br/>
+            - If there are any errors during the currency conversion process or while calling the external API, appropriate error messages are returned along with the
+                corresponding HTTP status codes.<br/>
+        """
         request_body = await request.json()
         
         from_currency = request_body['from_currency']

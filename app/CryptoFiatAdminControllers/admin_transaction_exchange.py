@@ -28,6 +28,20 @@ class AdminFiatExchangeMoneyController(APIController):
     @auth('userauth')
     @get()
     async def get_fiat_exchange_requests(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+        Retrieves a list of fiat exchange money transactions for admin users.<br/><br/>
+
+        Parameters:<br/>
+        request (Request): The HTTP request object containing user identity and other request data.<br/>
+        limit (int): The maximum number of transactions to retrieve. Default is 10.<br/>
+        offset (int): The number of transactions to skip before starting to collect the result set. Default is 0.<br/><br/>
+
+        Returns:<br/>
+        json: A JSON response containing the success status, a list of exchange money data, and the total row count.<br/>
+              If the user is not an admin, returns a JSON response with an error message.<br/>
+              If no data is found, returns a JSON response with a 'No data found' message.<br/>
+              In case of a server error, returns a JSON response with an error message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity   = request.identity
@@ -122,6 +136,16 @@ class AdminFiatExchangeMoneyController(APIController):
     @auth('userauth')
     @put()
     async def update_exchange_money(self, request: Request, schema: AdminUpdateExchangeMoneySchema):
+        """
+        Updates the status of a fiat exchange money transaction and performs necessary operations on user wallets.<br/><br/>
+
+        Parameters:<br/>
+        - request (Request): The HTTP request object containing user identity and other request data.<br/>
+        - schema (AdminUpdateExchangeMoneySchema): The schema object containing the updated transaction status and converted amount.<br/><br/>
+
+        Returns:<br/>
+        - json: A JSON response containing the success status and a message. In case of an error, returns a JSON response with an error message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity   = request.identity
@@ -237,6 +261,22 @@ class AdminFilterExchangeMoneyTransaction(APIController):
     @auth('userauth')
     @post()
     async def filter_exchange_money(self, request: Request, schema: AdminFilterExchangeTransaction, limit: int = 10, offset: int = 0):
+        """
+            This function filters exchange transactions based on various criteria and
+            returns paginated results along with relevant data.<br/><br/>
+            
+            Parameters:<br/>
+              - request(Request): The incoming request object containing information about the HTTP request<br/>
+              - schema(AdminFilterExchangeTransaction): This schema contains data related to filtering exchange transactions, such as date time, email, status, currency, start date, and end date<br/>
+              - limit(int): The maximum number of results to return. Default is 10<br/>
+              - offset(int): The offset for pagination. Default is 0<br/><br/>
+
+            Returns:<br/>
+                JSON: A JSON response containing the following keys:<br/>
+                - success(bool): A boolean indicating whether the operation was successful <br/>
+                - pagination_count(float): The total number of pages based on the provided limit <br/>
+                - admin_filter_exchange_money_data(list): A list of dictionaries, each representing an exchange transaction <br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -421,6 +461,28 @@ class AdminExportFiatExchangeTransactions(APIController):
     @auth('userauth')
     @get()
     async def export_exchange_money(self, request: Request):
+        """
+            This function retrieves and exports exchange money transactions data with admin authentication.<br/><br/>
+
+            Parameters:<br/>
+                - `request`- It is used to handle incoming HTTP requests and contains information such as headers,
+                            body, and query parameters. In this function, the `request` parameter is used to extract the
+                            user's identity and make decisions.<br/><br/>
+            
+            Returns:<br/>
+              The code is returning a JSON response with the following structure:<br/>
+                - If the user making the request is not an admin, it returns a message indicating that only
+                  admins can view the transactions with a status code of 400.<br/>
+                - If the user making the request is an admin, it retrieves and exports the exchange money.<br/>
+                - If there is no data found in the database, it returns a message indicating that no data was
+                  found with a status code of 404.<br/>
+                - If there is an error during the database operations, it returns a message indicating
+                  a server error with a status code of 500.<br/>
+            
+            Raises:
+            - Exception: If any error occurs during the database operations or processing.<br/>
+            
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

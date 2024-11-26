@@ -36,6 +36,18 @@ class AdminAllWithdrawalTransactionController(APIController):
     @auth('userauth')
     @get()
     async def get_all_user_withdrawals(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            Get all user fiat withdrawal requests.<br/><br/>
+        
+            Parameters:<br/>
+            request (Request): The request object containing user identity and other information.<br/>
+            limit (int, optional): The number of withdrawals to retrieve per page. Default is 10.<br/>
+            offset (int, optional): The starting index for retrieving withdrawals. Default is 0.<br/><br/>
+        
+            Returns:<br/>
+            json: A JSON response containing the success status, all fiat withdrawals, and total row count.<br/>
+            If any error occurs, a JSON response with error status and error message is returned.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -137,6 +149,16 @@ class AdminAllWithdrawalTransactionController(APIController):
     @auth('userauth')
     @post()
     async def get__fiat_withdrawals_details(self, request: Request, id: int):
+        """
+            This function retrieves detailed information about a specific FIAT withdrawal transaction.<br/><br/>
+
+            Parameters:<br/>
+             - request (Request): The request object containing identity and other relevant information.<br/>
+             - id (int): The unique identifier of the FIAT withdrawal transaction.<br/><br/>
+
+            Returns:<br/>
+             - JSON response containing the withdrawal details or an error message in case of failure.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -236,6 +258,18 @@ class AdminAllWithdrawalTransactionController(APIController):
     @auth('userauth')
     @put()
     async def update_fiat_withdrawals(self, request: Request, schema: UpdateFiatWithdrawalsSchema):
+        """
+            This function is responsible for updating the status of a fiat withdrawal transaction.<br/>
+            It checks the admin authentication, validates the withdrawal request, deducts the amount from the user's wallet,<br/>
+            and updates the transaction status.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The request object containing the user's identity and payload data.<br/>
+            - schema (UpdateFiatWithdrawalsSchema): The schema object containing the withdrawal_id and status.<br/><br/>
+        
+            Returns:<br/>
+            - JSON response with success or error message, along with HTTP status code.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -349,6 +383,28 @@ class AdminFilterFiatWithdrawal(APIController):
     @auth('userauth')
     @post()
     async def filter_fiat_withdrawal(self, request: Request, schema: AdminFIATWithdrawalFilterSchema, limit: int = 10, offset: int = 0):
+        """
+            This function filters fiat withdrawal transactions based on various criteria such as date,
+            email, currency, and status, and returns paginated results along with relevant information.<br/><br/>
+            
+            Parameters:<br/>
+            - request: The HTTP request object containing the payload data.<br/>
+            - schema(AdminFIATWithdrawalFilterSchema): The schema object containing the filter parameters.<br/>
+            - limit: The maximum number of results to return per query. Defaults to 10.<br/>
+            - offset: The number of records to skip before starting to return records. Defaults to 0.<br/><br/>
+            
+            Returns:<br/>
+              JSON: A JSON response containing the following keys and values:<br/>
+            -'success': True if the operation was successful.<br/>
+            - 'all_admin_fiat_filter_withdrawals': A list of dictionaries containing details of filtered
+               fiat withdrawal transactions.<br/>
+            - 'paginated_count': The paginated value calculated based on the number of withdrawal
+               transactions and the specified limit.<br/><br/>
+            
+            Raises:<br/>
+            - HTTPException: If the request payload is invalid or if the admin is not authenticated.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -547,6 +603,21 @@ class AdminExportFIATWithdrawal(APIController):
     @auth('userauth')
     @get()
     async def export_fiat_withdrawals(self, request: Request):
+        """
+            This function exports fiat withdrawals data for admin users after authentication.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+
+            Returns:<br/>
+            - JSON: A JSON response containing the success status and the exported fiat withdrawals data (export_admin_fiat_withdrawals).<br/><br/>
+
+            Raises:<br/>
+                - BlackSheepException: If the request is not authorized or if there is an error with the database.<br/>
+                - Exception: If there is an error with the database.<br/>
+                - Exception: If there is an error with the API request.<br/>
+                - Exception: If there is an error with the API response.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

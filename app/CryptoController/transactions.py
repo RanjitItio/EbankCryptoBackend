@@ -34,6 +34,22 @@ class CryptoBuyController(APIController):
     @auth('userauth')
     @post()
     async def create_cryptoBuy(self, request: Request, schema: BuyUserCryptoSchema):
+        """
+            This function creates a new crypto buy transaction for a user, handling validations and fee
+            calculations.<br/><br/>
+
+            Parameters:<br/>
+            request: The `request` parameter in the `create_cryptoBuy` function represents the HTTP
+            request object that contains information about the incoming request such as headers, body,
+            method, etc. It allows users to access and process data sent by the client making the request. <br/>
+            schema: The `schema` parameter in the `create_cryptoBuy` function represents the data schema for creating a new crypto buy transaction. <br/>
+            It contains the following fields: type schema: BuyUserCryptoSchema <br/><br/>
+            
+            Return:<br/>
+            The code is returning a JSON response with a success message if the operation is
+            successful, along with an HTTP status code of 200. If there is an error during the process, it
+            will return a JSON response with an error message and an HTTP status code of 500.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

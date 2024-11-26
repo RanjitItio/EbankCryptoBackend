@@ -30,6 +30,7 @@ import re
 is_development = config('IS_DEVELOPMENT')
 
 
+
 # URL according to Environment
 if is_development == 'True':
     url         = 'http://localhost:5173'
@@ -38,6 +39,7 @@ if is_development == 'True':
 else:
     url = 'https://react-payment.oyefin.com'
     redirectURL = 'https://python-uat.oyefin.com/api/mastercard/redirect/response/url'
+
 
 
 
@@ -457,6 +459,7 @@ class PaymentGatewayProductionAPI(APIController):
 
         except Exception as e:
             return pretty_json({'error': 'Unknown Error Occured', 'message': f'{str(e)}'}, 500)
+
         
 
 
@@ -1340,6 +1343,21 @@ class MasterCardRedirectResponse(APIController):
 
     @post()
     async def receieve_mastercard_response(request: Request):
+        """
+            This Python function processes a Mastercard response, updates transaction status, and redirects
+            based on success or failure.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming POST request containing form data from Mastercard.<br/>
+                - redirectURL (str): The URL to redirect the user after processing the response.<br/>
+                - url (str): The URL to redirect the user after processing the response.<br/>
+                - is_development (bool): Flag indicating whether the environment is development or not.<br/><br/>
+
+            Returns:<br/>
+                - Redirect response to the success or failure URL based on the Mastercard response.<br/>
+                - If the result is 'FAILURE', it updates the status of the transaction to 'PAYMENT_FAILED' and redirects to a fail URL. If the result is 'SUCCESS', it updates the status
+                  to 'PAYMENT_SUCCESS' and redirects to a success URL. If the result is neither 'FAILURE' nor 'SUCCESS it redirect to the failure URL.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 form_data = await request.form()

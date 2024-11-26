@@ -30,6 +30,28 @@ class AdminCryptoSwapController(APIController):
     @auth('userauth')
     @get()
     async def get_swapTransactions(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+        Retrieve and return a paginated list of crypto swap transactions for admin users.<br/>
+
+        This function authenticates the admin user, fetches crypto swap transactions from the database,<br/>
+        and returns the data in a paginated format. It joins data from CryptoSwap, Users, and CryptoWallet tables.<br/><br/>
+
+        Args:<br/>
+            request (Request): The incoming HTTP request object containing user identity information.<br/>
+            limit (int, optional): The maximum number of records to return. Defaults to 10.<br/>
+            offset (int, optional): The number of records to skip before starting to return. Defaults to 0.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing:<br/>
+                - success (bool): Indicates if the operation was successful.<br/>
+                - pagination_count (float): The total number of pages based on the limit.<br/>
+                - admin_swap_data (list): A list of dictionaries, each containing details of a swap transaction.<br/>
+                - total_rows (int): The total number of records available for the admin user.<br/><br/>
+        Raises:<br/>
+            HTTPException: 401 if the user is not an admin.<br/>
+            HTTPException: 404 if no transactions are found.<br/>
+            HTTPException: 500 for any server-side errors.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -125,6 +147,24 @@ class AdminCryptoSwapController(APIController):
     @auth('userauth')
     @put()
     async def update_cryptoSwap(self, request: Request, schema: AdminUpdateCryptoSwap):
+        """
+        Update the status of a crypto swap transaction by an admin user.<br/>
+        This function authenticates the admin user, verifies the validity of the transaction and wallets,
+        and updates the transaction status and wallet balances accordingly.<br/><br/>
+
+        This function allows an admin to update the status of a crypto swap transaction.<br/>
+        It verifies the admin's identity, checks the validity of the transaction and wallets,<br/>
+        and updates the transaction status and wallet balances accordingly.<br/><br/>
+
+        Args:<br/>
+            request (Request): The incoming HTTP request object containing user identity information.<br/>
+            schema (AdminUpdateCryptoSwap): The schema containing the swap transaction ID and the new status.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response indicating the success or failure of the operation.<br/>
+                  - On success: {'success': True, 'message': 'Updated Successfully'}<br/>
+                  - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -247,10 +287,27 @@ class AdminExportCryptoSwapTransaction(APIController):
         return '/api/v5/admin/export/crypto/swap/'
     
     
-   ### Export Crypto Swaps
+    ### Export Crypto Swaps
     @auth('userauth')
     @get()
     async def export_cryptoSwap(self, request: Request):
+        """
+            This function exports crypto swap transaction data for admin users after authentication.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object received by the API endpoint.<br/><br/>
+            
+            Returns:<br/>
+             - JSON: A JSON response containing the exported crypto swap transaction data.<br/>
+             - HTTP Status Code: 200<br/>
+             - HTTP Status Code: 500 in case of server errors.<br/>
+             - HTTP Status Code: 401 in case of unauthorized access.<br/>
+             - HTTP Status Code: 404 in case of no transactions found.<br/>
+             - HTTP Status Code: 400 in case of invalid query parameters.<br/>
+             - HTTP Status Code: 429 in case of rate limiting.<br/>
+             - HTTP Status Code: 403 in case of insufficient permissions.<br/>
+             - HTTP Status Code: 414 in case of URL length exceeds the maximum limit.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -342,6 +399,28 @@ class AdminFilterCryptoSwapController(APIController):
     @auth('userauth')
     @post()
     async def filter_cryptoSwap(self, request: Request, schema: AdminFilterCryptoSwapSchema, limit: int = 10, offset: int = 0):
+        """
+        Filter Crypto Swap Transactions<br/><br/>
+
+        This function filters the Crypto Swap transactions based on the provided parameters.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (AdminFilterCryptoSwapSchema): The schema object containing the filter parameters.<br/>
+            - limit (int): The maximum number of results to return. Default is 10.<br/>
+            - offset (int): The offset for pagination. Default is 0.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON object containing the filtered Crypto Swap transactions.<br/>
+            - HTTPException: If the request payload is invalid or if the admin is not authenticated.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs. <br/><br/>
+        
+        Raises:<br/>
+        - HTTPException: If the request payload is invalid or if the admin is not authenticated.<br/>
+        - HTTPStatus: 500 Internal Server Error if an error occurs. <br/>
+        - HTTPException: If the request payload is invalid or if the admin is not authenticated.<br/>
+
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

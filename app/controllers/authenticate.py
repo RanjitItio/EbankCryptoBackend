@@ -42,6 +42,16 @@ class UserEmailAuthentication(APIController):
 
     @post()
     async def authenticate_user_email(self, request: Request):
+        """
+            Authenticates a user's email address and checks if the user has a wallet for the specified currency.<br /><br />
+    
+            Parameters:<br />
+            - request (Request): The incoming request object containing the user's email and currency.<br /><br />
+    
+            Returns:<br />
+            - JSON response with success status and message if the authentication and wallet existence checks pass.<br />
+            - JSON response with error status and message if any exception occurs or if the authentication or wallet existence checks fail.<br />
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 request_data = await request.json()
@@ -163,6 +173,16 @@ class UserCryptoWalletBalanceCheck(APIController):
     @auth('userauth')
     @post()
     async def crypto_wallet_balance_check(self, request: Request):
+        """
+            This function is responsible for checking the balance of a specified crypto wallet.<br/><br/>
+
+            Parameters:<br/>
+              - request (Request): The incoming request object containing user identity and wallet details.<br/><br/>
+
+            Returns:<br/>
+              - JSON response with success status and message if the balance is sufficient.<br/>
+              - JSON response with error status and message if an exception occurs or the balance is insufficient.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -216,6 +236,19 @@ class UserCryptoWalletBalanceCheck(APIController):
     @auth('userauth')
     @post()
     async def crypto_wallet_active_status(self, request: Request):
+        """
+            This function checks the active status of a user's crypto wallet.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The incoming request object containing user identity and wallet ID.<br/><br/>
+
+            Returns:<br/>
+            - JSON response:<br/>
+                - If the wallet is found and active, returns a success message with status code 200.<br/>
+                - If the wallet is not found, returns a not found message with status code 404.<br/>
+                - If the wallet is inactive, returns an inactive wallet message with status code 400.<br/>
+                - If an error occurs during processing, returns a server error message with status code 500.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

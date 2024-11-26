@@ -50,6 +50,16 @@ class PaymentButtonStyle(APIController):
 
     @get()
     async def get_button_styles(self, request: Request, id: str):
+        """
+            Fetch the button styles for a specific merchant payment button.<br /><br />
+
+            Parameters:<br />
+            - request (Request): The request object containing information about the HTTP request.<br />
+            - id (str): The unique identifier of the merchant payment button.<br /><br />
+
+            Returns:<br />
+            - json: A JSON response containing the button styles or an error message.<br />
+    """
         try:
             async with AsyncSession(async_engine) as session:
 
@@ -97,6 +107,32 @@ class CreateMerchantPaymentButton(APIController):
     @auth('userauth')
     @post()
     async def create_paymentButton(self, request: Request, schema: CreateNewPaymentButtonSchema):
+        """
+            This function handles the creation of a new payment button for a merchant.<br/><br/>
+            
+            The payload data should include the following fields:<br/>
+            - buttonTitle: The title of the payment button.<br/>
+            - buttonLabel: The label of the payment button.<br/>
+            - buttonColor: The color of the payment button.<br/>
+            - buttonBGColor: The background color of the payment button.<br/>
+            - businessName: The name of the business.<br/>
+            - redirectUrl: The URL to redirect the user after the payment is completed.<br/>
+            - isFixedAmount: A boolean indicating whether the payment amount is fixed.<br/>
+            - fixedAmountLabel: The label for the fixed payment amount.<br/>
+            - fixedAmount: The fixed payment amount.<br/>
+            - fixedAmountCurrency: The currency of the fixed payment amount.<br/>
+            - isCustomerAmount: A boolean indicating whether the payment amount is a customer-defined amount.<br/>
+            - customerAmountLabel: The label for the customer-defined payment amount.<br/>
+            - customerAmount: The customer-defined payment amount.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The request object containing the user's identity and payload data.<br/>
+            - schema (CreateNewPaymentButtonSchema): The schema object containing the validated payload data.<br/><br/>
+
+            Returns:<br/>
+            - JSON response with success status, message, and button ID if successful.<br/>
+            - JSON response with error status and message if an exception occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -178,6 +214,21 @@ class CreateMerchantPaymentButton(APIController):
     @auth('userauth')
     @get()
     async def get_payment_buttons(self, request: Request):
+        """
+        This function retrieves all payment buttons created by a user. It fetches the buttons,
+        calculates the total sales made through each button, and returns the data in a structured format.<br/><br/>
+
+        Parameters:<br/>
+        - request (Request): The incoming request object containing user identity and other relevant data.<br/><br/>
+
+        Returns:<br/>
+        - JSON response containing success status, error message (if any), and the list of payment buttons.<br/>
+          The payment buttons are represented as a list of dictionaries, each containing detailed information
+          about the button, such as button ID, title, currency, total sales, and status.<br/><br/>
+
+        Raises:<br/>
+        - Exception: If any error occurs during the database operations or processing.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

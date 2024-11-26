@@ -28,6 +28,19 @@ class AdminCryptoWalletController(APIController):
     @auth('userauth')
     @get()
     async def get_userWallets(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            Get all user's Crypto Wallets.<br/><br/>
+        
+            This function retrieves all Crypto Wallets of all users. It requires an admin authorization.<br/><br/>
+        
+            Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - limit (int): The number of rows to be returned. Default is 10.<br/>
+            - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+        
+            Returns:<br/>
+            - json: A JSON response containing the list of all user's Crypto Wallets and the total number of rows.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -104,6 +117,22 @@ class AdminCryptoWalletController(APIController):
     @auth('userauth')
     @put()
     async def update_cryptoWallet(self, request: Request, schema: UpdateAdminCryptoWalletSchema):
+        """
+            Update the status of a user's crypto wallet.<br/><br/>
+
+            This function allows an admin to update the status of a user's crypto wallet.<br/>
+            If the status is set to 'Approved', it will create a new wallet address if one doesn't exist.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing the user's identity.<br/>
+            - schema (UpdateAdminCryptoWalletSchema): A schema object containing the wallet_id and status to be updated.<br/><br/>
+
+            Returns:<br/>
+            - JSON: A JSON response indicating the success or failure of the operation.<br/><br/>
+            
+            On success, returns a 200 status code with a success message.<br/>
+            On failure, returns a 401 status code for unauthorized access or a 500 status code for server errors.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -184,6 +213,21 @@ class AdminCryptoWalletController(APIController):
     @auth('userauth')
     @post()
     async def filter_wallets(self, request: Request, schema: AdminFilterUserWalletSchema):
+        """
+            The function `filter_wallets` filters user wallets based on specified criteria and returns the results.<br/><br/>
+            
+            Params: <br/>
+                The `request` parameter in the `filter_wallets` function represents the HTTP request object that contains information about the incoming request such as headers, body, method, and more. <br/>
+                It allows you to access data sent by the client and interact with the request details to process and respond accordingly. <br/>
+                schema: The `schema` parameter in the `filter_wallets` function represents the input data schema for filtering user wallets.<br/>
+                It includes the following fields:<br/>
+                schema: AdminFilterUserWalletSchema<br/>
+                return: The code snippet is a Python function that filters user wallets based on certain<br/>
+                criteria such as date range, email, crypto name, and status. <br/>
+                It first checks for admin authentication, then retrieves the filter criteria from the request payload. <br/>
+                It constructs a SQL query based on the filter criteria and executes it to fetch user wallet data. <br/>
+                If no wallets are found based on the filters, it returns a message indicating so.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -320,6 +364,15 @@ class ExportWalletController(APIController):
     @auth('userauth')
     @get()
     async def export_cryptoWallets(self, request: Request):
+        """
+            This function exports data related to crypto wallets along with user information.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with success status and 'export_wallets_data' key containing a list of dictionaries with wallet information.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 stmt = select(

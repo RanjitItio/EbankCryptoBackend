@@ -28,6 +28,22 @@ class GenerateMerchantSecretKey(APIController):
     @auth('userauth')
     @get()
     async def Generate_merchnant_Keys(self, request: Request):
+        """
+            This function generates merchant keys for a user and handles error cases.<br/><br/>
+            
+            Parameters:<br/>
+                - request (Request): The `request` parameter represents the HTTP request object.<br/><br/>
+            
+            Returns:<br/>
+                - returns a JSON response with a message indicating whether the key generation was successful or if there was an error.<br/>
+                - If successful, it returns the generated key data in the response.<br/>
+                - If there is an error during key generation or any other server error, it returns an error message with details.<br/>
+                - If the user does not exist, it returns a 404 status code with an error message.<br/>
+                - If the user does not have the necessary permissions, it returns a 401 status code with an error message.<br/><br/>
+            
+            Raises:<br/>
+            - ValueError: If the request data is invalid.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

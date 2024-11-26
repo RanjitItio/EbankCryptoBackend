@@ -143,6 +143,22 @@ class DepositTransactionDetailController(APIController):
     @auth('userauth')
     @get()
     async def get_deposit_details(self, request: Request, transaction_id: int):
+        """
+            This function retrieves and processes deposit transaction details, including currency conversion, with admin authentication.<br/><br/>
+
+            Parameters:<br/>
+              - The `request` parameter represents the HTTP request object that contains information about the incoming request such as headers, body,
+                method, and more. It allows you to access and interact with the incoming request data in your API endpoint.<br/>
+
+              - transaction_id(int): Retrieves deposit details for a specific transaction ID. The function requires authentication using a decorator `auth` and handles GET requests.<br/><br/>
+            
+            Returns:<br/>
+              - JSON response containing transaction details fetched from the database, including information such as transaction ID, amount, transaction fee,
+                payout amount, status, payment mode, user details, currency details, converted amount, and converted
+                currency. The response also includes a message indicating that the transaction details have been successfully fetched.<br/>
+              - If the transaction details are not found, it returns a JSON response with an appropriate message.<br/>
+              - If an error occurs during the process, it returns a JSON response with an appropriate error message.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -409,6 +425,28 @@ class AdminFiletrFIATDepositController(APIController):
     @auth('userauth')
     @post()
     async def Filter_Fiat_Deposit(self, request: Request, schema: AdminFilterFIATDeposits, limit: int = 10, offset: int = 0):
+        """
+            This function filters fiat deposit transactions based on various criteria and returns the results along with pagination information.<br/><br/>
+            
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data<br/>
+            - schema (AdminFilterFIATDeposits): It includes fields such as `date_time`, `email`, `status`, `currency`, `start_date`, and `end_date` which are used to filter the deposit transactions based on various criteria<br/>
+            - limit (int): The maximum number of results to return. Default is 10<br/>
+            - offset (int): The offset for pagination. Default is 0<br/><br/>
+            
+            Returns:<br/>
+            - JSON: A JSON response containing the following keys and values:<br/>
+            - 'paginated_count': The paginated value calculated based on the limit provided<br/>
+            - 'filter_deposit_transactions': A list of dictionaries containing details of filtered deposit transactions<br/>
+            - 'paginated_count': The paginated value calculated based on the limit provided<br/>
+            - 'success': True or False indicating the success status of the operation<br/>
+            - 'message': A message indicating the outcome of the operation<br/><br/>
+            
+            Raises:<br/>
+            - HTTPException: 401 if the user is not authorized to access the admin functionality<br/>
+            - HTTPException: 400 if the payload data is not valid or if the date_time field is not in the correct format<br/>
+            - HTTPException: 500 if an error occurs while interacting with the database<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -587,6 +625,21 @@ class AdminExportDepositTransactionsController(APIController):
     @auth('userauth')
     @get()
     async def export_depositTransaction(self, request: Request):
+        """
+            This function exports deposit transaction data after verifying admin authorization.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object received by the `export_depositTransaction` endpoint.<br/><br/>
+
+            Returns:<br/>
+              - JSON: A JSON response containing the deposit transaction data. If successful, 
+                      the response object contains the export transaction data. <br/>
+              - JSON response. If an error occurs during the process, an error response is returned.
+              - Error: An error response is returned if the admin authorization fails or any error occurs during the process.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

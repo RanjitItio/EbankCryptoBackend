@@ -225,6 +225,22 @@ class ExportMerchantTransactions(APIController):
     @auth('userauth')
     @get()
     async def ExportMerchantTransactions(self, request: Request):
+        """
+            This function exports merchant PG transactions based on the user's authentication and
+            returns the data in a JSON format.<br/><br/>
+            
+            Parameters:<br/>
+                - request(Request): Request object<br/><br/>
+            
+            Returns:<br/>
+            - JSON: A JSON response containing the following keys:<br/>
+            - success (bool): A boolean indicating the success of the operation.<br/>
+            - export_merchant_all_prod_trasactions (list): A list of dictionaries, each representing a transaction.<br/>
+            - error (str): An error message in case of any exceptions.<br/><br/>
+
+            Raise:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate users
@@ -465,12 +481,12 @@ class SearchMerchantProductionTransactions(APIController):
 
 
 
-## Filter Merchant Transactions
+## Filter Merchant PG Transactions
 class FilterMerchantTransactionController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Filter Merchant Transactions'
+        return 'Filter Merchant PG Transactions'
     
     @classmethod
     def route(cls) -> str | None:
@@ -506,6 +522,25 @@ class FilterMerchantTransactionController(APIController):
     @auth('userauth')
     @post()
     async def filter_merchant_transaction(self, request: Request, schema: FilterTransactionSchema, limit: int = 10, offset: int = 0):
+        """
+            This function filters merchant transactions based on various criteria and returns paginated results.<br/><br/>
+            
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (FilterTransactionSchema): The schema used to filter merchant transactions.<br/>
+            - limit (int, optional): The maximum number of results to return in a single query. Defaults to 10.<br/>
+            - offset (int, optional): The starting point from which the query should retrieve results. Defaults to 0.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response containing the following keys and values:<br/>
+            - 'success': True if the operation was successful.<br/>
+            - 'merchant_prod_transactions': A list of dictionaries containing transaction details such as
+                id, merchant_id, currency, merchantMobileNumber, payment_mode, status, merchantPaymentType. <br/>
+            - 'paginated_rows': The total number of pages available for pagination.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

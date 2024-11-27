@@ -67,6 +67,32 @@ class MerchantController(APIController):
     @auth('userauth')
     @post()
     async def create_merchant_business(self, request: Request):
+        """
+            This API allows a merchant to create a new business profile. It validates the user's identity, checks permissions, 
+            and ensures the uniqueness of the business name and URL before saving the business details to the database. 
+            A logo can also be uploaded, or a default logo will be assigned if none is provided.<br/><br/>
+
+            Body parameters(From Data):<br/>
+                - Form data contain following details of business bsn_name, bsn_url, currency, bsn_msg, logo.<br/><br/>
+            
+            Returns:<br/>
+                Success Response status code 200 -  "msg": "Merchant created successfully"<br/>
+                Error Response status code 400 -  "msg": "Error message", "error": "Error details"<br/>
+                Error Response status code 500 -  "msg": "Server Error", "error": "Error details"<br/><br/>
+
+            Raises:<br/>
+                Error Response status code 400 - "msg": "Missing request payload"<br/>
+                Error Response status code 400 -  "msg": "Missing fields: <field1>, <field2>"<br/>
+                Error Response status code 400 -  "msg": "User error"<br/>
+                Error Response status code 400 -  "msg": "requested currency not found"<br/>
+                Error Response status code 400 -  "msg": "Image upload error <detailed error message>"<br/>
+                Error Response status code 400 -  "msg": "Merchant create error"<br/>
+                Error Response status code 400 -  "msg": "Only merchant allowed"<br/>
+                Error Response status code 400 -  "msg": "Account not activated yet please contact Administration"<br/>
+                Error Response status code 405 -  "msg": "This business name has already been taken"<br/>
+                Error Response status code 405 -  "msg": "This URL has already been taken"<br/>
+                Error Response status code 500 -  "msg": "Server Error"<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -185,6 +211,31 @@ class MerchantController(APIController):
     @auth('userauth')
     @put()
     async def update_merchant(self, request: Request):
+        """
+            The API Endpoint updates business information of merchant with validation checks and error handling.<br/><br/>
+            
+            Parameters:<br/>
+               - request: The HTTP Request  object.<br/><br/>
+            
+            Error:<br/>
+                - "User error" (status code 400) if there's an error while querying the database.<br/>
+                - "Account not activated yet please contact Administration" (status code 403) if the user's account is not active.<br/>
+                - "Requested currency not found" (status code 404) if the requested currency is not found.<br/>
+                - "Merchant create error" (status code 400) if there's an error while creating a new merchant.<br/>
+                - "Missing request payload" (status code 400) if the request body is empty.<br/>
+                - "Missing fields: field1, field2, ..." (status code 400) if required fields are missing in the request payload.<br/>
+                - "Only merchant allowed" (status code 403)<br/>
+                - "This business name has already been taken". (status code 405)<br/>
+                - "This URl has already been taken". (status code 405)<br/>
+                - "Image upload error" (status code 400) if there's an error while uploading the business logo.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with success message if the operation is successful, along with an HTTP status code of 200.<br/>
+            - JSON response with error message and an HTTP status code of 500 if there is an error during the process.<br/>
+            - JSON response with error message and an HTTP status code of 405 if the business name, URL, or currency is already taken.<br/>
+            - JSON response with error message and an HTTP status code of 403 if the user is not authorized to update the business.<br/>
+            - JSON response with error message and an HTTP status code of 404 if the merchant does not exist.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -324,6 +375,26 @@ class MerchantController(APIController):
     @auth('userauth')
     @get()
     async def get_merchant_detail(self, request: Request, id: int):
+        """
+            This API endpoint retrieves details of a business based on the provided ID, checking user
+            permissions and handling errors along the way.<br/><br/>
+
+             The data includes the currency information and the business details associated with the requested user and merchant ID<br/><br/>
+
+            Parameters:<br/>
+                - reququest: The HTTP request object providing  the request parameters of the request.<br/>
+                - id: The unique identifier of the merchant whose details are being requested.<br/><br/>
+            
+            Returns:<br/><br/>
+            - JSON: A JSON response containing the following keys and values:<br/>
+            -  'msg': Merchant detail fetched successfully.<br/>
+            - 'currency': The currency information associated with the requested merchant.<br/>
+            - 'data': The details of the requested business of merchant.<br/>
+            - 'error': A string containing an error message if the request fails.<br/><br/>
+            
+            Raises: <br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

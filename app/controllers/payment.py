@@ -55,6 +55,24 @@ class MerchantPaymentController(APIController):
     
     @post()
     async def merchant_payment(self, request: Request, input: FromJSON[MerchantFormTransaction]):
+        """
+            This function processes a merchant payment transaction by fetching merchant and currency
+            information, creating a transaction record, and handling potential errors.<br/><br/>
+            
+            Parameters:<br/>
+            - request (Request): The incoming request object containing the payment data.<br/>
+            - input (FromJSON[MerchantFormTransaction]): The JSON object representing the
+            - MerchantFormTransaction` data received from the server.<br/><br/>
+            
+            Returns:<br/>
+            - JSON: A JSON response containing the success message and status code 200 if the
+              payment is successful.<br/>
+            - If there are any errors during the process, it will return a JSON response with an error message and the corresponding status code (404, 400, or 500).<br/><br/>
+
+            Raises:<br/>
+            - ValueError: If the input data is not valid.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 data = input.value
@@ -97,5 +115,6 @@ class MerchantPaymentController(APIController):
                 )
 
                 return json({'msg': 'Success'}, 200)
+
         except Exception as e:
             return json({'msg': 'Server Error', 'error': f'{str(e)}'}, 500)

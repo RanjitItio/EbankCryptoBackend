@@ -28,6 +28,24 @@ class MerchantProfileController(APIController):
     @auth('userauth')
     @get()
     async def get_merchantProfile(self, request: Request):
+        """
+            This API Endpoint retrieves and returns a merchant's profile information, including user details and KYC documents.<br/><br/>
+
+            Parameters:<br/>
+            - request: The HTTP Request object.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with the following structure:<br/>
+            - If the operation is successful:<br/>
+            - 'success': True<br/>
+            - 'message': 'Data fetched successfully'<br/>
+            - 'merchant_profile': A dictionary containing the merchant profile information.<br/>
+            - If the operation fails.<br/>
+            - 'error': A string describing the error occurred.<br/><br/>
+            
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -101,6 +119,23 @@ class MerchantProfileController(APIController):
     @auth('userauth')
     @put()
     async def update_merchantProfile(self, request: Request, schema: UpdateMerchantProfileSchema):
+        """
+            This API Endpoint update merchant's profile information, including user details and KYC documents.<br/><br/>
+
+            Parameters:<br/>
+            - request: The HTTP Request object.<br/><br/>
+            - schema(UpdateMerchantProfileSchema): The schema object containing validated payload data.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with the following structure:<br/>
+            - If the operation is successful:<br/>
+            - 'success': True<br/>
+            - 'message': 'Updated Successfully'<br/><br/>
+            
+            Raises:<br/>
+            - Error 400: 'error': 'Email already exists'.<br/>
+            - Error 400: 'error': 'Phone number already exists'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

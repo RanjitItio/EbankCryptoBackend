@@ -12,7 +12,12 @@ from sqlmodel import select
 
 # Check how many steps the user has completed to be able to access production environment
 class MerchantSandBoxCompletionSteps(APIController):
-
+    """
+        This class handles the retrieval of merchant sandbox completion steps.<br/>
+        It checks for the completion of business and bank account setup for a merchant.<br/>
+        If both steps are completed, it activates the user keys.<br/> 
+    """
+    
     @classmethod
     def class_name(cls) -> str:
         return 'Merchant SandBox Steps'
@@ -25,6 +30,21 @@ class MerchantSandBoxCompletionSteps(APIController):
     @auth('userauth')
     @get()
     async def get_merchant_sb_steps(self, request: Request):
+        """
+            This API Retrieves the merchant sandbox completion steps.<br/><br/>
+
+            Parameters:<br/>
+                request (Request): The request object containing user identity and other information.<br/><br/>
+
+            Returns:<br/>
+                JSON: A JSON response containing the success status, completion status, and completion business step and bank step.<br/>
+                If an exception occurs, a JSON response with an error message is returned.<br/><br/>
+                
+            Raises:<br/>
+            - ValueError: If the input data is not valid.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate the user

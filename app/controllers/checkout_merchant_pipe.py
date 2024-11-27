@@ -26,6 +26,21 @@ class MerchantPipes(APIController):
     
     @post()
     async def get_merchant_pipes(request: Request, schema: PGMerchantPipeCheckoutSchema):
+        """
+            This function retrieves merchant pipes data based on a given public key and returns it in a JSON format.<br/><br/>
+
+            Note: The public key is used to identify the merchant in the request.<br/><br/>
+
+            Parameters:<br/>
+               - request(Request): The HTTP request object.<br/>
+               - schema(PGMerchantPipeCheckoutSchema): The schema object representing the input data expected in the request body.<br/><br/>
+                
+            Returns:<br/>
+             - success (bool): A boolean indicating the success of the operation.<br/>
+             - data (list): A list of dictionaries, each representing a merchant pipe.<br/>
+             - msg (str, optional): An error message if any exceptions occur during the execution.<br/>
+             - msg (str, optional): A message describing the outcome of the operation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 merchant_public_key_schema = schema.merchant_public_key

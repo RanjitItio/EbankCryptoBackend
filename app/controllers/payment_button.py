@@ -349,6 +349,18 @@ class MerchantKeysFromFormID(APIController):
     
     @get()
     async def get_merchantKeysFromFormID(self, request: Request, form_id: str):
+        """
+            This function retrieves merchant keys based on a given form ID.<br/><br/>
+            
+            Parameters:<br/>
+             - request(Request): The HTTP request object providing the request parameters of the request.<br/>
+             - form_id(str): The unique identifier of the merchant payment button.<br/><br/>
+
+            Returns:<br/>
+             - JSON: A JSON response containing the success message along with the merchant_keys if found, or an 404 error message if the merchant form or keys are not found, or 500 if there is a server error.<br/>
+             - Error: A JSON response with an error message with status code 404 if the merchant form or keys are not found, or if there is a server error.<br/>
+             - HTTPStatus: 401 Unauthorized if the request is not authenticated or the user does not have necessary permissions.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 formId =  form_id

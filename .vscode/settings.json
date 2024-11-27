@@ -1,4 +1,9 @@
 {
     "python.REPL.enableREPLSmartSend": false,
-    "docwriter.style": "reST"
+    "docwriter.style": "reST",
+    "editor.quickSuggestions": {
+        "other": "on",
+        "comments": true,
+        "strings": "off"
+    }
 }

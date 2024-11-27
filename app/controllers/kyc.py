@@ -73,6 +73,26 @@ class MerchantKYCController(APIController):
     @auth('userauth')
     @get()
     async def get_Merchantkyc(self, request: Request, limit: int = 15, offset: int = 0):
+        """
+            This API Endpoint retrieves merchant KYC data and user details, with admin authentication and
+            error handling.<br/><br/>
+
+            Parameter:<br/>
+                - request(Request): The HTTP request object.<br/>
+                - limit(int, optional): The maximum number of results to return in a single request.<br/>
+                - offset(int, optional): The starting point from where the data should be retrieved.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing all the KYC details and user details for the merchants.<br/>
+                - 'total_row_count': The total number of available KYC details and user details for the merchants.<br/>
+                - 'all_Kyc': List of KYC details for all merchant users.<br/>
+                - 'all_users': List of details for all merchant users.<br/><br/>
+
+            Raise:<br/>
+                - Exception: If an error occurs during the database query or response generation.<br/>
+                - BadRequest: If any required parameters are missing.<br/>
+                - Unauthorized: If the user is not authenticated.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -187,6 +207,26 @@ class MerchantKYCController(APIController):
     # Apply new kyc
     @post()
     async def create_kyc(self, request: Request):
+        """
+            This API Endpoint creates a Know Your Customer (KYC) record for a user by processing form
+            data, checking if the user exists, uploading a document, and saving the KYC details in a
+            database.<br/><br/>
+            
+            Parameters:<br/>
+            - request: The request object containing form data with user details.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with success status and message if the KYC is successfully created. <br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the user does not exist or the KYC already exists.<br/>
+                - ValueError: If the form data is invalid.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+                - If the user is not found, it returns a message 'User not found' with status code 404.<br/>
+                - If the KYC for the user already exists, it returns a message 'Kyc already applied' with status code 403.<br/>
+                - If there is an error during image upload, it returns a message 'Image upload failed' with status code 400.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
 
@@ -296,7 +336,30 @@ class MerchantKYCController(APIController):
     @auth('userauth')
     @put()
     async def update_kyc(self, request: Request, update_kyc: UpdateKycSchema):
-
+        """
+            This API Endpoint is used to update KYC details and user status based on the provided
+            input and authentication.<br/><br/>
+            
+            Parameters:<br/>
+            - request(Request): The incoming request object containing user identity and payload data.
+            - update_kyc(UpdateKycSchema): A schema for validating and parsing the input data, including the KYC ID,
+                                            KYC status, and any additional details required for the update.<br/><br/>
+            
+            Returns:<br/>
+                - JSON response: A JSON object containing the status of the KYC update process, along with
+                  any relevant information. The response includes details such as the updated KYC status,
+                  the user's status, and any additional details provided in the input.<br/><br/>
+            
+            Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+            - Error 400: 'msg': 'Unable to locate kyc'.<br/>
+            - Error 500: 'msg': 'Server error'.<br/>
+            - Error 400: 'msg': 'User not found'.<br/>
+            - Error 400: 'msg': 'Error while fetching user detail'.<br/>
+            - Error 404: 'msg': 'Kyc not found'.<br/>
+            - Error 400: 'msg': 'Error while updating the user'.<br/>
+            - Error 400: 'msg': 'Unable to update Kyc'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -416,7 +479,7 @@ class MerchantKYCController(APIController):
                             return json({'msg': 'Updated successfully'}, 200)
                         
                         else:
-                            return json({'msg': 'Kyc not found'})
+                            return json({'msg': 'Kyc not found'}, 404)
 
                     except Exception as e:
                         return json({'msg': f'{str(e)}'}, 500)

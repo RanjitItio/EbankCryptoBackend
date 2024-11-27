@@ -32,6 +32,27 @@ class MerchantRaiseRefund(APIController):
     @auth('userauth')
     @post()
     async def create_merchantRefund(self, request: Request, schema:MerchantCreateRefundSchema):
+        """
+            This API Endpoint Create a refund request for a merchant transaction,
+            handling various validation checks and database operations.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - schema(MerchantCreateRefundSchema): The schema object containing the transaction_id, comment, refund_amt.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status, message if successful.<br/>
+                - JSON response with error status and message if an exception occurs.<br/><br/>
+
+            Raise:<br/>
+                - Error Response status code 400 - "message": "Invalid Transaction ID".<br/>
+                - Error Response status code 400 - "message": "Can not raise Refund request, Transaction has not completed yet".<br/>
+                - Error Response status code 400 - "message": "Invalid Transaction Currency".<br/>
+                - Error Response status code 400 - "message": "Refund amount should be less than or equal to Transaction amount".<br/>
+                - Error Response status code 403 - "message": "Amount is greater than remaining refund amount".<br/>
+                - Error Response status code 403 - "message": "All transaction amount has been refunded".<br/>
+                - Error Response status code 500 - "error": "Server Error".<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -131,6 +152,26 @@ class MerchantRaiseRefund(APIController):
     @auth('userauth')
     @get()
     async def get_merchantRefunds(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint retrieves merchant refunds based on the user's identity, with pagination support and error handling.<br/><br/>
+
+            Parameters:<br/>
+               - request: The HTTP Request object.<br/>
+               - limit(int, optional): The maximum number of refund requests to retrieve in a single query. Defaults to 10.<br/>
+               - offset(int, optional): The starting point from which to retrieve data. Defaults to 0.<br/><br/>
+
+            Returns:<br/>
+                JSON: A JSON response containing the following keys and values:<br/>
+                - 'total_count': The total number of refund requests retrieved based on the limit and offset.<br/>
+                - 'merchant_refunds': A list of dictionaries, each containing details of a refund request.<br/>
+                -'success': A boolean indicating whether the operation was successful.<br/><br/>
+
+            Raise:<br/>
+                HTTPException: 401 if the user is not authenticated.<br/>
+                HTTPException: 403 if the user is not authorized to access this endpoint.<br/>
+                HTTPException: 500 for any server-side errors.<br/>
+                HTTPException: 404 if the refund transaction does not exist.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -456,12 +497,13 @@ class FilterMerchantRefunds(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return "Merchant Filter Transactions"
+        return "Merchant Filter Refund Transaction"
     
     @classmethod
     def route(cls) -> str | None:
         return '/api/v6/filter/merchant/pg/refund/'
     
+
     # Convert text to datetime format
     @staticmethod
     def get_date_range(currenct_time_date: str):
@@ -493,6 +535,28 @@ class FilterMerchantRefunds(APIController):
     @auth('userauth')
     @post()
     async def filter_merchant_refund(self, request: Request, schema: FilterMerchantRefundSchema, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint filters merchant refund data based on various criteria and returns paginated results.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (FilterMerchantRefundSchema): The schema object containing the validated data.<br/>
+            - limit: The maximum number of results to return per query. Defaults to 10.<br/>
+            - offset: The number of records to skip before starting to return records. Defaults to 0.<br/><br/>
+
+            Returns:<br/>
+             JSON: A JSON object containing the following keys and values:<br/>
+            - 'success': True if the operation was successful.<br/>
+            - 'merchant_refunds': A list of dictionaries containing details of merchant refunds.<br/>
+            - 'pagination_count': The total number of pages based on the limit.<br/><br/>
+            
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error Response status code 400 - "msg": "Missing request payload".<br/>
+            - Error Response status code 400 - "msg": "Invalid Transaction ID".<br/>
+            - Error Response status code 404 - "msg": "No refund requests available".<br/>
+            - Error Response status code 500 - "error": "Server Error".
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

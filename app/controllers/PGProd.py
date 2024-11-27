@@ -478,6 +478,35 @@ class MasterCardTransaction(APIController):
 
     @post()
     async def create_mastercard_transaction(request: Request, schema: PGProdMasterCardSchema):
+        """
+            This API Endpoint handles the creation of a Mastercard transaction, including decoding card
+            details, checking transaction status, initiating authentication, and handling various error
+            scenarios.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The request object to be used to create a Mastercard transaction.<br/>
+                - schema(PGProdMasterCardSchema): The schema object to be used to validate and extract data from the request payload.<br/><br/>
+
+            Procedures:<br/>
+                1. Decode the card details from the request payload.<br/>
+                2. Check if the required fields are present in the decoded payload.<br/>
+                3. Check if the merchant production transaction is found and initiated.<br/>
+                4. Check if the transaction has already been completed.<br/>
+                5. If all the conditions are met, initiate the Mastercard transaction process.<br/>
+                6. Handle various error scenarios, such as invalid card details, authentication failures,
+                   or webhook errors.<br/>
+                7. If the Mastercard transaction is successful, create a new API logs entry.<br/>
+                8. Return the appropriate JSON response based on the transaction status.<br/><br/>
+
+            Returns:<br/>
+            - JSON response containing the Mastercard transaction details and the status of the transaction.<br/><br/>
+            
+            Raises:<br/>
+                1. Error message for missing parameters if required fields are not present in the decoded
+                    payload.<br/>
+                2. Error message if the merchant production transaction is not found or not initiated.<br/>
+                3. Error message if the transaction has already been completed.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 request_payload = schema.request
@@ -854,6 +883,42 @@ class ReceiveMasterCardWebhook(APIController):
     
     @post()
     async def mastercard_webhook(request: Request):
+        """
+            The API Endpoint processes webhook data for Mastercard transactions and updates the status of the transaction accordingly.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming POST request containing webhook data from Mastercard.<br/>
+                - redirectURL (str): The URL to redirect the user after processing the response.<br/>
+            
+            Includes:<br/>
+                - send_webhook_response: A function that sends a webhook response to the specified URL.<br/>
+                - MasterCardWebhookPayload: A class representing the structure of the webhook data from Mastercard.<br/>
+                - deduct_amount: A function that deducts the amount from the user's account.<br/>
+                - CalculateMerchantAccountBalance: A function that calculates the new balance for the merchant's account.<br/>
+                - UserKeys: The database model representing the user keys.<br/>
+                - MerchantProdTransaction: The database model representing the merchant transactions.<br/>
+                - AsyncSession: The asynchronous session for interacting with the database.<br/>
+                - select: The SQLModel function for selecting data from the database.<br/>
+                - and_: The SQLModel function for combining conditions.<br/><br/>
+            
+            Procedures:<br/>
+                1. Extract the necessary data from the mastercard webhook payload.<br/>
+                2. Check if the transaction status is "CAPTURED" and the gateway code is "00" (Success).<br/>
+                3. If the transaction status is "CAPTURED" and the gateway code is "00", update the transaction status in the database.<br/>
+                4. If the transaction status is "CAPTURED" and the gateway code is "00", update the user's account balance.<br/>
+                5. Send a webhook response to the specified URL with the updated transaction status and user account balance.<br/>
+                6. Return a JSON response with the updated transaction status and user account balance.<br/>
+                7. gateway_code is DECLINED and authentication_status is AUTHENTICATION_UNSUCCESSFUL send a webhook response to the specified URL with the updated transaction status.<br/>
+                8. gateway_code is PENDING and authentication_status is AUTHENTICATION_INITIATED send a webhook response to the specified URL with the updated transaction status.<br/><br/>
+
+            Webhook Response:<br/>
+                - Send a webhook response to the specified URL with the updated transaction status after receiving response form mastercard.<br/><br/> 
+
+            Returns:<br/>
+            - json: A JSON response containing the updated transaction status and user account balance.<br/>
+            - 400: If the 'order' ID is not available in the webhook data.<br/>
+            - 500: If there is a server error during the webhook response process.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 json_data = await request.json()
@@ -1154,7 +1219,7 @@ class ReceiveMasterCardWebhook(APIController):
                     return pretty_json({'msg': 'success'}, 200)
 
         except Exception as e:
-            print('error', f'{str(e)}')
+            # print('error', f'{str(e)}')
             return pretty_json({'error': 'Server error', 'msg': f'{str(e)}'}, 500)
         
 
@@ -1172,6 +1237,21 @@ class MastercardTransactionStatus(APIController):
 
     @get()
     async def mastercard_transaction_status(request: Request, id: str):
+        """
+            This API Endpoint retrieves the status of PG production transaction based on the provided transaction ID and includes error handling
+            for various scenarios.<br/><br/>
+
+            Parameters:<br/>
+               - request: The HTTP request object.<br/>
+               - id: The unique identifier of the PG transaction,for which the transaction status needs to be retrieved.<br/><br/>
+
+            Returns:<br/>
+            - JSON: A JSON response containing the transaction status, error message, and merchant redirect URL if available.<br/>
+            - Error: A JSON response with an error message if the transaction ID is invalid or the transaction status cannot be retrieved.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 transaction_id = id

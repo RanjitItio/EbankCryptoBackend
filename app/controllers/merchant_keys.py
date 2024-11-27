@@ -24,6 +24,19 @@ class MerchantKeysController(APIController):
     @auth('userauth')
     @get()
     async def merchant_keys(self, request: Request):
+        """
+            This API Endpoint retrieves merchant keys for a user and returns them in a JSON response.<br/><br/>
+            
+            Parameters:<br/>
+            - request: The HTTP request object<br/><br/>
+            
+            Returns:<br/>
+            - JSON: A JSON response containing the merchant's public key, secret key, creation date, and status.<br/><br/>
+            
+            Raises:<br/>
+            - If the user does not exist, returns a 404 status code with an error message<br/>
+            - If there is an error during the process, returns a 500 status code with an error message<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

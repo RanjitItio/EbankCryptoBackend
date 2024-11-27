@@ -207,6 +207,30 @@ class MerchantPendingWithdrawalController(APIController):
     @auth('userauth')
     @get()
     async def get_merchantPendingWithdrawals(self, request: Request):
+        """
+            This API Endpoint retrieves pending withdrawal requests made by a merchant and returns the
+            relevant data in JSON format.<br/><br/>
+            
+            Parameters:<br/>
+                - request(Request): The HTTP Request object.<br/>
+                - schema(CreateMerchantWithdrawlSchma): The schema object representing the input data expected in the request body.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status and message, along with HTTP status code.<br/>
+                - JSON response with error status and message, along with HTTP status code if any exceptions occur.<br/>
+                - If there are no withdrawal requests found, it returns a message: {'message': 'No withdrawal
+                    request found'} with status code 404.<br/>
+                - If there are pending withdrawal requests for the merchant, it returns a success message along
+                with the details of the pending withdrawals in the 'merchantPendingWithdrawals' key. The
+                structure of the response.<br/><br/>
+
+            Raises:<br/>
+                - ValueError: If the request data is invalid.<br/>
+                - Exception: If any other error occurs during the database query or response generation.<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 404: 'message': 'No withdrawal request found'.<br/>
+                - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

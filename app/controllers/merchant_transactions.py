@@ -27,6 +27,25 @@ class MerchantProductionTransactions(APIController):
     @auth('userauth')
     @get()
     async def get_transactions(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint retrieves PG transactions for a specific merchant and returns them in a
+            paginated format.<br/><br/>
+            
+            Parameters:<br/>
+                 - request(Request): The HTTP request object containing identity and other relevant information.<br/>
+                 - limit(int, optional): The maximum number of transactions to retrieve per page. Default is 10.<br/>
+                 - offset(int, optional): The number of transactions to skip before starting to retrieve logs. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the following keys:<br/>
+                - success(bool): A boolean indicating whether the operation was successful.<br/>
+                - merchant_prod_trasactions(list): A list of dictionaries, each representing a transaction.<br/>
+                - total_rows(int): The total number of transactions available for the merchant.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 404: 'error': 'No transaction available'.<br/>
+        """
         # Authenticcate users
         user_identity = request.identity
         user_id       = user_identity.claims.get('user_id') if user_identity else None
@@ -103,6 +122,29 @@ class MerchantAllProductionTransactions(APIController):
     @auth('userauth')
     @get()
     async def get_all_transactions(self, request: Request, month: str = False, currency: str = False):
+        """
+            This API Endpoint retrieves all transactions for a specific user within a given month and
+            currency, handling authentication and error cases.<br/><br/>
+
+            Parameters:<br/>
+             - request: The HTTP request object.<br/>
+             - month: The month for which transactions need to be retrieved.<br/>
+             - currency: The currency for which transactions need to be retrieved.<br/>
+             - Returns: A JSON response with success message and transaction data.<br/>
+             - Returns: A JSON response with an error message if any exception occurs.<br/><br/>
+            
+            Description:<br/>
+                This function fetches all transactions for a specific user within a given month and currency.<br/>
+                If a month is provided, the function will fetch transactions for the specified month only.<br/>
+                If a currency is provided, the function will fetch transactions for the specified currency only.<br/>
+                If no month or currency is provided, it will fetch transactions for the current month and
+                all currencies.<br/>
+                The function also includes error handling to handle authentication failures, database
+                operations, and request validation.<br/><br/>
+                
+            Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+        """
         # Authenticate users
         user_identity = request.identity
         user_id       = user_identity.claims.get('user_id') if user_identity else None
@@ -175,6 +217,21 @@ class MerchantAccountBalance(APIController):
     @auth('userauth')
     @get()
     async def get_transactions(self, request: Request):
+        """
+            This API Endpoint calculate sum of all the successful transactions amount.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The HTTP request object containing user identity and other relevant information.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with the following structure:<br/>
+                - success (bool): Indicates whether the operation was successful.<br/>
+                - message (str): Provides a message describing the outcome of the operation.<br/>
+                - balance (dict): Contains the total balance for each currency type (USD, EUR, INR).<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or processing.<br/>
+        """
         # Authenticate Users
         user_identity = request.identity
         user_id       = user_identity.claims.get('user_id') if user_identity else None

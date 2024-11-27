@@ -12,13 +12,13 @@ from datetime import datetime
 
 
 #############################
-## Merchant Account Balance 
+## Merchant Account Balance Update ON Settlement Timeline
 #############################
 class MerchantAccountBalanceController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'Merchant Account Balance'
+        return 'Merchant Account Balance Update ON Settlement Timeline'
 
     @classmethod
     def route(cls) -> str | None:
@@ -28,6 +28,24 @@ class MerchantAccountBalanceController(APIController):
     @auth('userauth')
     @get()
     async def get_merchantAccountBalance(self, request: Request):
+        """
+            This API end point authenticates the user, then retrieves all successful payment
+            transactions related to the merchant. It checks for Immatured transactions and updates the
+            merchant's account balance accordingly. Finally, it returns the merchant's account balance in
+            JSON format if available, along with appropriate error messages if any issues occur.<br/><br/>
+            
+            Parameters:<br/>
+                - request: The HTTP request object.<br/><br/>
+
+            Returns:<br/>
+            - JSON: A JSON object containing the updated account balance of the merchant.<br/>
+            - HTTPException: If the user is not authenticated or if there are no transactions for the merchant.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/><br/>
+            
+            Raises: <br/>
+            - HTTPException: If the user is not authenticated or if there are no transactions for the merchant.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate User

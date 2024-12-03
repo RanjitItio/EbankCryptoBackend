@@ -24,6 +24,7 @@ class AuthenticateCheckController(APIController):
     @auth('userauth')
     @get()
     async def check_authentication():
+        """For testing purposes"""
         return json({'authenticated': True}, 200)
     
 
@@ -104,6 +105,7 @@ class UserEmailAuthentication(APIController):
 
 
 
+
 ### Check user Wallet Balance
 class UserWalletBalanceController(APIController):
 
@@ -119,6 +121,27 @@ class UserWalletBalanceController(APIController):
     @auth('userauth')
     @post()
     async def user_wallet_balance(self, request: Request):
+        """
+            This function checks the balance of a user's FIAT wallet for a given currency.It checks the user's authentication and error cases.<br/><br/>
+            
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user identity and payload data.<br/>
+                - sender_currency (str): The currency for which the user wants to check the balance.<br/>
+                - send_amount (float): The amount to be sent from the user's wallet.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success or error message, along with HTTP status code.<br/><br/>
+
+            Error messages:<br/>
+                - JSON: A JSON response indicating the success or failure of the operation.<br/>
+                - On success: {'success': True}<br/>
+                - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/>
+                - On unauthorized access: {'message': 'Unauthorized', 'status_code': 401}<br/>
+                - Error response status code 404 - {'message': 'Donot have sufficient balance in Wallet'}<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

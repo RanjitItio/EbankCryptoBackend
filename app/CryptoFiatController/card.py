@@ -30,6 +30,24 @@ class UserCreateFiatCardController(APIController):
     @auth('userauth')
     @post()
     async def create_fiatCard(self, request: Request, schema: UserCreateFiatCardSchema):
+        """
+            Create a new Fiat Card by the user.<br/><br/>
+
+            Parameters:<br/>
+                - request: The request object containing user identity and payload data.<br/>
+                - schema: The UserCreateFiatCardSchema object containing the card details.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status and the newly created card details if successful.<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Raises:<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Error message:<br/>
+                - 'Fiat Card already exists' if the card is already Exists.<br/>
+                - 'Invalid Currency' if the provided currency is not valid.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -99,6 +117,23 @@ class UserCreateFiatCardController(APIController):
     @auth('userauth')
     @put()
     async def update_fiatCard(self, request: Request, schema: UserUpdateFiatCardSchema):
+        """
+            Update the details of an existing Fiat Card.<br/><br/>
+
+            Parameters:<br/>
+                - request: The request object containing user identity and payload data.<br/>
+                - schema: The UserUpdateFiatCardSchema object containing the card details.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status and the updated card details if successful.<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Raises:<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Error message:<br/>
+                - 'Invalid Card' if the provided card ID is not valid.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -153,6 +188,22 @@ class UserCreateFiatCardController(APIController):
     @auth('userauth')
     @get()
     async def get_fiatCard(self, request: Request):
+        """
+            Get all the Fiat Cards associated with the user.<br/><br/>
+
+            Parameters:<br/>
+                - request: The request object containing user identity.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status and a list of user's Fiat Cards if successful.<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Raises:<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Error message:<br/>
+                - 'No Card found' if the user does not have any Fiat Cards.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -217,6 +268,23 @@ class UserCreateFiatCardController(APIController):
     @auth('userauth')
     @delete()
     async def delete_UserFiatCard(self, request: Request, card_id: int):
+        """
+            Delete a specific Fiat Card associated with the user.<br/><br/>
+
+            Parameters:<br/>
+                - request: The request object containing user identity.<br/>
+                - card_id: The ID of the Fiat Card to be deleted.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status and a message indicating successful deletion if successful.<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Raises:<br/>
+                - JSON response with error status and a message in case of server error.<br/><br/>
+
+            Error message:<br/>
+                - 'Invalid Card' if the provided card ID is not valid.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -263,6 +331,27 @@ class UserUpdateFiatCardPinController(APIController):
     @auth('userauth')
     @put()
     async def update_fiatCardPIN(self, request: Request, schema: UserUpdateFIATCardPINSchema):
+        """
+            This function updates the PIN of a Fiat Card of a user.<br/>
+            It verifies the user's identity, checks the validity of the card, and updates the PIN.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing the user's identity and payload data.<br/>
+                - schema (UserUpdateFIATCardPINSchema): The schema object containing the card ID and PIN.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status, message, or error details.<br/>
+                    - On success: {'success': True,'message': 'PIN Updated Successfully'}<br/>
+                    - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the operation, it is caught and a JSON response with an appropriate error message is returned.<br/><br/>
+
+            Error Messages:<br/>
+                - ValueError: If the payload data is invalid.<br/>
+                - Error 400: 'Invalid Card' or 'Please set four digit pin' if the card ID or PIN is invalid.<br/>
+                - Error 500: 'Server Error' if any other error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

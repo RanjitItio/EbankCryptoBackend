@@ -1,6 +1,6 @@
 {
     "python.REPL.enableREPLSmartSend": false,
-    "docwriter.style": "reST",
+    "docwriter.style": "Auto-detect",
     "editor.quickSuggestions": {
         "other": "on",
         "comments": true,

@@ -55,12 +55,51 @@ async def save_business_logo(request: Request):
     return str(file_path.relative_to(Path("Static")))
 
 
+
+
+
+
 #Update Business by Admin
 @auth('userauth')
 @put('/api/admin/merchant/update/')
 async def business_update(self, request: Request, query: str = ''):
     """
-     Admin will be able to Update Business Details
+        Admin will be able to Update Business Details<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for transaction details.<br/>
+            request (Request): HTTP request object.<br/>
+            Form Data:<br/>
+                - logo (File): Logo of the business.<br/>
+                - business_name (str): Name of the business.<br/>
+                - business_url (str): URL of the business.<br/>
+                - currency (str): Currency of the business.<br/>
+                - group (str): Group of the business.<br/>
+                - fee (float): Fee of the business.<br/>
+                - merchant_id (int): ID of the merchant.<br/>
+                - status (str): Status of the business.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing success status and message if the business is updated.<br/>
+            - Error: An error message with status code 404 if the business is not found.<br/>
+            - Error: An error message with status code 401 if the user is not authorized to update the business.<br/><br/>
+
+        Error message:<br/>
+            - Unauthorized: If the user is not authorized to update the business.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+            - 'msg': 'Only admin can update the Merchant details'<br/>
+            - 'msg': 'requested currency not found'<br/>
+            - 'msg': 'Image upload error'<br/>
+            - 'msg': 'Currency error'<br/>
+            - 'msg': 'Group error'<br/>
+            - 'msg': 'requested group not found'<br/><br/>
+
+        Raises:<br/>
+             - Exception: If any other unexpected error occurs.<br/>
+             - ValueError: If the form data is invalid.<br/>
+             - Error 404: 'Requested business not found'.<br/>
+             - Error 401: 'Unauthorized to update the business'<br/>
+             - Error 500: 'Server Error'<br/>
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -217,13 +256,38 @@ async def business_update(self, request: Request, query: str = ''):
 
 
 
+
 #View all Businesses by Admin
 ##############################
 @auth('userauth')
 @get('/api/admin/all/merchant/')
 async def view_all_business(request: Request, limit: int = 15, offset: int = 0):
     """
-     Admin will be able to View Business
+        Get all available business.<br/><br/>
+
+        Parameters:<br/>
+            limit: Limit of the records to be fetched. (default: 15)<br/>
+            offset: Offset from where to start fetching records. (default: 0)<br/>
+            request: The HTTP request object.<br/><br/>
+        
+        Returns:<br/>
+            JSON: A JSON response containing all available business details.<br/>
+            total_business_count: Total number of business available.<br/>
+            success: True if operation is successful.<br/>
+            msg: Error message if any.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+            Error 404: 'error': 'No merchant available to show'.<br/>
+            Error 500: 'error': 'Server Error'.<br/>
+            Error 400: 'error': 'Invalid request parameters'.<br/><br/>
+
+        Error Messages:<br/>
+            Error 400: 'error': 'Invalid request parameters'.<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+            Error 404: 'error': 'No merchant available to show'.<br/>
+            Error 500: 'error': 'Server Error'.<br/>
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -346,6 +410,29 @@ async def view_all_business(request: Request, limit: int = 15, offset: int = 0):
 @auth('userauth')
 @get('/api/v2/admin/search/merchant/')
 async def search_business(self, request: Request, query: str):
+    """
+        Admin will be able to Search Business.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): Request object<br/>
+            - query (str): Search query<br/><br/>
+
+        Returns:<br/>
+            - JSON: List of businesses matching the search query<br/>
+            - Status Code: 200 if successful, 400 if error<br/>
+            - Status: 400 if no result found<br/>
+            - Status: 500 if server error<br/><br/>
+        
+        Error Message:<br/>
+            - Unauthorized Access: If the user is not authorized to access the endpoint.<br/>
+            - Server Error: If an error occurs while executing the database query.<br/><br/>
+        
+        Raises:<br/>
+            - Exception: If any other unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 400: 'error': 'No result found'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     user_identity   = request.identity
     AdminID         = user_identity.claims.get("user_id") if user_identity else None
 
@@ -536,6 +623,23 @@ async def search_business(self, request: Request, query: str):
 @auth('userauth')
 @get('/api/v2/admin/export/business/')
 async def exportMerchantBusiness(request: Request):
+    """
+        This API endpoint is used to export all the Merchant Business profiles by an admin.<br/><br/>
+
+        Parameters:<br/>
+            - request: HTTP Request object.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the exported Merchant Business profiles, success status code.<br/>
+            - On success: {'success': True,'message': 'Business fetched successfuly', 'merchant_business_export': exported_data}.<br/><br/>
+        
+        Error message:<br/>
+            - JSON: A JSON response indicating the success or failure of the operation.<br/>
+            - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/><br/>
+        
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -596,10 +700,39 @@ async def exportMerchantBusiness(request: Request):
     
 
 
+
+
+
 ## Filter business by Admin
 @auth('userauth')
 @post('/api/v2/admin/filter/merchant/business/')
 async def filter_business(request: Request, schema: FilterBusinsessPage, limit: int = 10, offset: int = 0):
+    """
+        This API Endpoint will be used to filter business by admin.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - schema (FilterBusinsessPage): The schema object containing the filter criteria.<br/>
+            - limit (int, optional): The maximum number of results to return per query. Default is 10.<br/>
+            - offset (int, optional): The number of results to skip before starting to return. Default is 0.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the success status, a list of business data,
+                and the total number of pages.<br/>
+            - If no business are found, returns a JSON response with a 'No business found' message.<br/>
+            - In case of a server error, returns a JSON response with an error message.<br/><br/>
+
+        Raises:<br/>
+            - ValueError: If the input data is not valid.<br/>
+            - Exception: If there is an error while executing the SQL queries.  <br/>
+            - Error 500: 'error': 'Server Error' if any error occurs during the database query or response generation.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 500: 'error': 'Server Error' if any error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access' if the admin is not authenticated.<br/>
+            - Error 400: 'error': 'Bad Request' if there was an error in input data.<br/>
+            - Error 400: 'message': 'Invalid merchant name' if merchant name is invalid.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

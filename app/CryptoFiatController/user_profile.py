@@ -225,6 +225,26 @@ class UploadCryptoFIATUserProfilePicture(APIController):
     @auth('userauth')
     @post()
     async def upload_user_profilePic(self, request: Request, files: FromFiles):
+        """
+            Upload users profile picture, Authenticated Route.<br/><br/>
+
+            Parameters:<br/>
+               - `files`: Files to upload.<br/>
+                - `request`: Request object with the user identity.<br/><br/>
+
+            Returns:<br/>
+                A JSON object with success message or error message.<br/>
+                If the file size exceeds the maximum allowed size, returns a 403 error.<br/>
+                If the file name is missing, returns a 403 error.<br/>
+                If error occurs during the upload, returns a 400 error.<br/>
+                If the user is not authenticated, returns a 401 error.<br/>
+                If the request is not valid, returns a 400 error.<br/><br/>
+
+            Error message:<br/>
+            - BadRequest: If the request payload is invalid or the file data is not provided.<br/>
+            - SQLAlchemyError: If there is an error during database operations.<br/>
+            - Exception: If any other unexpected error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

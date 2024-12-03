@@ -21,6 +21,9 @@ class UserRefreshController(APIController):
 
     @post()
     async def generate_token(self, request: Request):
+        """
+            For testing purposes.
+        """
         try:
             req_body = await request.json()
             refresh_token = req_body['refresh_token']

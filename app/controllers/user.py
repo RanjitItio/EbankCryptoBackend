@@ -38,6 +38,9 @@ class UserController(APIController):
     # Get all the available users
     @get()
     async def get_user(self, request: Request):
+        """
+            Get all available users(Not in user)
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 try:
@@ -58,6 +61,28 @@ class UserController(APIController):
     # Register New uer
     @post()
     async def create_user(self, request: Request, user: UserCreateSchema):
+        """
+            This function is responsible for creating a new user in the system.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user data.<br/>
+                - user (UserCreateSchema): The validated user data schema.<br/><br/>
+            
+            Returns:<br/>
+                - JSON response with success status and message if the user is created successfully.<br/>
+                - JSON response with error status and message if the user already exists or if there is an error creating the user.<br/><br/>
+            
+            Error message:<br/>
+                - "Email already exists" (status code 400) if the email already exists in the system.<br/>
+                - "Mobile number already exists" (status code 400) if the Mobile number already exists in the system.<br/>
+                - "Password is not same Please try again" (status code 400) if the password1 and password2 both are same.<br/>
+                - "Server Error" (status code 500) if an error occurs during the database operations.<br/><br/>
+            
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 new_group = []
@@ -213,7 +238,19 @@ class SuspendedUserCheck(APIController):
     @get()
     async def suspended_user_check(self, request: Request):
         """
-         Check user is Suspended or not
+            Check user is Suspended or not suspended.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The HTTP request object.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with status and message if the user is suspended.<br/>
+                - JSON response with status and message if the user is active.<br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the request data is invalid.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -249,7 +286,20 @@ class InactiveUserCheck(APIController):
     @get()
     async def inactive_user_check(self, request: Request):
         """
-         Check user is Active or not
+            Check user is Active or not active.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The HTTP request object.<br/><br/>
+
+            Returns:<br/>
+                - 200 OK if user is active, 401 if user is not Authorized.<br/>
+                - 400 Bad Request if any of the required parameters is missing.<br/>
+                - 500 Internal Server Error if any error occurs during the operation.<br/><br/>
+
+            Raises:<br/>
+                - Unauthorized if the user is not authenticated.<br/>
+                - ForbiddenException if the user is not authorized to access the endpoint.<br/>
+                - HTTPException if the request is not authorized to access the endpoint.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -273,7 +323,7 @@ class InactiveUserCheck(APIController):
 
 
 
-#Count all avilable user From KYC
+# Count all avilable user From KYC
 class CountAvailableUser(APIController):
     @classmethod
     def route(cls):
@@ -287,7 +337,24 @@ class CountAvailableUser(APIController):
     @get()
     async def count_users(self, request: Request):
         """
-         Check user is Active or not
+            This API Endpoint will return a list of total users, total merchants, and total transactions.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The HTTP request object.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with status and message, total users, total merchants, and total transactions.<br/>
+                - 400 Bad Request if any of the required parameters is missing.<br/>
+                - 500 Internal Server Error if any error occurs during the operation.<br/><br/>
+
+            Raises:<br/>
+                - Unauthorized if the user is not authenticated.<br/>
+                - ForbiddenException if the user is not authorized to access the endpoint.<br/>
+                - HTTPException if the request is not authorized to access the endpoint.<br/><br/>
+
+            Error message:<br/>
+                'Only admin can view the Transactions' if the user is not admin.<br/>
+                'No users Available' if the user table is empty.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -337,10 +404,33 @@ class CountAvailableUser(APIController):
 
 
 
+
+
 # Update user profile by admin
 @auth('userauth')
 @PUT('/api/v1/admin/update/user/profile/')
 async def update_userProfile(request: Request, schema: UppdateUserProfileSchema):
+    """
+        This API Endpoint let the Admin update user profile.<br/><br/>
+
+        Parameters:<br/>
+            schema (UppdateUserProfileSchema): Request payload with user details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing the success status and updated user profile details.<br/>
+            HTTP Status Code: 200 if successful, 400 if invalid request data, or 401 if admin authorization fails.<br/>
+            HTTP Status Code: 500 if an error occurs.<br/><br/>
+
+        Error Messages:<br/>
+            - 'message': 'Mail ID already exists' <br/>
+            - 'message': 'Contact number already exists'<br/><br/>
+        
+        Raises:<br/>
+            - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+            - SQLAlchemyError: If there is an error during database operations.<br/>
+            - Exception: If any other unexpected error occurs.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -462,6 +552,9 @@ class ConfirmMail(APIController):
 
     @post()
     async def confirm_email(self, data: ConfirmMail, request: Request):
+        """
+            For testing purposes.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_id = decrypt_password_reset_token(data.token)['user_id']

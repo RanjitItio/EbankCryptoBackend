@@ -16,6 +16,28 @@ from app.dateFormat import get_date_range
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sandbox/transactions/')
 async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 10, offset : int = 0):
+    """
+        Get all the PG Sandbox transactions of merchant.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - limit (int): The number of rows to be returned. Default is 10.<br/>
+            - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the AdminmerchantPGSandboxTransactions, success, message, and the total_row_count.<br/>
+            - HTTP Status Code: 200 if successful, 401 if unauthorized, or 500 if an error occurs. <br/><br/>
+
+        Error message:<br/>
+            - Unauthorized Access: If the user is not authorized to access the endpoint.<br/>
+            - Server Error: If an error occurs while executing the database query.<br/><br/>
+        
+        Raises:<br/>
+           - Exception: If any other unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -97,6 +119,26 @@ async def get_merchant_pg_sandbox_transaction(request: Request, limit : int = 10
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sb/search/transactions/')
 async def search_merchant_pg_sandbox_transactions(request: Request, query: str):
+    """
+        Admin will be able to Search Merchant Sandbox Transaction.<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for transaction details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: Returns a list of transaction details that match the search query.<br/>
+            'admin_merchant_searched_sb_transactions': List of transaction details<br/>
+            'success': successful transaction status.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+            Error 500: 'error': 'Server Error'.<br/><br/>
+
+        Error Messages:<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -270,10 +312,41 @@ async def search_merchant_pg_sandbox_transactions(request: Request, query: str):
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
     
 
+
+
+
 # Filter Merchant Sandbox Transactions
 @auth('userauth')
 @post('/api/v2/admin/merchant/filter/sandbox/transaction/')
 async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandboxTransactionFilterSchema, limit: int = 10, offset: int = 0):
+    """
+        This endpoint is used to filter merchant sandbox transactions by admin.<br/>
+        Admins can filter transactions based on transaction ID, transaction amount, business name, date range, and more.<br/><br/>
+        
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (AllSandboxTransactionFilterSchema): The schema used to filter merchant sandbox transactions.<br/>
+            - limit (int, optional): The maximum number of results to return in a single query. Defaults to 10.<br/>
+            - offset (int, optional): The starting point from which the query should retrieve results. Defaults to 0.<br/><br/>
+        
+        Returns:<br/>
+            - A JSON object containing the filtered merchant sandbox transactions.<br/>
+            - A 401 Unauthorized status if the user is not authenticated as an admin.<br/>
+            - A 400 Bad Request status if the payload data is invalid.<br/>
+            - A 500 Internal Server Error status if there is an error in the server's processing.<br/><br/>
+
+        Raises:<br/>
+            - HTTPException: If the request payload data is invalid or if the user is not authenticated as an admin.<br/>
+            - HTTPStatus: 401 Unauthorized if the user is not authenticated as an admin.<br/>
+            - HTTPStatus: 400 Bad Request if the payload data is invalid.<br/>
+            - HTTPStatus: 500 Internal Server Error if there is an error in the server's processing.<br/><br/>
+
+        Error messages:<br/>
+            - 401: Unauthorized.<br/>
+            - 400: Bad Request.<br/>
+            - 500: Internal Server Error.<br/>
+            - 404: Not Found.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

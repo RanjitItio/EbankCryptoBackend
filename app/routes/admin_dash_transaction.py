@@ -13,6 +13,29 @@ from sqlmodel import select, and_
 @auth('userauth')
 @get('/api/v3/admin/merchant/success/transactions/')
 async def AdminDashTransactionAmount(self, request: Request):
+    """
+        Get sum of all the success transaction amount of three currencies.<br/>
+        Authenticate admin user before fetching the data.<br/><br/>
+
+        Parameters:<br/>
+            - request: HTTP Request object.<br/><br/>
+
+        Returns:<br/>
+            JSON response with success message and transaction data.<br/>
+            success(boolean): if successful.<br/>
+            usd_balance(float): Total USD balance.<br/>
+            eur_balance(float): Total EUR balance.<br/>
+            inr_balance(float): Total INR balance.<br/><br/>
+
+        Raises:<br/>
+            - JSON response with error message if any error occurs while fetching data.<br/>
+            - JSON response with error message if user is not authenticated.<br/><br/>
+
+        Error Message:<br/>
+            - ValueError: If the input data is not valid.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

@@ -44,7 +44,7 @@ else:
 
 
 ##########################################
-## Production Payment
+## Production Payment to initiate the payment
 ##########################################
 class PaymentGatewayProductionAPI(APIController):
 
@@ -59,6 +59,33 @@ class PaymentGatewayProductionAPI(APIController):
 
     @post()
     async def create_order(request: Request, schema: PGProdSchema, form_id: str = '') -> Response:
+        """
+          This API Endpoint Initiate a payment request in production environment. 
+          It performs various validations, checks, and database operations to process a payment request in a production environment.<br/><br/>
+             - The method starts by extracting the necessary headers and payload from the incoming request. It then validates the payload, checks the merchant's key, and performs various checks to ensure the payment request is valid.<br/>
+             - If all validations pass, the method saves the transaction details into the database and returns a JSON response with the necessary information for the merchant to redirect their customers to the payment gateway.<br/><br/>
+
+          Parameters:<br/>
+              - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+              - schema(PGProdSchema): The schema object containing the required fields for creating a payment request in production environment.<br/>
+              - form_id(str): Optional parameter to specify the form ID for the payment request while making payment through payment form.<br/><br/>
+
+         Returns:<br/>
+              - JSON response with success status, message, and necessary data for the merchant to redirect their customers to the payment gateway.<br/>
+              - JSON response with error status and message if an exception occurs.<br/><br/>
+
+          Error Messages:<br/>
+            - 'Missing Header: X-AUTH': If the 'X-AUTH' header is missing in the incoming request.<br/>
+            - 'Incorrect X-AUTH header': If the provided 'X-AUTH' header is invalid.<br/>
+            - 'Invalid merchantPublicKey': If the provided merchant public key is invalid.<br/>
+            - 'Missing Parameter: paymentInstrument'  - If the provided payment instrument is missing.<br/>
+            - Amount should be greater than 0 - If the provided amount is less than 0.<br/>
+            - Incorrect paymentInstrument type - If the provided payment instrument type is invalid.<br/>
+            - Key is in Sandbox mode, Please activate the key - If the provided key is in sandbox mode.<br/>
+            - Inactive key, Please contact administrations - If the provided key is inactive.<br/>
+            - No Active Acquirer assigned, Please contact administration - If No Active Acquirer assigned.<br/>
+            - Duplicate merchantOrderId - If the provided merchant order id is duplicated.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 header        = request.headers.get_first(b"X-AUTH")
@@ -1311,6 +1338,22 @@ class MerchantTransactionStatus(APIController):
 
     @get()
     async def MerchantTransactionStatus(request: Request, merchant_public_key: str, merchant_order_id: str):
+        """
+            This API Endpoint Retrieve the status of a specific transaction for a given merchant.<br/><br/>
+
+            Parameters:<br/>
+             - request: The HTTP request object.<br/>
+             - merchant_public_key: The public key of the merchant.<br/>
+             - merchant_order_id: The unique identifier of the transaction.<br/>
+
+            Returns:<br/>
+             - JSON response containing the transaction status or an error message in case of failure.<br/>
+             - Error: A JSON response with an error message if the key is invalid or the transaction status cannot be retrieved.<br/><br/>
+
+            Raises:<br/>
+             - Exception: If any error occurs during the database query or response generation.<br/>
+             - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 merchantPublicKey = merchant_public_key

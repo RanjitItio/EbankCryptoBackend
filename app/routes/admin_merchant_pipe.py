@@ -10,10 +10,31 @@ from sqlmodel import select, and_
 
 
 
+
 # Assign pipe to Merchant
 @auth('userauth')
 @post('/api/admin/merchant/pipe/assign/')
 async def assign_merchant_pipe(request: Request, schema:  AdminMerchantPipeAssignSchema):
+    """
+        This API let Admin assign pipe to merchant.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): HTTP request object.<br/>
+            - schema (AdminMerchantPipeAssignSchema): The schema for assigning pipe to merchant.<br/><br/>
+
+        Returns:<br/>
+            - JSON: Returns success status and message if pipe is assigned successfully.<br/>
+            - JSON: Returns error status and message if any.<br/><br/>
+
+        Error message:<br/>
+            - 'msg': 'Requested pipe id does not exists' if pipe does not exist.<br/>
+            - 'msg': 'Merchant not found' if merchant does not exist.<br/>
+            - 'msg': 'Merchant pipe already exists' if pipe already assigned to Merchant.<br/><br/>
+
+        Raises:<br/>
+            - Exception: Returns error status and message if any.<br/>
+            - BadRequest: Returns error status and message if any.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             adminIdentity = request.identity
@@ -99,10 +120,37 @@ async def assign_merchant_pipe(request: Request, schema:  AdminMerchantPipeAssig
 
 
 
+
+
+
 # Update assigned pipe details of Merchant
 @auth('userauth')
 @put('/api/admin/merchant/pipe/update/')
 async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdateSchema):
+    """
+        This API Endpoint let Admin update Merchant's assigned pipe details.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            schema (AdminMerchantPipeUdateSchema): Request payload with updated pipe details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the updated pipe details.<br/>
+            - HTTP Status Code: 200 if successful, 401 if unauthorized, 404 if requested pipe id does not exists, or 400 if an error occurs. <br/><br/>
+            
+        Raises:<br/>
+            - Exception: If any unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 404: 'error': 'Requested pipe id does not exists'.<br/>
+            - Error 400: 'error': 'Bad Request'.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 404: 'error': 'Requested pipe id does not exists'.<br/>
+            - Error 400: 'error': 'Bad Request'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             adminIdentity = request.identity
@@ -124,6 +172,7 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
                 return json({'msg': 'Admin check error', 'error': f'{str(e)}'}, 400)
             # Admin authentication Ends
 
+            ### Get the payload data
             merchant_id   = schema.merchant_id
             pipe_id       = schema.pipe_id
             fee           = schema.fee
@@ -202,6 +251,8 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
+    
+
 
 
 
@@ -209,6 +260,30 @@ async def update_merchant_pipe(request: Request, schema:  AdminMerchantPipeUdate
 @auth('userauth')
 @get('/api/admin/merchant/pipes/')
 async def list_all_merchant_assigned_pipes(request: Request):
+    """
+        This API Endpoint will return all available merchant assigned pipes.
+        <br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the message (msg) and the fetched merchant pipe data(merchant_pipe_data) with status 200.<br/>
+            - JSON: A JSON response containing error status and error message if any.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+            - Unauthorized: If the user is not authenticated or if the user is not an admin.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/><br/>
+
+        Raises:<br/>
+            - Unauthorized: If the user is not authenticated or if the user is not an admin.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/><br/>
+
+        Error Messages:<br/>
+            - Unauthorized: If the user is not authenticated or if the user is not an admin.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/>
+        
+    """
     try:
         async with AsyncSession(async_engine) as session:
             adminIdentity = request.identity
@@ -249,6 +324,30 @@ async def list_all_merchant_assigned_pipes(request: Request):
 @auth('userauth')
 @get('/api/admin/merchant/pipe/{id}/')
 async def list_all_merchant_wise_pipes(request: Request, id: int):
+    """
+        This API Endpoint retrieves all the assigned pipes of a merchant.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - id (int): The id of the merchant.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the list of assigned pipes of the merchant.<br/>
+            - HTTP Status Code: 200.<br/>
+            - HTTP Status Code: 404 in case the merchant pipe does not exist.<br/>
+            - HTTP Status Code: 401 in case of unauthorized access.<br/>
+            - HTTP Status Code: 500 in case of server errors.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/><br/>
+        
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             adminIdentity = request.identity

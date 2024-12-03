@@ -353,6 +353,26 @@ class SearchMerchantProductionTransactions(APIController):
     @auth('userauth')
     @get()
     async def SearchMerchantProdTransactions(self, request: Request, query: str):
+        """
+           This function searches for merchant PG production transactions based on the user's authentication and query.<br/><br/>
+            
+            Parameters:<br/>
+                - request(Request): Request object<br/>
+                - query(str): The query string for search<br/><br/>
+            
+            Returns:<br/>
+                - JSON: A JSON response containing the following keys:<br/>
+                - success (bool): A boolean indicating the success of the operation.<br/>
+                - merchant_searched_transactions (list): A list of dictionaries, each representing a transaction.<br/>
+                - error (str): An error message in case of any exceptions.<br/><br/>
+
+            Error Messages:
+                - Error 500: Server error<br/><br/>
+            
+            Raise:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - HTTPError: If the HTTP request returns an error status code.
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

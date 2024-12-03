@@ -17,6 +17,7 @@ from decouple import config
 SERVER_MODE = config('IS_DEVELOPMENT')
 DEVELOPMENT_URL = config('DEVELOPMENT_URL_MEDIA')
 PRODUCTION_URL  = config('PRODUCTION_URL_MEDIA')
+FRONTEND_PG_DOMAIN = config('FRONTEND_PG_DOMAIN_NAME')
 
 
 if SERVER_MODE == 'True':
@@ -28,7 +29,7 @@ else:
 if SERVER_MODE == 'True':
     url = 'http://localhost:5173'
 else:
-    url = 'https://react-payment.oyefin.com'
+    url = FRONTEND_PG_DOMAIN
 
 
 
@@ -38,9 +39,22 @@ else:
 @post('/api/v1/admin/del/user/')
 async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSchema]):
     """
-     Delete the user and its related Data, Only admin can access the path, Provide user_id which is to be deleted
-    """
+        (Not fully implemented)
+        Delete the user and its relate all the data associated with the user.
 
+        Parameters:
+            - user_id: user_id to be deleted
+            - delete_user: Schema which contains the user_id to be deleted.
+            - request: The request object containing user identity.
+        
+        Returns:
+            - JSON response with success or error message, along with HTTP status code.
+            - On success: {'success': True,'msg': 'User Deleted successfully'}
+            - On failure: {'message': 'Error message'} with appropriate HTTP status code.
+
+        Error message:
+        - JSON: A JSON response indicating the success or failure of the operation.
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity   = request.identity
@@ -159,15 +173,14 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
                 except Exception as e:
                     return json({'msg': 'Transaction delete error', 'error': f'{str(e)}'}, 400)
             
-            #Delete the user
+            # Delete the user
             try:
                 await session.delete(user_data)
                 await session.commit()
             except Exception as e:
                 return json({'msg': 'Error while deleting the user', 'error': f'{str(e)}'}, 400)
-
-
-            return json({'msg': 'User Deleted successfully'}, 200)
+            
+            return json({'success': True, 'msg': 'User Deleted successfully'}, 200)
         
     except Exception as e:
         return json({'msg': 'Server error', 'error': f'{str(e)}'}, 500)
@@ -175,7 +188,9 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
 
 
 
-#Update user kyc by Admin
+
+
+# Update user kyc by Admin
 @docs(responses={200: 'Update user profile and kyc status'})
 @auth('userauth')
 @put('/api/v1/admin/update/user/')
@@ -459,7 +474,24 @@ async def update_user(self, request: Request, user_update_schema: FromJSON[Admin
 @get('/api/v1/admin/user/search/')
 async def get_searchedeusers(request: Request, query: str = ''):
     """
-     Search merchant users
+        Search merchant users for the specified search query.<br/>
+
+        Parameters:<br/>
+            query (str): Search query for transaction details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: Returns a list of transaction details that match the search query.<br/>
+            'all_users': List of users details<br/>
+            'all_kyc': List of kyc details<br/>
+            'success': successful transaction status.<br/><br/>
+
+        Error message:<br/>
+        - Error 400: 'error': 'Invalid search query'.<br/><br/>
+
+        Raises:<br/>
+        - Exception: If any error occurs during the database query or response generation.<br/>
+        - Error 500: 'error': 'Server Error'.<br/>
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -601,7 +633,7 @@ async def get_searchedeusers(request: Request, query: str = ''):
 @post('/api/v1/admin/add/user/')
 async def create_newuser(self, request: Request, user_create_schema: FromJSON[AdminUserCreateSchema]):
     """
-    The group field will have (Default User, Merchant) and status field should have (Active, Inactive)
+        
     """
     try:
         async with AsyncSession(async_engine) as session:
@@ -610,7 +642,7 @@ async def create_newuser(self, request: Request, user_create_schema: FromJSON[Ad
 
             data = user_create_schema.value
         
-            #Check the user is admin or Not
+            # Admin authentication
             try:
                 user_obj = await session.execute(select(Users).where(Users.id == adminID))
                 user_obj_data = user_obj.scalar()
@@ -620,7 +652,7 @@ async def create_newuser(self, request: Request, user_create_schema: FromJSON[Ad
 
             except Exception as e:
                 return json({'msg': 'Unable to get Admin detail', 'error': f'{str(e)}'}, 400)
-
+            # Admin authentication ends here.
 
             #Check the user is Default user or merchant
             if data.group == 'Default User':
@@ -770,6 +802,18 @@ async def create_newuser(self, request: Request, user_create_schema: FromJSON[Ad
  
 @get('/api/all/groups/')
 async def get_groups(self, request: Request):
+    """
+        This API endpoint is used to fetch all the available groups.<br/><br/>
+
+        Parameters:<br/>
+            - request: HTTP Request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success status and all available groups.<br/>
+            - Error message: If any error occurs while fetching the data.<br/>
+            - On failure: {'msg': 'Error message'} with appropriate HTTP status code.<br/>
+            - On success: {'msg': 'Group data fetched successfully', 'data': group_list} with appropriate HTTP status.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             try:
@@ -786,10 +830,32 @@ async def get_groups(self, request: Request):
 
 
 
+
+
 # Export all merchant user data
 @auth('userauth')
 @get('/api/v1/admin/export/merchants/')
 async def export_merchant_data(request: Request):
+    """
+        This API endpoint is used to export all the Merchant users by an admin.<br/><br/>
+
+        Parameters:<br/>
+            - request: HTTP Request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the exported Merchant users, success status code.<br/>
+            - Error message: If any error occurs while fetching the data.<br/>
+            - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/>
+            - On success: {'success': True, 'all_Kyc': merchant kyc, all_users: user detail} with appropriate HTTP status.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - SQLAlchemy exception if there is any error during the database query or response generation.<br/><br/>
+            
+        Error message:<br/>
+            - Error 401: 'Unauthorized'<br/>
+            - Error 500: 'error': 'Server Error'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

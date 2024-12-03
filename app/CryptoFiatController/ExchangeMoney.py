@@ -229,6 +229,30 @@ class UserFilterFIATExchangeController(APIController):
     @auth('userauth')
     @post()
     async def filter_userExchanges(self, request: Request, schema: UserFilterFIATExchangesSchema, limit: int = 10, offset: int = 0):
+        """
+           This API Endpoint will filter out all the FIAT Exchange Transactions.<br/><br/>
+
+           Parameters:<br/>
+               - request (Request): The request object containing user identity and other information.<br/>
+               - schema (UserFilterFIATExchangesSchema): The schema containing the filter criteria.<br/>
+               - limit (int, optional): The number of transactions to retrieve per page. Default is 10.<br/>
+               - offset (int, optional): The number of transactions to skip before starting to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, a list of transaction data, and the total number of pages.<br/>
+                - paginated_count (int): The total number of pages available for the filtered transactions.<br/>
+                - user_filtered_fiat_exchanges: All the filtered transaction data.<br/>
+                - success - True if successful.<br/><br/>
+
+             Error message:<br/>
+                - Error Response status code 404 - "message": "No data found"<br/>
+                - Error Response status code 500 - "error": "Server Error"<br/><br/>
+
+             Raises:<br/>
+                - ValueError: If the input data is not valid.<br/>
+                - Exception: If there is an error while executing the SQL queries.<br/>
+                - SqlAlchemyError: If there is an error while executing the SQL queries.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -244,9 +268,6 @@ class UserFilterFIATExchangeController(APIController):
 
                 exchange_conditions = []
                 combined_data       = []
-
-                print('startDate', startDate)
-                print('endDate', endDate)
 
                 ## Filter date range wise
                 if dateRange and dateRange == 'CustomRange':

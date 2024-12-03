@@ -49,6 +49,27 @@ class FeeController(APIController):
     @auth('userauth')
     @post()
     async def fee_charged(self, request: Request):
+        """
+            This API Endpoint calculates the fee for a given transaction amount and fee type.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing identity and other relevant information.<br/>
+                - fee_type (str): The type of fee (e.g., 'Fixed', 'Percentage').<br/>
+                - amount (float): The transaction amount.<br/><br/>
+
+             Returns:<br/>
+                - JSON response with the following structure:<br/>
+                - success (bool): Indicates whether the operation was successful.<br/>
+                - fee (float): The calculated fee for the given transaction amount and fee type.<br/><br/>
+
+             Raises:<br/>
+                - Exception: If any error occurs during the database query or processing.<br/>
+                - Error 401: 'error': 'Unauthorized'.<br/><br/>
+
+             Error Messages:<br/>
+                - Error 401: 'error': 'Unauthorized'.<br/>
+                - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -67,7 +88,6 @@ class FeeController(APIController):
                 calculated_fee = 0
 
                 if fee_structure:
-
                     if fee_structure.fee_type == 'Fixed':
                         fixed_fee = fee_structure.min_value 
 
@@ -77,7 +97,6 @@ class FeeController(APIController):
                         percentage_fee = (float(amount) / 100) * fee_structure.tax_rate
 
                         calculated_fee += percentage_fee
-
                 else:
                     calculated_fee = 10
 

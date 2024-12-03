@@ -11,10 +11,29 @@ from app.dateFormat import get_date_range
 
 
 
+
 # Get all the merchant Refund Transactions
 @auth('userauth')
 @get('/api/v6/admin/merchant/refunds/')
 async def Admin_Merchant_Refunds(request: Request, limit: int = 10, offset: int = 0):
+    """
+        Get all the merchant refund transactions.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - limit (int): The number of rows to be returned. Default is 10.<br/>
+            - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the admin_merchant_refunds, success, message, and the total_count.<br/>
+            - HTTP Status Code: 200 if successful, 401 if unauthorized, or 500 if an error occurs.<br/><br/>
+
+        Error message:<br/>
+            - Unauthorized Access: If the user is not authorized to access the endpoint.<br/>
+            - Server Error: If an error occurs while executing the database query or response generation.<br/>
+            - Bad Request: If the request data is invalid.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user as admin
@@ -101,10 +120,38 @@ async def Admin_Merchant_Refunds(request: Request, limit: int = 10, offset: int 
 
 
 
+
+
 # Update Merchant Refund by Admin
 @auth('userauth')
 @put('/api/v6/admin/merchant/update/refunds/')
 async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefundSchema):
+    """
+        This API Endpoint let Admin update Merchant Refund transaction.
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming HTTP request.<br/>
+            - schema (AdminUpdateMerchantRefundSchema): The schema for the request data.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the updated refund transaction data.<br/>
+            - HTTP Status Code: 200 if the refund is updated successfully.<br/>
+            - HTTP Status Code: 400 if the request data is invalid.<br/>
+            - HTTP Status Code: 401 if the user is not authenticated as admin.<br/>
+            - HTTP Status Code: 500 if there is a server error.<br/><br/>
+
+        Error Messages:<br/>
+            - 'message': 'Admin authentication failed'<br/>
+            - 'message': 'Can not perform the same action again'<br/>
+            - 'message': 'Donot have sufficient balance in account'<br/><br/>
+
+        Raises:<br/>
+            - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+            - SQLAlchemyError: If there is an error during database operations.<br/>
+            - Exception: If any other unexpected error occurs.<br/>
+            - ValueError: If the form data is invalid.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
                # Authenticate user as Admin
@@ -191,6 +238,26 @@ async def MerchantRefundUpdate(request: Request, schema: AdminUpdateMerchantRefu
 @auth('userauth')
 @get('/api/v6/admin/merchant/pg/export/refunds/')
 async def ExportMerchantRefunds(request: Request):
+    """
+        Export all Merchant Refund Transactions made by the merchant.<br/>
+        Admin authentication is required to access this endpoint.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON response with success status and refund data(admin_merchant_refunds_export), along with HTTP status code.<br/>
+            - JSON response with error status and message if any exceptions occur.<br/>
+            - If no refunds found, it returns a message: {'message': 'No refund requests available'} with status code 404.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - SQLAlchemy exception if there is any error during the database query or response generation.<br/><br/>
+        
+        Error message:<br/>
+            - Error 401: 'Unauthorized'<br/>
+            - Error 500: 'error': 'Server Error'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user as admin
@@ -273,6 +340,25 @@ async def ExportMerchantRefunds(request: Request):
 @auth('userauth')
 @get('/api/v6/admin/merchant/refund/search/')
 async def SearchMerchantRefunds(request: Request, query: str):
+    """
+        Admin will be able to Search Merchant Refund Transactions.<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for refund details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON response with success status and refund data(searched_merchant_refund), along with HTTP status code.<br/>
+            - JSON response with error status and message if any exceptions occur.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - SQLAlchemy exception if there is any error during the database query or response generation.<br/><br/>
+        
+        Error message:<br/>
+            - Error 401: 'Unauthorized'<br/>
+            - Error 500: 'error': 'Server Error'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Admin Authentication
@@ -421,9 +507,41 @@ async def SearchMerchantRefunds(request: Request, query: str):
     
 
 
+
+
 @auth('userauth')
 @post('/api/v6/admin/filter/merchant/refunds/')
 async def filter_merchant_refunds(request: Request, schema: FilterMerchantRefunds, limit: int = 10, offset: int = 0):
+    """
+        Get all the merchant refund transactions.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (FilterMerchantRefunds): The schema object containing the validated data.<br/>
+            - limit (optional): Limit the number of records returned (default: 10).<br/>
+            - offset (optional): Offset the number of records to skip (default: 0).<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the list of merchant refund transactions.<br/>
+            - 'paginated_count': The total number of rows in the result set.<br/>
+            - 'admin_merchant_filter_refunds': A list of dictionaries, each containing details of a refund transaction.<br/>
+            - 'error': If any error occurs during the database operations.<br/>
+            - Error 401: If the user is not authorized to access this endpoint.<br/><br/>
+
+        Error Messages:<br/>
+            - Unauthorized: If the user is not authorized to access this endpoint.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+            - 'message': 'Invalid Currency' If provided currency does not exists.<br/>
+            - 'message': 'No transaction found' If no transaction found.<br/><br/>
+
+        Raises:<br/>
+            - HTTPException: If the user is not authorized or if the provided currency does not exist.<br/>
+            - HTTPStatus: 401 Unauthorized if the user is not an admin.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+            - HTTPStatus: 400 Bad Request if the provided currency does not exist.<br/>
+            - HTTPStatus: 404 Bad Request if no transaction found.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

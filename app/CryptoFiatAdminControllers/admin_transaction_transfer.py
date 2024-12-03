@@ -159,11 +159,37 @@ class TransferTransactionDetailsController(APIController):
     @classmethod
     def route(cls) -> str | None:
         return '/api/v2/admin/transfer/transaction/details/{transaction_id}/'
-    
+
 
     @auth('userauth')
     @get()
     async def get_transfer_transactions(self, request: Request, transaction_id: int):
+        """
+            This API Endpoint will return detailed information of a transfer transaction of a particular ID.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing identity and other relevant information.<br/>
+                - transaction_id(int): The unique identifier of the transfer transaction.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the transaction details or an error message.<br/>
+                - Error: A JSON response with an error message if the transaction ID does not exist.<br/>
+                - Error 401: 'Unauthorized'.<br/>
+                - HTTPStatus: 401 Forbidden if the user is not an admin.<br/>
+                - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+                - HTTPStatus: 404 Bad Request if the transaction ID not found.<br/><br/>
+
+            Raises:<br/>
+                - HTTPException: If the user is not authenticated or if the transaction ID does not exist.<br/>
+                - HTTPStatus: 401 Unauthorized if the user is not an admin.<br/>
+                - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+                - HTTPStatus: 404 Bad Request if the transaction ID not found.<br/><br/>
+
+            Error codes:<br/>
+            - 401: Unauthorized<br/>
+            - 500: Internal Server Error<br/>
+            - 404: Bad Request<br/>        
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -401,6 +427,40 @@ class UpdateTransferTransactionController(APIController):
     @auth('userauth')
     @put()
     async def update_transfer_transaction(self, request: Request, input: FromJSON[UpdateTransactionSchema]):
+        """
+           This API endpoint updates the transfer transaction by Admin user.
+           This function authenticates the admin user, verifies the validity of the transaction and wallets,
+           and updates the transaction status and wallet balances accordingly.<br/><br/>
+
+           Parameters:<br/>
+                - request (Request): The request object containing the user's identity and payload data.<br/>
+                - input (FromJSON[UpdateTransactionSchema]): The schema object containing the transaction_id and status.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success or error message, along with HTTP status code.<br/>
+                - On Success - 'message': 'Transaction Updated Successfully'.<br/><br/>
+
+            Error Message:<br/>
+              - "message": "Requested transaction not available"<br/>
+              - "message": "Did not found recipient Details"<br/>
+              - "message": "Transaction has been completed"<br/>
+              - "message": "Sender donot have a wallet"<br/>
+              - "message": "Sender do not have sufficient wallet balance"<br/>
+              - "message": "Did not found recipient Details"<br/>
+              - "message": "Did not found Receiver Currency"<br/>
+              - "message": "Sender do not have sufficient wallet balance"<br/>
+              - "message": "Error calling external API"<br/>
+              - "message": "Currency API Error"<br/>
+              - "message": "Invalid Curency Converter API response"<br/>
+              - "message": "Unable to update sender wallet"<br/>
+              - "message": "Recipient wallet not found"<br/>
+              - "message": "Cannot transfer to same account"<br/>
+              - "message": "Sender do not have sufficient wallet balance"<br/>
+              - "message": "Error calling external API"<br/>
+              - "message": "Donot have sufficient balance in Wallet"<br/>
+              - "message": "Did not found recipient Details"<br/>
+              - "message": "Recipient payment mode does not exists please update New transaction"<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 data = input.value

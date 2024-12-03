@@ -11,22 +11,29 @@ from sqlmodel import select, desc, func
 @get('/api/v5/merchant/transaction/logs/')
 async def get_merchantTransactionLogs(request: Request, limit: int = 10, offset: int = 0):
     """
-    Retrieves merchant transaction logs.
+        Get all the API Logs created by the merchant During the transaction.<br/><br/>
 
-    This function retrieves all the API logs created by the merchant during transactions.
-    It also provides pagination support through the 'limit' and 'offset' parameters.
+        Parameters:<br/>
+            - request (Request): The request object containing identity and other relevant information.<br/>
+            - limit (int, optional): The maximum number of logs to retrieve per page. Default is 10.<br/>
+            - offset (int, optional): The number of logs to skip before starting to retrieve logs. Default is 0.<br/><br/>
 
-    Parameters:
-    - request (Request): The request object containing identity and other relevant information.
-    - limit (int, optional): The maximum number of logs to retrieve per page. Default is 10.
-    - offset (int, optional): The number of logs to skip before starting to retrieve logs. Default is 0.
+        Returns:<br/>
+            - JSON response containing the following keys:<br/>
+            - 'success': A boolean indicating whether the operation was successful.<br/>
+            - 'merchant_logs': A list of dictionaries, each representing a log.<br/>
+            - 'total_rows': The total number of logs available for the merchant.<br/><br/>
+        
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized'.<br/>
+            - Error 404: 'error': 'No transaction available'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/><br/>
 
-     Get all the API Logs created by the merchant During transaction #-
-    Returns:
-    - JSON response containing the following keys:
-      - 'success': A boolean indicating whether the operation was successful.
-      - 'merchant_logs': A list of dictionaries, each representing a log.
-      - 'total_rows': The total number of logs available for the merchant.
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized'.<br/>
+            - Error 404: 'error': 'No transaction available'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
     """
     try:
         async with AsyncSession(async_engine) as session:

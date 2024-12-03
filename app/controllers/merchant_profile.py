@@ -228,6 +228,32 @@ class UploadProfilePicture(APIController):
     @auth('userauth')
     @post()
     async def upload_profilePic(self, request: Request, files: FromFiles):
+        """
+            This API endpoint handles uploading profile pictures of merchants.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing the user's identity and payload data.<br/>
+                - files (FromFiles): The file containing the merchant's profile picture.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status, message, or error details.<br/>
+                - On success, returns a 200 status code with a success message and the profile picture ID.<br/>
+                - On failure, returns a 400 status code with an error message.<br/>
+                - If the server encounters an error during the database operations, returns a 500 status code.<br/>
+                - If the file exceeds the maximum allowed size, returns a 403 status code.<br/>
+                - If the file name is missing, returns a 403 status code.<br/>
+                - If the file type is not supported, returns a 400 status code.<br/><br/>
+            
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/><br/>
+            
+            Error message:<br/>
+                 - Error 403: 'File size exceeds the maximum allowed size', 'File name is missing', or 'Unsupported file type'<br/>
+                 - Error 400: 'Image upload error'<br/>
+                 - Error 500: 'Server Error'<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

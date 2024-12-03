@@ -117,7 +117,21 @@ class CryptoFiatForgotPasswordMainSend(APIController):
     @post()
     async def reset_password_mail(self, user: ResetPasswdSMailchema, request: Request):
         """
-         Send mail while to Reset Forgot password
+            This API Endpoint is responsible for sending a password reset email to a user.<br/><br/>
+
+            Parameters:<br/>
+               - user (ResetPasswdSMailchema): The schema containing the user's email address.<br/>
+               - request (Request): The incoming request object containing user identity and other relevant information.<br/><br/>
+
+            Returns:<br/>
+               - A JSON response indicating the success or failure of the operation.<br/>
+               - On success, returns a 200 status code with a message indicating that the password reset instructions have been sent to the user's email address.<br/>
+               - On failure, returns appropriate error status codes with error messages.<br/><br/>
+
+            Error message:<br/>
+               - Error 404: 'Requested mail ID does not exist'<br/>
+               - Error 400: 'Unable to get the user'<br/>
+               - Error 500: 'Server error'<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -185,7 +199,22 @@ class UserResetPasswdController(APIController):
     @post()
     async def reset_password(self, schema: ResetPasswdSchema, request: Request):
         """
-          Reset Forgot Password
+            This API Endpoint is responsible for resetting a user's forgotten password.<br/><br/>
+
+            Parameters:<br/>
+            - schema (ResetPasswdSchema): The schema containing the token, password1, and password2.<br/>
+            - request (Request): The incoming request object containing user identity and other relevant information.<br/><br/>
+
+            Returns:<br/>
+            - A JSON response indicating the success or failure of the operation.<br/>
+            - On success, returns a 200 status code with a message indicating that the password has been reset successfully.<br/>
+            - On failure, returns appropriate error status codes with error messages.<br/><br/>
+
+            Error message:<br/>
+            - Error 404: 'Invalid token or user does not exist'<br/>
+            - Error 400: 'User fetch error'<br/>
+            - Error 400: 'Password did not match'<br/>
+            - Error 500: 'Server Error'<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:

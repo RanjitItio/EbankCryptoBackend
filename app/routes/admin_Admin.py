@@ -12,6 +12,26 @@ from typing import List
 @auth('userauth')
 @get('/api/v2/admin/users/')
 async def AdminUsers(request: Request, limit: int = 10, offset: int = 0):
+    """
+        Get all the Admin users.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - limit (optional): Limit the number of records returned (default: 10).<br/>
+            - offset (optional): Offset the number of records to skip (default: 0).<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the list of all admin users and the total number of rows.<br/><br/>
+
+        Raises:<br/>
+            - 401: Unauthorized request if the user is not an admin.<br/>
+            - 500: Server error if an error occurs during the database operations.<br/>
+            - 404: Not Found if no admin users are found.<br/>
+        
+        Error Messages:<br/>
+            - Unauthorized: If the user is not an admin.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -79,12 +99,30 @@ async def AdminUsers(request: Request, limit: int = 10, offset: int = 0):
 
     except Exception as e:
         return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
+    
 
 
 # Export all AdMin user data
 @auth('userauth')
 @get('/api/v2/export/admin/users/')
 async def ExportAdminUsers(request: Request):
+    """
+        This function exports all admin users data for admin users after authentication.<br/><br/>
+        
+        Parameters:<br/>
+        - request (Request): The HTTP request object received by the API endpoint.<br/><br/>
+        
+        Returns:<br/>
+        - JSON: A JSON response containing the exported admin user data.<br/>
+        - HTTP Status Code: 200<br/>
+        - HTTP Status Code: 500 in case of server errors.<br/>
+        - HTTP Status Code: 401 in case of unauthorized access.<br/><br/>
+
+        Raises:<br/>
+        - BadRequest: If the request data is invalid.<br/>
+        - SQLAlchemyError: If there is an error during database operations.<br/>
+        - Exception: If any other unexpected error occurs.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -141,6 +179,27 @@ async def ExportAdminUsers(request: Request):
 @auth('userauth')
 @get('/api/v2/search/admin/users/')
 async def SearchAdminUsers(request: Request, query: str = ''):
+    """
+        Admin will be able to search Admin users by their first name, last name, email, and status.<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for first name, last name, email, and status.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: Returns a list of user details that match the search query.<br/>
+            'searched_admin_users': List of user details<br/>
+            'success': successful transaction status.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+            Error 500: 'error': 'Server Error'.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin

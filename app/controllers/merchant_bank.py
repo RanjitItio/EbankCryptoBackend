@@ -30,7 +30,33 @@ class MerchantBankAccountController(APIController):
     @auth('userauth')
     @post()
     async def create_merchantAccount(self, request: Request, schema: FromForm[MerchantCreateBankAccountSchema], file: FromFiles):
+        """
+            This API Endpoint is responsible for creating a new bank account for a merchant.<br/><br/>
 
+            Parameters:
+                - request (Request): The request object containing the user's identity and payload data.<br/>
+                - schema (FromForm[MerchantCreateBankAccountSchema]): The schema object containing the bank account details.<br/>
+                - file (FromFiles): The file containing the document related to the bank account.<br/><br/>
+
+            Returns:<br/>
+                - A JSON response indicating the success or failure of the operation.<br/>
+                - On success, returns a 201 status code with a success message and the bank account ID.<br/>
+                - On failure, returns a 401 status code for unauthorized access or a 500 status code for server errors.<br/>
+                - If the merchant does not exist, returns a 404 status code.<br/>
+                - If bank account already exists, returns a 400 status code with a message Bak account already exists.<br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+                - ValueError: If the form data is invalid.<br/><br/>
+            
+            Error message:<br/>
+                - Error 404: 'Requested merchant not found'<br/>
+                - Error 400: 'Bank account already exists'<br/>
+                - Error 500: 'Server Error'<br/>
+                - Error 403: 'File size exceeds the maximum allowed size<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -126,7 +152,39 @@ class MerchantBankAccountController(APIController):
     @auth('userauth')
     @put()
     async def update_merchantAccount(self, request: Request, schema: FromForm[MerchantUpdateBankAccountSchema], file: FromFiles):
+        """
+            This API Endpoint is responsible for updating a merchant's bank account details.<br/>
+               - Extracts the user ID from the request object.<br/>
+               - Retrieves the updated bank account details from the form data.<br/>
+               - Validates the user and the bank account.<br/>
+               - Retrieves the currency details for the updated bank account.<br/>
+               - Checks if a document is provided and processes it accordingly.<br/>
+               - Updates the bank account details in the database.<br/>
+               - Deletes the previous document of the bank account if it exists.<br/>
+               - Returns a JSON response indicating the success or failure of the operation.<br/><br/>
 
+
+            Parameters:<br/>
+            - request (Request): The incoming request object containing user identity and other relevant information.<br/>
+            - schema (FromForm[MerchantUpdateBankAccountSchema]): The form data containing the updated bank account details.<br/>
+            - file (FromFiles): The file containing the updated bank account document.<br/><br/>
+
+            Returns:<br/>
+            - A JSON response indicating the success or failure of the operation.<br/>
+            - On success, returns a 200 status code with a success message.<br/>
+            - On failure, returns a 401 status code for unauthorized access or a 500 status code for server errors.<br/>
+            - If the provided bank account ID does not match with any existing bank account, returns a 404 status code.<br/>
+            - If the form data is invalid, returns a 400 status code with a message indicating the error.<br/>
+            - If the file data is not provided, the document remains unchanged.<br/>
+            - If the file data is provided, the document is updated and saved.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the operation, it is caught and a JSON response with an appropriate error message is returned.<br/><br/>
+
+            Example JSON response:
+               - Success: {"msg": "Bank account updated successfully"}<br/>
+               - Failure: {"msg": "Server Error", "error": "<error_message>"}<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -230,7 +288,28 @@ class MerchantBankAccountController(APIController):
     @auth('userauth')
     @delete()
     async def delete_merchantAccount(self, request: Request,  query: int):
+        """
+           This API Endpoint is responsible for deleting a merchant's bank account. <br/>
+           The method is decorated with auth('userauth') to ensure that only authenticated users can access it.<br/><br/>
 
+           Parameters:<br/>
+           - request (Request): The incoming request object containing user identity and other relevant information.<br/>
+           - query (int): The unique identifier of the bank account to be deleted.<br/><br/>
+
+           Returns:<br/>
+           - A JSON response indicating the success or failure of the operation.<br/>
+           - On success, returns a 200 status code with a success message.<br/>
+           - On failure, returns a 401 status code for unauthorized access or a 500 status code for server errors.<br/>
+           - If the provided bank account ID does not match with any existing bank account, returns a 404 status code.<br/><br/>
+
+           Error message:<br/>
+                Error 404: 'Requested merchant not found'<br/>
+                Error 404: 'Requested Account not found'<br/>
+                Error 500: 'Server Error'<br/><br/>
+            
+            Raises:<br/>
+                Exception: If any error occurs during the operation, it is caught and a JSON response with an appropriate error message is returned.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -287,6 +366,25 @@ class MerchantBankAccountController(APIController):
     @auth('userauth')
     @get()
     async def GetMerchantBank(self, request: Request):
+        """
+            This API Endpoint is responsible for retrieving a list of bank accounts associated with a merchant.<br/><br/>
+
+            Parameters:<br/>
+               - request (Request): The incoming request object containing user identity and other relevant information.<br/><br/>
+
+            Returns:<br/>
+               - A JSON response indicating the success or failure of the operation.<br/>
+               - On success, returns a 200 status code with a list of bank accounts.<br/>
+               - On failure, returns a 401 status code for unauthorized access or a 500 status code for server errors.<br/>
+               - If no bank accounts are found, returns a 404 status code.<br/><br/>
+
+            Error message:<br/>
+               - Error 404: 'Account not found'<br/>
+               - Error 500: 'Server Error'<br/><br/>
+
+            Raises:<br/>
+               - Exception: If any error occurs during the operation, it is caught and a JSON response with an appropriate error message is returned.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

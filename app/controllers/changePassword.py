@@ -27,7 +27,23 @@ class UserChangePasswordController(APIController):
     @post()
     async def change_password(self, request: Request, schema: ChangePasswordSchema):
         """
-          Change users password, Authenticated Route
+            Change users password, Authenticated Route.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing user identity and payload data.<br/>
+                - schema(ChangePasswordSchema): The `schema` parameter in the `change_password` function represents the data schema for changing password.<br/><br/>
+
+            Returns:<br/>
+                - JSON response with success status, message if successful.<br/>
+                - JSON response with error status and message if an exception occurs.<br/><br/>
+
+            Raises:<br/>
+                - JSON response with error status and message if an exception occurs.<br/>
+                - JSON response with error status and message if password did not match.<br/><br/>
+            
+            Error message:<br/>
+            - 'Password did not match': If the password did not match.<br/>
+            - 'User not found': If the user does not.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:

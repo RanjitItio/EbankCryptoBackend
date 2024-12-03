@@ -30,6 +30,21 @@ class MerchantWithdrawalController(APIController):
     @auth('userauth')
     @post()
     async def create_merchantWithdrawal(self, request: Request, schema: CreateMerchantWithdrawlSchma):
+        """
+           This API Endpoint will create a new Withdrawal request for merchant.<br/><br/>
+
+           Parameters:<br/><br/>
+             - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+             - schema(CreateMerchantWithdrawlSchma): The schema object containing the bank_id, bank_currency_id, account_currency, withdrawal_amount.<br/><br/>
+
+            Returns:<br/>
+             - 'success': True, 'message': 'Withdrawal request raised successfully'<br/><br/>
+
+            Raises:<br/>
+              - HTTPException: If any validation error occurs.<br/>
+              - HTTPStatus: 400 Bad Request if the payload data is invalid.<br/>
+              - HTTPException 401: If the user is not authenticated.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -118,6 +133,23 @@ class MerchantWithdrawalController(APIController):
     @auth('userauth')
     @get()
     async def get_merchantWithdrawals(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint retrieve all the withdrawals raised by the merchant.<br/><br/>
+            
+            Parameters:<br/>
+            request (Request): The request object containing user identity and other information.<br/>
+            limit (int, optional): The number of withdrawals to retrieve per page. Default is 10.<br/>
+            offset (int, optional): The number of withdrawals to skip before starting to retrieve. Default is 0.<br/><br/>
+            
+            Returns:<br/>
+                JSON: A JSON response containing the success status, a list of withdrawal data(merchantWithdrawalRequests).<br/>
+                total_row_count (int): The total number of withdrawals available for the merchant.<br/><br/>    
+            
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 404: 'error': 'error': 'No withdrawal request found' <br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate User
@@ -291,6 +323,32 @@ class MerchantPendingWithdrawalController(APIController):
 @auth('userauth')
 @GET('/api/v3/merchant/export/withdrawals/')
 async def ExportWithDrawals(request: Request):
+    """
+        This API endpoint exports all the merchant withdrawal transactions by an authenticated user.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success status and the exported withdrawals data.<br/>
+            - JSON: A JSON response containing error status and error message if any.<br/><br/>
+
+        Raises:<br/>
+            - SqlAlchemyError: If there was an error while executing sql query.<br/>
+            - BadRequest: If there was an error in input data.<br/>
+            - Exception: If there is an error while executing the SQL queries.<br/>
+            - Error 500: 'error': 'Server Error' if any error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access' if the user is not authenticated.<br/>
+            - Error 400: 'error': 'Bad Request' if there was an error in input data.<br/><br/>
+
+        Error Message:<br/>
+            - 'error': 'No withdrawal request found' if no withdrawal request found by the merchant.<br/>
+            - 'error': 'Server Error' if any error occurs during the database query or response generation.<br/>
+            -  Error 500: 'error': 'Server Error' if any error occurs during the database query or response generation.<br/>
+            -  Error 401: 'error': 'Unauthorized Access' if the user is not authenticated.<br/>
+            -  Error 400: 'error': 'Bad Request' if there was an error in input data.<br/>
+    """
+    
     user_identity = request.identity
     user_id       = user_identity.claims.get('user_id')
 

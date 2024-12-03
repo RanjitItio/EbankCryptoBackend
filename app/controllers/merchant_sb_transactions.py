@@ -26,6 +26,25 @@ class MerchantSandboxTransactions(APIController):
     @auth('userauth')
     @get()
     async def get_transactions(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+          This API Endpoint will return all the sandboxe transactions.<br/>
+          The transactions are ordered by transaction_id in descending order.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing identity and other relevant information.<br/>
+                - limit(int, optional): The maximum number of transactions to return per page. Default is 10.<br/>
+                - offset(int, optional): The number of transactions to skip before starting to retrieve logs. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the following keys:<br/>
+                - msg(str): A boolean indicating whether the operation was successful.<br/>
+                - merchant_sandbox_transactions(list): A list of dictionaries, each representing a transaction.<br/>
+            - total_rows(int): The total number of transactions available for the merchant.<br/><br/>
+
+            Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+        """
         # Authenticate Users
         user_identity = request.identity
         user_id       = user_identity.claims.get('user_id') if user_identity else None
@@ -75,6 +94,28 @@ class SearchMerchantSandboxTransactions(APIController):
     @auth('userauth')
     @get()
     async def SearchMerchantSandBoxTransactions(self, request: Request, query: str):
+        """
+            This API Endpoint will return the sandbox transactions based on the provided query.<br/>
+            The query can be a transaction id, merchant order id, or a date and time.<br/>
+            The transactions are ordered by transaction_id in descending order.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing identity and other relevant information.<br/>
+                - query(str): The search query. Can be a transaction id, merchant order id, or a date and time.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the following keys:<br/>
+                - success(boolean): A boolean indicating whether the operation was successful.<br/>
+                - merchant_searched_sb_transactions(list): A list of dictionaries, each representing a transaction.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 500: 'error': 'Server Error'.<br/><br/>
+           
+            Error Messages:<br/>
+                - Error 404: 'error': 'No transaction found'.<br/>
+                - Error 500: 'error': 'Server Error'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

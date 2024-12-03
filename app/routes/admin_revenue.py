@@ -12,6 +12,29 @@ from sqlmodel import select, and_
 @auth('userauth')
 @get('/api/v6/admin/revenues/')
 async def GetAdminRevenues(request: Request):
+    """
+        This API endpoint is used to get total amount related to every currency of all the successful transactions made through each pipe.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the total amount related to every currency of all the successful transactions made through each pipe.<br/>
+            - HTTP Status Code: 200.<br/>
+            - HTTP Status Code: 401 in case of unauthorized access.<br/>
+            - HTTP Status Code: 500 in case of server errors.<br/><br/>
+
+        Error Messages:<br/>
+            - Unauthorized Access: If the user is not authenticated as an admin user.<br/>
+            - Server Error: If an error occurs while executing the database query or response generation.<br/>
+            - Bad Request: If the request data is invalid.<br/><br/>
+        
+        Raises:<br/>
+            - HTTPException: If the user is not authenticated as an admin user.<br/>
+            - HTTPStatus: 400 Bad Request if the request data is invalid.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs while executing the database query or response generation.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin

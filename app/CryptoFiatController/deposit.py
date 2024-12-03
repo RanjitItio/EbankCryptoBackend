@@ -8,7 +8,6 @@ from Models.models import Currency, Wallet, Users
 from Models.models4 import DepositTransaction
 from app.CryptoFiatController.uniqueID import UniqueDepositTransactionID
 from sqlmodel import select, and_
-import uuid
 
 
 
@@ -29,7 +28,27 @@ class DepositController(APIController):
     @post()
     async def create_deposit(self, deposit_schema: DepositMoneySchema, request: Request):
         """
-         User will be able to Deposit Money, Authenticated Route.
+            This API Endpoint will create Deposit Transaction object with specified deposit_schema.<br/><br/>
+
+            Parameters:<br/><br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - deposit_schema(DepositMoneySchema): The schema object containing the currency, deposit amount, selected wallet, fee, total amount, and payment mode.<br/><br/>
+
+            Returns:<br/>
+             - JSON response with success status, message, and transaction id if successful.<br/>
+             - JSON response with error status and message if an exception occurs.<br/><br/>
+
+            Raise:<br/>
+              - BadRequest if the payload data is invalid.<br/>
+              - Unauthorized if the user is not authenticated.<br/><br/>
+
+            Error Message:<br/>
+             - Error Response status code 400 - "message": "Suspended User".<br/>
+             - Error Response status code 404 - "message": "Sender Selected FIAT wallet not fount".<br/>
+             - Error Response status code 400 - "message": "Invalid currency".<br/>
+             - Error Response status code 400 - "message": "Wallet not found".<br/>
+             - Error Response status code 400 - "message": "Your account has been suspended please contact admin for Approval".<br/>
+             - Error Response status code 500 - "error": "Server Error".<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:

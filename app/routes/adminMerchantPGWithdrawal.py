@@ -16,6 +16,27 @@ from app.dateFormat import get_date_range
 @auth('userauth')
 @get('/api/v4/admin/merchant/pg/withdrawals/')
 async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 10, offset: int = 0):
+    """
+        This API Endpoint will retrieve all the merchant withdrawal requests.
+        <br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object.<br/>
+            - limit (int): The number of rows to be returned. Default is 10.<br/>
+            - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the AdminMerchantWithdrawalRequests, success, and the total_row_count.<br/>
+            - HTTP Status Code: 200 if successful, 401 if unauthorized, or 500 if an error occurs. <br/><br/>
+
+        Error message:<br/>
+            - Unauthorized Access: If the user is not authorized to access the endpoint.<br/>
+            - Server Error: If an error occurs while executing the database query.<br/><br/>
+        
+        Raises:<br/>
+           - Exception: If any other unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -123,10 +144,36 @@ async def AdminMerchantWithdrawalRequests(request: Request, limit: int = 10, off
 
 
 
+
 # Update Merchant withdrawals by Admin
 @auth('userauth')
 @put('/api/v4/admin/merchant/withdrawal/update/')
 async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWithdrawalUpdateSchema):
+     """
+          This endpoint allows an admin to update the status of a specific withdrawal request. <br/>
+          The admin must be authenticated and have the necessary permissions.<br/><br/>
+
+          Parameters:<br/>
+               - request (Request): The HTTP request object.<br/>
+               - schema (AdminWithdrawalUpdateSchema): The schema for validating the request payload.<br/><br/>
+
+          Returns:<br/>
+               - JSON: A JSON response containing the updated status, success, and the withdrawal request details.<br/>
+               - HTTP Status Code: 200 if successful, 401 if unauthorized, 400 if invalid payload, or 500 if an error occurs. <br/><br/>
+
+          Error message:<br/>
+               - Unauthorized Access: If the user is not authorized to access the endpoint.<br/>
+               - 'message': 'No Withdrawal request found with given information'<br/>
+               - 'message': 'Already updated, Can not perform this action'<br/>
+               - 'message': 'Insufficient balance to withdrawal'<br/>
+               - 'Server Error': If an error occurs while executing the database query.<br/><br/>
+
+          Raises:<br/>
+               - Exception: If any other unexpected error occurs during the database query or response generation.<br/>
+               - Error 401: 'error': 'Unauthorized Access'.<br/>
+               - Error 400: 'error': 'Invalid payload'.<br/>
+               - Error 500: 'error': 'Server Error'.<br/>
+     """
      try:
           async with AsyncSession(async_engine) as session:
                # Admin Authentication
@@ -209,6 +256,27 @@ async def MerchantWithdrawalTransactionUpdate(request: Request, schema: AdminWit
 @auth('userauth')
 @get('/api/v4/admin/merchant/withdrawal/search/')
 async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
+     """
+        This API Endpoint let Admin search all merchant withdrawal transactions.<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for transaction details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: Returns a list of transaction details that match the search query.<br/>
+            'merchant_withdrawal_search': List of transaction details<br/>
+            'success': successful transaction status.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/>
+            Error 401: 'error': 'Unauthorized Access'.<br/>
+            Error 500: 'error': 'Server Error'.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+     """
      try:
           async with AsyncSession(async_engine) as session:
                # Admin Authentication
@@ -372,11 +440,26 @@ async def MerchantWithdrawalTransactionSearch(request: Request, query: str):
           return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
 
 
-     
+
+
 # Export all merchant withdrawals by Admin
 @auth('userauth')
 @get('/api/v4/admin/merchant/pg/export/withdrawals/')
 async def AdminMerchantExportWithdrawalRequests(request: Request):
+    """
+        This API Endpoint exports all the merchant withdrawal transactions for admin users after authentication.<br/><br/>
+
+        Parameters:<br/>
+        - request (Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+
+        Returns:<br/>
+        - JSON: A JSON response containing the success status and the exported withdrawals data.<br/>
+        - JSON: A JSON response containing error status and error message if any.<br/><br/>
+
+        Raises:<br/>
+        - SqlAlchemyError: If there was an error while executing sql query.<br/>
+        - BadRequest: If there was an error in input data.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin
@@ -468,10 +551,40 @@ async def AdminMerchantExportWithdrawalRequests(request: Request):
 
 
 
+
 ## Filter Merchant Withdrawals by Admin
 @auth('userauth')
 @post('/api/v4/admin/filter/merchant/withdrawals/')
 async def filter_merchant_withdrawals(request: Request, schema: FilterMerchantWithdrawalsSchema, limit: int = 10, offset: int = 0):
+     """
+        Filter Merchant Withdrawals by Admin.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming HTTP request<br/>
+            - schema (FilterMerchantWithdrawalsSchema): The schema for filtering withdrawals<br/>
+            - limit (int): The number of records to return (default: 10)<br/>
+            - offset (int): The offset to start from (default: 0)<br/><br/>
+        
+        Returns:<br/>
+            JSON: A JSON response containing the following keys:<br/>
+            - success (bool): A boolean indicating the success of the operation<br/>
+            - AdminMerchantWithdrawalRequests (list): A list of dictionaries containing withdrawal details<br/>
+            - paginated_count (int): The total number of withdrawals matching the filter criteria<br/>
+            - error (str): An error message if any<br/><br/>
+        
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation<br/>
+            - Error 401: 'error': 'Unauthorized Access'<br/>
+            - Error 400: 'error': 'Invalid request parameters'<br/>
+            - Error 500: 'error': 'Server Error'<br/><br/>
+        
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'<br/>
+            - Error 400: 'error': 'Invalid request parameters'<br/>
+            - Error 500: 'error': 'Server Error'<br/><br/>
+        
+        Note: The filter criteria include date, merchant email, withdrawal amount, withdrawal status, start date, and end date.<br/>
+     """
      try:
           async with AsyncSession(async_engine) as session:
                user_identity = request.identity

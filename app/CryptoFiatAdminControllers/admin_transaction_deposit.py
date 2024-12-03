@@ -22,7 +22,7 @@ RAPID_API_HOST         = config('RAPID_API_HOST')
 
 
 
-#Admin will be able to view all the Deposits
+# Admin will be able to view all the Deposits
 class AllDepositController(APIController):
 
     @classmethod
@@ -37,7 +37,29 @@ class AllDepositController(APIController):
     @get()
     async def get_deposite_transaction(self, request: Request, limit: int = 10, offset: int = 0):
         """
-          View all the Deposit Transactions, By Admin
+            This API Endpoint retrieves all the deposit transactions for the specified admin user.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing user identity and other information.<br/>
+                - limit(int, optional): The number of rows to be returned. Default is 10.<br/>
+                - offset(int, optional): The offset of the rows to be returned. Default is 0.<br/><br/>
+            
+            Returns:<br/>
+                - JSON: A JSON response containing the deposit_transactions, success, message, and the total_row_count.<br/>
+                - total_row_count (float): The total number of deposit transactions available.<br/><br/>
+            
+            Error Messages:<br/>
+                - Unauthorized: If the user is not authenticated or is not an admin.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Error 500: 'error': 'Server Error'.<br/>
+                - 'msg': "No Transaction available"<br/>
+                - 'error': 'Invalid request data'.<br/><br/>
+
+            Raises:<br/>
+                - Unauthorized: If the user is not authenticated or is not an admin.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Error 500: 'error': 'Server Error'.<br/>
+                - 'error': 'Invalid request data'.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -287,6 +309,34 @@ class UpdateDepositController(APIController):
     @auth('userauth')
     @put()
     async def update_deposit(self, request: Request, input: FromJSON[UpdateTransactionSchema]):
+        """
+            Admin will be able to Update Deposit Transaction Status<br/>
+                1. Check Admin Authorization.<br/>
+                2. Check if the requested transaction exists.<br/>
+                3. Check if the transaction is already completed.<br/>
+                4. Update Deposit Transaction Status to 'Approved'.<br/><br/>
+
+            Parameters:<br/>
+               - request(Request): The HTTP request object.<br/>
+               - input(FromJSON[UpdateTransactionSchema]): Input data containing transaction_id and status.<br/><br/>
+
+            Note: This endpoint should be accessible only to authorized admin users.<br/>
+            Returns:<br/>
+            - JSON: A JSON response containing the updated transaction data.<br/>
+            - HTTP Status Code: 200.<br/><br/>
+
+            Error message:<br/>
+            - HTTP Status Code: 500 in case of server errors.<br/>
+            - HTTP Status Code: 401 in case of unauthorized access.<br/>
+            - HTTP Status Co]de: 400 in case of invalid request parameters.<br/><br/>
+
+           Raises:<br/>
+            - BadRequest: If the request data is invalid.<br/>
+            - SQLAlchemyError: If there is an error during database operations.<br/>
+            - Exception: If any other unexpected error occurs.<br/>
+            - ValueError: If the form data is invalid.<br/>
+            - Error 404: 'Requested transaction not found'.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 data = input.value

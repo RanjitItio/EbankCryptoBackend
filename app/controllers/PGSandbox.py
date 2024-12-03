@@ -47,6 +47,30 @@ class PaymentGatewaySandboxAPI(APIController):
 
     @post()
     async def create_order(request: Request, schema: PGSandBoxSchema) -> Response:
+        """
+          This API Endpoint Initiate a payment request in Sandbox environment. 
+          It performs various validations, checks, and database operations to process a payment request in a production environment.<br/><br/>
+            - The method starts by extracting the necessary headers and payload from the incoming request. It then validates the payload, checks the merchant's key, and performs various checks to ensure the payment request is valid.<br/>
+            - If all validations pass, the method saves the transaction details into the database and returns a JSON response with the necessary information for the merchant to redirect their customers to the payment gateway.<br/><br/>
+
+          Parameters:<br/>
+            - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+            - schema(PGSandBoxSchema): The schema object containing the required fields for creating a payment request in production environment.<br/>
+
+         Returns:<br/>
+            - JSON response with success status, message, and necessary data for the merchant to redirect their customers to the payment gateway.<br/>
+            - JSON response with error status and message if an exception occurs.<br/><br/>
+
+          Error Messages:<br/>
+            - 'Missing Header: X-AUTH': If the 'X-AUTH' header is missing in the incoming request.<br/>
+            - 'Incorrect X-AUTH header': If the provided 'X-AUTH' header is invalid.<br/>
+            - 'Invalid merchantPublicKey': If the provided merchant public key is invalid.<br/>
+            - 'Missing Parameter: paymentInstrument'  - If the provided payment instrument is missing.<br/>
+            - Amount should be greater than 0 - If the provided amount is less than 0.<br/>
+            - Incorrect paymentInstrument type - If the provided payment instrument type is invalid.<br/>
+            - No Active Acquirer assigned, Please contact administration - If No Active Acquirer assigned.<br/>
+            - Duplicate merchantOrderId - If the provided merchant order id is duplicated.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 header        = request.headers.get_first(b"X-AUTH")
@@ -338,6 +362,23 @@ class MerchantProcessTransactionController(APIController):
     
     @post()
     async def process_merchant_transaction(request: Request, schema: PGSandboxTransactionProcessSchema):
+        """
+            This API Endpoint handles processing a payment transaction in a sandbox environment. 
+            It handles HTTP POST requests and accepts two parameters: request and schema.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - schema(PGSandboxTransactionProcessSchema): The schema object containing base64 encoded payload of users payment details<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the transaction status, message, success, data of merchant if available.<br/>
+                - Error: an error message containing the error message with status code 400 if any error occurs during the database query or response generation.<br/><br/>
+
+            Error Messages:<br/>
+            - 'error': 'Please initiate transaction' if the transaction does not exist in the database.<br/>
+            - 'error': 'Transaction has been closed' if the transaction status has already been completed.<br/>
+            - 'error': ''Merchant Public key not found' if the public key is not valid.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 request_payload = schema.request
@@ -458,8 +499,24 @@ class MerchantSandboxTransactionStatus(APIController):
     def route(cls) -> str | None:
         return '/api/v1/pg/sandbox/merchant/transaction/status/{merchant_public_key}/{merchant_order_id}'
     
+
     @get()
     async def MerchantSandboxTransactionStatus(request: Request, merchant_public_key: str, merchant_order_id: str):
+        """
+         This API Endpoint shows the status of a merchant sandbox transaction.<br/><br/>
+
+         Parameters:<br/>
+            - request: The HTTP request object.<br/>
+            - merchant_public_key: The public key of the merchant.<br/>
+            - merchant_order_id: The unique order ID of the transaction. <br/><br/>
+
+         Returns:<br/>
+            - JSON: A JSON response containing the transaction status, message, success, data of merchant if available.<br/>
+            - Error: an error message containing the error message with status code 404 if merchant transaction or merchant key not found.<br/><br/>
+
+         Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 merchantPublicKey = merchant_public_key

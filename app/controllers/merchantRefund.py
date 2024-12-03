@@ -251,6 +251,29 @@ class MerchantRaiseRefund(APIController):
 @auth('userauth')
 @GET('/api/v6/merchant/download/refunds/')
 async def download_refunds(self, request: Request):
+    """
+        Export all Merchant Refund Transactions made by the merchant.<br/>
+        Admin authentication is required to access this endpoint.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming HTTP request.<br/><br/>
+
+        Returns:<br/>
+           JSON: A JSON response containing the list of Merchant Refund Transactions.<br/>
+            - `success`(boolean): The transaction succuess status.<br/>
+            - `export_merchant_refunds`(list): The list of Merchant Refund Transactions.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 404: 'message': 'No refund requests available' <br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+            - Error 404: 'error': 'No refund requests available'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user
@@ -308,6 +331,30 @@ async def download_refunds(self, request: Request):
 @auth('userauth')
 @GET('/api/v6/merchant/search/refunds/')
 async def search_merchant_refunds(request: Request, query: str):
+    """
+        Search Merchant Refund Transactions.<br/><br/>
+
+        Parameters:<br/>
+            query (str): Search query for refund details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing the following keys:<br/>
+                - searched_merchant_refunds (list): List of refunds matching the search query.<br/>
+                - total_refunds (int): Total number of refunds matching the search query.<br/>
+                - error (str): Error message if any.<br/><br/>
+        
+        Error Messages:<br/>
+            - Error 401: Unauthorized Access.<br/>
+            - Error 500: Server Error.<br/>
+            - Error 404: No refunds found.<br/><br/>
+        
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+            - Error 404: No refunds found<br/>
+    """
     user_identity = request.identity
     user_id       = user_identity.claims.get('user_id')
 
@@ -464,6 +511,23 @@ async def search_merchant_refunds(request: Request, query: str):
 @auth('userauth')
 @GET('/api/merchant/dash/refund/chart/')
 async def MerchantSuccessRefundChart(request: Request):
+    """
+        Get all success refund transactions of merchant of current month.<br/><br/>
+
+        Parameters:<br/>
+             - request (Request): The request object containing user identity and other relevant information.<br/><br/>
+
+        Returns:<br/>
+             - JSON: A JSON response containing the success status and the list of refund transactions(merchant_refunds).<br/>
+             - JSON: A JSON response containing error status and error message if any.<br/><br/>
+
+        Raises:<br/>
+             - Exception: If any error occurs during the database operations or processing.<br/><br/>
+        
+        Error Messages:<br/>
+            - Unauthorized: If the user is not authenticated.<br/>
+            - Server Error: If an error occurs during the database operations.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authnticate users

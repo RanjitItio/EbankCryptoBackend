@@ -15,6 +15,31 @@ from .environment import media_url
 @auth('userauth')
 @put('/api/v3/admin/merchant/bank/update/')
 async def ApproveMerchantBank(self, request: Request, schema: FromJSON[AdminMerchantBankApproveSchema]):
+    """
+        This API Endpoint let Admin user to update the status of Merchanr bank account.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The request object containing the user's identity and payload data.<br/>
+            - schema (FromJSON[AdminMerchantBankApproveSchema]): The schema object containing the merchant_bnk_id and status.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success status, message, or error details.<br/>
+            - On Success - 'msg': 'Updated Successfully'.<br/><br/>
+        
+        Error Messages:<br/>
+            - 'msg': 'Admin authentication error'<br/>
+            - 'msg': 'Admin authorization failed'<br/>
+            - 'msg': 'Requested Account not found'<br/>
+            - 'msg': 'Merchant bank account error'<br/>
+            - 'msg': 'Server Error'<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the operation, JSON response with an appropriate error message is returned.<br/>
+            - Error 400: 'Invalid data'<br/>
+            - Error 401: 'authorization failed'<br/>
+            - Error 404: 'Requested Account not found'<br/>
+            - Error 500: 'Server Error'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -87,10 +112,33 @@ async def ApproveMerchantBank(self, request: Request, schema: FromJSON[AdminMerc
     
 
 
+
+
 #Get a users specific bank account details
 @auth('userauth')
 @get('/api/v4/admin/merchant/bank/')
 async def GetMerchantBankDetails(self, request: Request, query: int):
+    """
+        Admin will be able to view the details of a Merchant Bank Account.<br/><br/>
+
+        Parameters:<br/>
+            query (int): Merchant Bank Account ID.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: Returns a JSON object with the Merchant Bank Account details.<br/>
+            'data': JSON object with Merchant Bank Account details.<br/>
+            If any error occurs, a JSON response with error status and error message is returned.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/><br/>
+        
+        Error Messages:<br/>
+            - Error 401: 'Unauthorized Access'.<br/>
+            - Error 403: 'Unauthorized Access'.<br/>
+            - Error 404: 'Requested Account not found'.<br/>
+            - Error 500: 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -139,6 +187,25 @@ async def GetMerchantBankDetails(self, request: Request, query: int):
 @auth('userauth')
 @get('/api/v4/admin/all/merchant/bank/')
 async def GetMerchantBanks(self, request: Request, query: int):
+    """
+        Get all the available bank accounts and it details of a specific merchant.<br/><br/>
+
+        Parameters:<br/>
+            - query (int): User ID of the merchant whose bank accounts to fetch.<br/>
+            - request (Request): The HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the bank accounts of the merchant(data) with message(msg). <br/>
+            - If the merchant is not found, returns a 404 status code. <br/>
+            - If an error occurs, returns a 500 status code.<br/><br/>
+
+        Error Messages:<br/>
+            - Admin authorization failed: If the user is not an admin.<br/>
+            - Merchant bank account error: If there is an error while fetching the bank accounts.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity

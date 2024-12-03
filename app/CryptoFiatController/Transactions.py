@@ -35,6 +35,27 @@ class UserFiatTransactionController(APIController):
     @auth('userauth')
     @get()
     async def get_userTransaction(self, request: Request, limit: int = 5, offset: int = 0):
+        """
+            This API Endpoint get all Deposit, Transfer, Crypto Exchange, Crypto Sell Transactions of user.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing the user's identity.<br/>
+                - limit(int): The number of rows to be returned. Default is 5.<br/>
+                - offset(int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the user_fiat_transactions, success, message, and the paginated_rows.<br/><br/>
+            
+            Error Messages:<br/>
+                - 401: Unauthorized. User is not authenticated.<br/>
+                - 500: Server Error. An error occurred during the database operations.<br/>
+                - 404: Not Found. User does not exist in the system.<br/><br/>
+            
+            Raises:<br/>
+                - Unauthorized: If user is not authenticated.<br/>
+                - Server Error: If an error occurred during the database operations.<br/>
+                - 404: Not Found. User does not exist in the system.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -273,12 +294,31 @@ class UserFiatRecentTransactionController(APIController):
 
     @classmethod
     def class_name(cls):
-        return "User wise Transaction"
+        return "User FIAT Recent Transactions"
     
 
     @auth('userauth')
     @get()
-    async def get_userTransaction(self, request: Request):
+    async def get_userRecentFIATTransaction(self, request: Request):
+        """
+           This API Endpoint will return 10 recent FIAT Deposit and transfer transactions.<br/><br/>
+
+           Parameters:<br/>
+             - request(Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the recent transactions or an error message.<br/>
+                - Error: A JSON response with an error message if the user does not exist.<br/><br/>
+
+            Error message:<br/>
+                JSON: A JSON response indicating the success or failure of the operation.<br/>
+                - On success: {'message': 'Transaction data fetched successfully', 'all_fiat_recent_transactions': Recent transaction data}<br/>
+                - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 401: 'Unauthorized'<br/>        
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user
@@ -396,6 +436,31 @@ class UserFiatTransactionFilterController(APIController):
     @auth('userauth')
     @post()
     async def filter_userFIATTransaction(self, request: Request,schema: UserFIATTransactionFilterSchema,  limit: int = 5, offset: int = 0):
+        """
+            This API Endpoint filter user's FIAT Deposit and Transfer Transaction.<br/><br/>
+
+             Parameters:<br/>
+                - request (Request): The request object containing user identity and other information.<br/>
+                - schema (UserFIATTransactionFilterSchema): The schema containing the filter criteria.<br/>
+                - limit (int, optional): The number of transactions to retrieve per page. Default is 5.<br/>
+                - offset (int, optional): The number of transactions to skip before starting to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+             - JSON: A JSON response containing the success status, a list of transaction data, and the total number of pages.<br/>
+             - paginated_count (int): The total number of pages available for the filtered transactions.<br/>
+             - user_filtered_fiat_transactions: All the filtered transaction data.<br/>
+             - success (bool): True if successful.<br/><br/>
+
+            Error message:<br/>
+             - Error Response status code 404 - "message": "No data found"<br/>
+             - Error Response status code 400 - "message": "Invalid Currency"<br/>
+             - Error Response status code 500 - "error": "Server Error"<br/><br/>
+
+            Raises:<br/>
+             - ValueError: If the input data is not valid.<br/>
+             - Exception: If there is an error while executing the SQL queries.<br/>
+             - SqlAlchemyError: If there is an error while executing the SQL queries.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

@@ -10,7 +10,6 @@ from decouple import config
 from datetime import datetime
 from pathlib import Path
 import uuid
-from typing import List
 
 
 
@@ -82,6 +81,31 @@ class CryptoUserKYCController(APIController):
     @auth('userauth')
     @get()
     async def get_UserKyc(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            Get all crypto user's KYC.<br/>
+            This function retrieves all crypto user's KYC data based on the user's identity. It requires an admin authorization.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing user identity and other information.<br/>
+                - limit (int): The number of rows to be returned. Default is 10.<br/>
+                - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, message, and user's KYC data.<br/>
+                - total_row_count (int): The total number of user's KYC available.<br/><br/>
+
+            Raises:<br/>
+                - 400: Bad Request.<br/>
+                - 500: Server Error.<br/>
+                - 401: Unauthorized.<br/>
+                - 404: Not Found.<br/><br/>
+
+            Error messages:<br/>
+                - 400: Bad Request.<br/>
+                - 500: Server Error.<br/>
+                - 401: Unauthorized.<br/>
+                - 404: Not Found.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -207,6 +231,21 @@ class SearchCryptoUserController(APIController):
     @auth('userauth')
     @get()
     async def seacrh_crypto_user(request: Request, query: str = ''):
+        """
+            This API Endpoint is responsible for searching for crypto/fiat users based on various criteria.
+            Admin can access this endpoint.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user identity.<br/>
+                - query (str): The search query. Default is an empty string.<br/><br/>
+
+            Returns:<br/>
+                - JSON: Json response containing the success message, user data, and KYC data.<br/><br/>
+
+            Error message:<br/>
+                - 500: Server Error.<br/>
+                - 400: Bad Request.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity    = request.identity

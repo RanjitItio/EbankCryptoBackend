@@ -171,6 +171,32 @@ class CryptoSellController(APIController):
     @auth('userauth')
     @post()
     async def create_cryptoSell(self, request: Request, schema: SellUserCryptoSchema):
+        """
+            This API Endpoint will create a new Crypto Sell Transaction with the specified schema.
+
+            Parameters:<br/><br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - schema(SellUserCryptoSchema): The schema object containing the crypto wallet id, wallet id, selling quantity, and converted amount.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, msg, or error details.<br/>
+                - HTTP Status Code: 200 if successful, 400 if invalid request data, or 500 if an error occurs.<br/><br/>
+            
+            Error Messages:<br/>
+                - Invalid request data: If the request data does not match the SellUserCryptoSchema.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Insufficient fund: If the user does not have enough balance in the crypto wallet.<br/>
+                - Crypto wallet has not approved: If the crypto wallet has not been approved by the admin.<br/>
+                - Invalid wallet: If the wallet id provided does not match any wallet in the system.<br/>
+                - Error 400: 'Invalid request data'<br/>
+                - Error 500: 'Server Error'<br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+                - ValueError: If the form data is invalid.<br/><br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -291,6 +317,31 @@ class CryptoTransactionControlller(APIController):
     @auth('userauth')
     @get()
     async def get_cryptoTransactions(self, request: Request, limit: int = 4, offset: int = 0):
+        """
+            This API Endpoint will return all crypto transactions in descending order.
+            The transactions are ordered by transaction_id in descending order.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing identity and other relevant information.<br/>
+                - limit(int, optional): The maximum number of transactions to return per page. Default is 4.<br/>
+                - offset(int, optional): The number of transactions to skip before starting to retrieve logs. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON response containing the following keys:<br/> 
+                - success(bool): A boolean indicating whether the operation was successful.<br/>
+                - crypto_transactions(list): A list of dictionaries, each representing a transaction.<br/>
+                - total_row_count(int): The total number of transactions available for the user.<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 401: 'error': 'Unauthorized'.<br/>
+                - Error 404: 'error': 'No transaction available'.<br/>
+                - Error 500: 'error': 'Server Error'.<br/><br/>
+
+            Error Messages:<br/>
+                - Error 404: 'error': 'No transaction available'.<br/>
+                - Error 500: 'error': 'Server Error'.<br/><br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 
@@ -428,6 +479,27 @@ class UserCryptoTransactionFilterController(APIController):
     @auth('userauth')
     @post()
     async def filter_userCryptoTransaction(self, request: Request, schema: UserFilterCryptoTransactionSchema, limit: int = 5, offset: int = 0):
+        """
+            This API Endpoint filter all crypto transactions according to the specified schema(dateRange, transactionType, status, crypto, start_date, end_date) and returns paginated results.<br/><br/>
+
+            Parameters:<br/>
+                - limit: Number of transactions to return per page (default: 5).<br/>
+                - offset: Number of transactions to skip before returning results (default: 0).<br/>
+                - schema: UserFilterCryptoTransactionSchema: Schema to filter crypto transactions (default: None).<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON object containing the filtered crypto transactions.<br/>
+                - HTTPException: If the request payload is invalid or if the user is not authenticated.<br/>
+                - HTTPStatus: 500 Internal Server Error if an error occurs.<br/><br/>
+            
+            Raises:<br/>
+                - HTTPException: If the request payload is invalid or if the user is not authenticated.<br/>
+                - HTTPStatus: 500 Internal Server Error if an error occurs.<br/><br/>
+
+            Error message:<br/>
+                - 401: Unauthorized.<br/>
+                - 500: Internal Server Error.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

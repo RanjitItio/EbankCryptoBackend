@@ -48,6 +48,9 @@ async def Set_Cookie(request: Request):
 
 @post('/api/upload-file/')
 async def file_upload(self, request: Request):
+    """
+        For testing purposes.
+    """
     files = await request.files()
 
     for part in files:

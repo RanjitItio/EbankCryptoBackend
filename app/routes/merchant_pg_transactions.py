@@ -19,6 +19,30 @@ import re
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/transactions/')
 async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset : int = 0):
+    """
+        Get all the merchant production transaction and transfer the Immature balance to Mature balance if settlement period completed.<br/><br/>
+        
+        Parameters:<br/>
+        - request (Request): Request object<br/>
+        - limit (int): The number of rows to be returned. Default is 15.<br/>
+        - offset (int): The offset of the rows to be returned. Default is 0.<br/><br/>
+        
+        Returns:<br/>
+        - JSON: A JSON response containing the list of PG Production transactions of merchant.<br/>
+        - total_row_count (int): The total number of rows available.<br/><br/>
+        - AdminmerchantPGTransactions(list): A list of transactions.
+        - success(bool): Whether transaction was successful.<br/>
+        - message (string): The transaction message.<br/><br/>
+        
+        Raises:<br/>
+        - Exception: If any error occurs during the database query or response generation.<br/>
+        - Error 401: 'error': 'Unauthorized Access'.<br/>
+        - Error 500: 'error': 'Server Error'.<br/><br/>
+        
+        Error Messages:<br/>
+        - Error 401: 'error': 'Unauthorized Access'.<br/>
+        - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -140,6 +164,44 @@ async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset
 @auth('userauth')
 @put('/api/admin/merchant/pg/transaction/update/')
 async def update_merchantPGTransaction(request: Request, schema: AdminMerchantProductionTransactionUpdateSchema):
+    """
+        This API Endpoint let Admin update Merchant Production transaction.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            schema (AdminMerchantProductionTransactionUpdateSchema): Schema object with data for updating transaction.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success message(Updated Successfully) and status 200.<br/><br/>
+
+        Raises:<br/>
+            - Unauthorized: If user is not authenticated as admin.<br/>
+            - BadRequest: If the payload data is invalid.<br/>
+            - HTTPException: If the request payload is invalid or if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 401 Unauthorized if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 400 Bad Request if the payload data is invalid.<br/>
+            - HTTPStatus: 500 Internal Server Error if there is an error in the server's processing.<br/>
+            - HTTPStatus: 404 Not Found if transaction not found.<br/><br/>
+
+        Error messages:<br/>
+            - 401: Unauthorized.<br/>
+            - 400: Bad Request.<br/>
+            - 404: Not Found.<br/>
+            - 500: Internal Server Error.<br/>
+            - 'error': 'Transaction not found' <br/>
+            - 'message': 'Provide transaction Fee'<br/>
+            - 'message': 'Can not add amount into frozen balance'<br/>
+            - 'message': 'Amount has been credited to Mature fund'<br/>
+            - 'message': 'Insufficient Immature Balance'<br/>
+            - 'message': 'Amount has been credited to Mature fund'<br/>
+            - 'message': 'Insufficient Immature Balance'<br/>
+            - 'message': 'Can not perform this action'<br/>
+            - 'message': 'Insufficient Frozen balance'<br/>
+            - 'message': 'Already added balance to Fronzen fund'<br/>
+            - 'message': 'Can not hold failed transaction'<br/>
+            - 'message': 'Can not hold pending transaction'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -195,7 +257,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     )))
             merchant_account_balance = merchant_account_balance_Obj.scalar()
 
-            ##############################
+            ###############################
             #### For Initiated Trasaction
             ###############################
             if merchant_transaction.status == 'PAYMENT_INITIATED':
@@ -215,6 +277,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 elif schema.status == 'PAYMENT_HOLD':
                     return json({'message': 'Can not add amount into frozen balance'}, 400)
 
+            
             ####################################
             ## For Already Success transaction ##
             #####################################
@@ -443,6 +506,25 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/export/transactions/')
 async def export_merchant_pg_production_transaction(request: Request):
+    """
+        Export all Merchant Production PG Production Transactions by Admin.<br/><br/>
+
+        Parameters:<br/>
+            request (Request): The incoming HTTP request.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing the list of Merchant Production PG Production Transactions.<br/>
+            `success`(boolean): The transaction succuess status.<br/>
+            `message`(string): The transaction message.<br/>
+            `ExportmerchantPGTransaction`(list): The list of Merchant Production PG Production Transactions.<br/><br/>
+
+        Raises:<br/>
+            Exception: If any error occurs during the database query or response generation.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -509,6 +591,23 @@ async def export_merchant_pg_production_transaction(request: Request):
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/sandbox/export/transactions/')
 async def export_merchant_pg_sandbox_transactions(request: Request):
+    """
+        This API endpoint is used to export all the Merchant Sandbox transactions by an admin.<br/><br/>
+
+        Parameters:<br/>
+            - request: HTTP Request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the exported Merchant Sandbox transactions, success status code.<br/><br/>
+
+        Error message:<br/>
+            - JSON: A JSON response indicating the success or failure of the operation.<br/>
+            - On success: {'success': True,'message': 'Transaction fetched successfuly', 'ExportmerchantPGSBTransaction': Exported data}.<br/>
+            - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/><br/>
+        
+        Raises:<br/>
+        - Exception: If any error occurs during the database query or response generation.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -569,10 +668,36 @@ async def export_merchant_pg_sandbox_transactions(request: Request):
     
 
 
+
+
 # Search Merchant Production transaction Transaction by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/prod/search/transactions/')
 async def search_merchant_pg_production_transactions(request: Request, query: str):
+    """
+        This API Endpoint let admin Search merchant pg transactions.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): Request object<br/>
+            - query (str): Search query<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the following keys:<br/>
+            - success (bool): A boolean indicating the success of the operation.<br/>
+            - admin_merchant_searched_prod_transactions (list): A list of dictionaries, each representing a transaction.<br/>
+            - message (str): An error message in case of any exceptions.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+            - Error 404: No Transaction Found<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+            - Error 404: No Transaction Found<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -748,6 +873,24 @@ async def search_merchant_pg_production_transactions(request: Request, query: st
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/distinct/transactions/')
 async def merchant_pg_transaction(request: Request, query: int, limit: int = 15, offset: int = 0):
+    """
+        Admin will be able to View PG Transaction transactions details of any specific merchant.<br/><br/>
+
+        Parameters:<br/>
+            request (Request): Request object<br/>
+            query (int): Merchant ID<br/>
+            limit (int, optional): Number of transactions per page. Defaults to 15.<br/>
+            offset (int, optional): Offset for pagination. Defaults to 0.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing the success status, all PG transaction details, and total row count.<br/>
+            If any error occurs, a JSON response with error status and error message is returned.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate admin
@@ -847,10 +990,38 @@ async def merchant_pg_transaction(request: Request, query: int, limit: int = 15,
     
 
 
+
+
+
 # Filter All production transaction
 @auth('userauth')
 @post('/api/v2/admin/filter/merchant/transaction/')
 async def filter_merchant_pg_production_transaction(request: Request, schema: AllTransactionFilterSchema, limit: int = 10, offset: int = 0):
+    """
+        Filter all production transaction based on the provided filters.<br/>
+        The filters are: date, transaction_id, transaction_amount, business_name, start_date, and end_date.
+        Returns paginated results.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (AllTransactionFilterSchema): The schema object containing the filter parameters.<br/>
+            - limit (int): The maximum number of results to return. Default is 10.<br/>
+            - offset (int): The offset for pagination. Default is 0.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the following keys and values:<br/>
+            -'success': True if the operation was successful.<br/>
+            - 'AdminmerchantPGTransactions': A list of dictionaries containing details of filtered production transactions.<br/>
+            - 'paginated_count': The total number of pages based on the provided limit.<br/><br/>
+            
+        Raises:<br/>
+            - HTTPException: If the request payload is invalid or if the user is not authenticated.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/><br/>
+        
+        Error message:<br/>
+            - 401: Unauthorized.<br/>
+            - 500: Internal Server Error.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity

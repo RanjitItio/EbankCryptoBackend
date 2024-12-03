@@ -22,12 +22,34 @@ class AdminUserFiatTransactionController(APIController):
     
     @classmethod
     def class_name(cls):
-        return "User wise Transaction"
+        return "Admin FIAT Transaction"
 
 
     @auth('userauth')
     @get()
-    async def get_userTransaction(self, request: Request, query: int, limit: int = 5, offset: int = 0):
+    async def get_Admin_UserFIATTransaction(self, request: Request, query: int, limit: int = 5, offset: int = 0):
+        """
+            This API Endpoint will return a list of all FIAT Deposit and Transfer transactions for a specific user.<br/><br/>
+
+            Params:<br/>    
+                - request(Request): The `request` parameter represents the HTTP request object<br/>
+                - query(int): The `query` parameter represents the user_id<br/>
+                - limit(int, optional): The number of transactions to retrieve. Default is 5<br/>
+                - offset(int, optional): The number of transactions to skip before starting to retrieve records. Default is 0<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, message, and a list of transaction data<br/>
+                - HTTP Status Code: 200 if successful, 401 if admin authentication failed, or 500 if server error occurs<br/><br/>
+
+            Error Messages:<br/>
+                - Unauthorized: If the admin user is not authenticated<br/>
+                - Server Error: If an error occurs during the database operations<br/>
+                - Invalid user_id: If the user_id is not found<br/><br/>
+
+            Raise:<br/>
+                - HTTPException: If the request payload is invalid or if the admin is not authenticated<br/>
+                - HTTPStatus: 400 Bad Request if the request payload is invalid<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

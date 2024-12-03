@@ -10,6 +10,27 @@ from Models.models import Users
 @auth('userauth')
 @get('/api/admin/all-admin/')
 async def get_all_admin(self, request: Request):
+    """
+        Admin will be able to view all the admin users in the system.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: Returns a list of admin users.<br/>
+            - 'data': List of admin users<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 400: 'error': 'Only admin can view the Transactions'.<br/><br/>
+
+        Error Messages:<br/>
+            - Error 401: 'error': 'Unauthorized Access'.<br/>
+            - Error 400: 'error': 'Only admin can view the Transactions'.<br/>
+            - Error 404: 'error': 'No admin users available'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity   = request.identity

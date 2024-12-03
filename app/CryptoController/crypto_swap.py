@@ -34,6 +34,32 @@ class UserCryptoSwapController(APIController):
     @auth('userauth')
     @post()
     async def create_crypto_swap(self, request: Request, schema: CreateUserCryptoSwapTransactionSchema):
+        """
+            This API Endpoint will create a new Crypto Swap Transaction with the specified schema.<br/><br/>
+
+            Parameters:<br/><br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - schema(CreateUserCryptoSwapTransactionSchema): The schema object containing the crypto wallet id, wallet id, swap_amount, and converted_crypto.<br/><br/>
+            
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, message, or error details.<br/><br/>
+
+            Error Messages:<br/>
+                - Invalid From Wallet: If the From wallet does not exist.<br/>
+                - Invalid To Wallet: If the To wallet does not exist.<br/>
+                - Insufficient fund in account: If the From wallet does not have sufficient balance.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Error 400: 'Insufficient fund in account'<br/>
+                - Error 404: 'Invalid From Wallet' or 'Invalid To Wallet'<br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+                - ValueError: If the form data is invalid.<br/>
+                - Error 404: 'Requested transaction not found'<br/>
+                - Error 500: 'Server Error'<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -131,6 +157,26 @@ class UserCryptoSwapController(APIController):
     @auth('userauth')
     @get()
     async def get_cryptoSwap(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint will get all the Crypto Swap Transactions for the specified user.<br/><br/>
+
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing the user's identity.<br/>
+                - limit(int): The number of rows to be returned. Default is 10.<br/>
+                - offset(int): The offset of the rows to be returned. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the user_crypto_swap_transactions, success, message, and the paginated_rows.<br/><br/>
+            
+            Error Messages:<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Error 500: 'Server Error'<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+                - ValueError: If the form data is invalid.<br/>
+                - Error 404: 'Requested transaction not found'<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -212,7 +258,7 @@ class UserCryptoSwapFilterController(APIController):
     @classmethod
     def class_name(cls) -> str:
         return 'User Crypto Swap Filter Controller'
-    
+
     @classmethod
     def route(cls) -> str | None:
         return '/api/v2/user/filter/crypto/swap/'
@@ -220,6 +266,32 @@ class UserCryptoSwapFilterController(APIController):
     @auth('userauth')
     @post()
     async def filter_userCryptoSwap(self, request: Request, schema: UserFilterCryptoSwapSchema, limit: int = 10, offset: int = 0):
+        """
+           This API Endpoint is responsible for filtering users CryptoSwap transactions.<br/><br/>
+
+           Parameters:<br/>
+            - request (Request): The HTTP request object containing the payload data.<br/>
+            - schema (UserFilterCryptoSwapSchema): The schema object containing the validated data.<br/>
+            - limit (int, optional): The maximum number of records to return. Defaults to 10.<br/>
+            - offset (int, optional): The number of records to skip before starting to return records. Defaults to 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the following keys and values:<br/>
+                -'success': True if the operation was successful.<br/>
+                - 'user_filter_crypto_swap_transactions': A list of dictionaries containing transaction details.<br/>
+                - 'paginated_count': The total number of pages based on the limit.<br/><br/>
+
+            Raises:
+                - HTTPException: If the user is not authorized to access the admin functionality.<br/>
+                - HTTPException: If the payload data is not valid or if the date_time field is not in the correct format.<br/><br/>
+
+            Error Messages:<br/>
+                - 'Invalid payload data': If the payload data is not valid.<br/>
+                - 'Invalid date range': If the start_date and end_date fields are not in the correct format.<br/>
+                - 'Invalid status': If the status field is not in the valid status list.<br/>
+                - 'Server Error': If any other error occurs.<br/>
+                - 'No data found': If no transaction is found based on the provided filters.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

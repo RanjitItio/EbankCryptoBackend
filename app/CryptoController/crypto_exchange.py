@@ -3,7 +3,6 @@ from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth
 from blacksheep import json, Request
 from sqlmodel import select, desc, func, and_
-from sqlalchemy.orm import aliased
 from database.db import AsyncSession, async_engine
 from Models.crypto import CryptoExchange, CryptoWallet
 from Models.models import Wallet
@@ -32,6 +31,29 @@ class UserCryptoExchangeController(APIController):
     @auth('userauth')
     @post()
     async def create_cryptoExchange(self, request: Request, schema: UserCreateCryptoExchangeSchema):
+        """
+            This API Endpoint will create a new Crypto Exchange Transaction with the specified schema.<br/><br/>
+
+            Parameters:<br/>
+             - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+             - schema(UserCreateCryptoExchangeSchema): The schema object containing the crypto wallet id, wallet id, exchange_amount, and converted_amount.<br/><br/>
+
+             Returns:<br/>
+             - JSON: A JSON response containing the success status, msg, or error details.<br/>
+             - HTTP Status Code: 200 if successful, 400 if invalid request data, or 500 if an error occurs.<br/><br/>
+
+             Error Messages:<br/>
+             - Invalid request data: If the request data does not match the UserCreateCryptoExchangeSchema.<br/>
+             - Server Error: If an error occurs during the database operations.<br/>
+             - Invalid Crypto Wallet: If the crypto wallet id provided does not match any wallet in the system.<br/>
+             - Invalid FIAT Wallet: If the fiat wallet id provided does not match any wallet in the system.<br/>
+             - Insufficient balance in Account: If the user does not have enough balance in the crypto wallet.<br/><br/>
+
+             Raises:<br/>
+              - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+              - SQLAlchemyError: If there is an error during database operations.<br/>
+              - Exception: If any other unexpected error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -131,6 +153,27 @@ class UserCryptoExchangeController(APIController):
     @auth('userauth')
     @get()
     async def get_cryptoExchange(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint will retrieve all the Crypto Exchange Transactions of the specified user.<br/><br/>
+            
+            Parameters:<br/>
+                - request(Request): The HTTP request object containing the user's identity and payload data.<br/>
+                - limit(int, optional): The number of transactions to retrieve per page. Default is 10.<br/>
+                - offset(int, optional): The number of transactions to skip before starting to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, msg, and data.<br/>
+                - HTTP Status Code: 200 if successful, 401 if the user is not authenticated, or 500 if an error occurs.<br/><br/>
+
+            Error Messages:<br/>
+                - Unauthorized: If the user is not authenticated.<br/>
+                - Server Error: If an error occurs during the database operations.<br/><br/>
+            
+            Raises:<br/><br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/><br/>
+          """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -220,6 +263,30 @@ class UserFilterCryptoExchangeController(APIController):
     @auth('userauth')
     @post()
     async def filter_userCryptoExchange(self, request: Request, schema: UserFilterCryptoExchangeSchema, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint filter user's Crypto Exchange Transaction.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing user identity and other information.<br/>
+                - schema (UserFilterCryptoExchangeSchema): The schema containing the filter criteria.<br/>
+                - limit (int, optional): The number of transactions to retrieve per page. Default is 10.<br/>
+                - offset (int, optional): The number of transactions to retrieve per page. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, data and availale rows in db.<br/>
+                - HTTP Status Code: 200 if successful, 401 if the user is not authenticated, or 500 if an error occurs.<br/><br/>
+
+            Error Messages:<br/>
+                - Unauthorized: If the user is not authenticated.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+                - Error response status code 404: 'message': 'No data found'.<br/>
+                - Error response status code 404: 'message': 'Invalid FIAT Wallet'.<br/><br/>
+
+            Raises:<br/>
+                - BadRequest: If the request data is invalid or the file data is not provided.<br/>
+                - SQLAlchemyError: If there is an error during database operations.<br/>
+                - Exception: If any other unexpected error occurs.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

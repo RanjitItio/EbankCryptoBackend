@@ -13,6 +13,30 @@ from datetime import datetime
 @auth('userauth')
 @post('/api/v5/admin/pipe/new/')
 async def Admin_pipe_create(request: Request, schema: AdminPipeCreateSchema):
+    """
+        This API let the Admin create a new pipe.<br/><br/>
+
+        Parameters:<br/>
+          request: Request object<br/>
+          schema: AdminPipeCreateSchema<br/><br/>
+
+        Returns:<br/>
+          - JSON response with success status, message, or error details.<br/>
+          - JSON response with error status and message if an exception occurs.<br/>
+        
+        Error message:<br/>
+        - 'Admin authorization failed': If the user is not an admin.<br/>
+        - 'Admin authentication error': If there is an error during admin authentication.<br/>
+        - 'Pipe Name already exists': If the pipe has already been created.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+            - Error 401: 'error': 'Unauthorized'.<br/>
+            - Error 400: 'error': 'Bad Request'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+            - Error 403: 'error': 'Admin authorization failed'.<br/>
+            - Error 400: 'error': 'Bad Request'.<br/>
+    """
     try: 
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -170,10 +194,39 @@ async def Admin_pipe_create(request: Request, schema: AdminPipeCreateSchema):
     
 
 
-#Update Pipe by Admin
+
+
+
+# Update Pipe by Admin
 @auth('userauth')
 @put('/api/v5/admin/pipe/update/')
 async def Admin_pipe_update(request: Request, schema: AdminPipeUpdateSchema):
+    """
+        This API Endpoint let admin update the pipe details.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): HTTP request object.<br/>
+            - schema (AdminPipeUpdateSchema): The schema for updating the pipe details.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response indicating the success or failure of the operation.<br/>
+            - On success, returns a 200 status code with a message indicating that the pipe details have been updated.<br/><br/>
+
+        Error message:<br/>
+            - 'msg': 'Unauthorized'<br/>
+            - 'msg': 'Admin authorization failed'<br/>
+            - 'msg': 'Admin authentication error'<br/>
+            - 'msg': 'Requested pipe not found'<br/>
+            - 'msg': 'Pipe fetch error'<br/>
+            - 'msg': 'Server error'<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+            - Error 401: 'Unauthorized'.<br/>
+            - Error 403: 'Admin authorization failed'.<br/>
+            - Error 400: 'Bad Request'.<br/>
+            - Error 500: 'Server Error'.<br/>
+    """
     try: 
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -331,10 +384,36 @@ async def Admin_pipe_update(request: Request, schema: AdminPipeUpdateSchema):
     
 
 
-#Delete Pipe by Admin
+# Delete Pipe by Admin
 @auth('userauth')
 @delete('/api/v5/admin/pipe/delete/')
 async def Admin_pipe_delete(request: Request, query: int):
+    """
+        Deletes a Pipe by an Admin.<br/>
+        <br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming request.<br/>
+            - query (int): The ID of the Pipe to be deleted.<br/><br/>
+        
+        Returns:<br/>
+            - JSON: A JSON response containing the status code 200 and a message indicating successful deletion if successful.<br/>
+            - JSON: A JSON response containing an error message and the HTTP status code if any error occured.<br/>
+<br/>
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - Unauthorized: If the user is not authenticated or if the user is not an admin.<br/><br/>
+
+        Error messages:<br/>
+            - Unauthorized: If the user is not authenticated or if the user is not an admin.<br/>
+            - Server Error: If an error occurs during the database query.<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+            - Error 404: Requested pipe not found<br/>
+            - Error 400: Bad Request<br/>
+            - Error 400: Pipe fetch error<br/>
+
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -399,10 +478,43 @@ async def Admin_pipe_delete(request: Request, query: int):
 
 
 
-#Get all pipe by Admin
+
+
+# Get all pipe by Admin
 @auth('userauth')
 @get('/api/v5/admin/pipes/')
-async def Admin_pipe(request: Request, limit: int = 15, offset: int = 0):
+async def Admin_pipes(request: Request, limit: int = 15, offset: int = 0):
+    """
+        Get all the available pipes.<br/>
+        This endpoint is only accessible by admin users.<br/><br/>
+
+        Parameters:<br/>
+            - limit (int): Number of records to return per page (default: 15).<br/>
+            - offset (int): The offset from which to start retrieving records (default: 0).<br/>
+            - request (Request): The HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the pipe data.<br/>
+            - HTTP Status Code: 200 if successful, 401 if unauthorized, or 403 if admin authorization failed.<br/>
+            - HTTP Status Code: 500 if an error occurs while fetching the data.<br/>
+            - HTTP Status Code: 400 if the request data is invalid.<br/>
+            - HTTP Status Code: 404 if the requested pipe does not exist.<br/><br/>
+
+        Error Messages:<br/>
+            - Unauthorized: If the user is not authenticated or does not have admin authorization.<br/>
+            - Admin Authorization Failed: If the user does not have admin authorization.<br/>
+            - Server Error: If an error occurs while executing the database query or response generation.<br/>
+            - Bad Request: If the request data is invalid.<br/>
+            - Not Found: If the requested pipe does not exist.<br/><br/>
+
+        Raises:<br/>
+           - Exception: If any other unexpected error occurs during the database query or response generation.<br/>
+            - Error 401: 'error': 'Unauthorized'.<br/>
+            - Error 500: 'error': 'Server Error'.<br/>
+            - Bad Request: 'error': 'Invalid request data'.<br/>
+            - Not Found: 'error': 'Pipe not found'.<br/>
+            - Error 400: 'error': 'Invalid request data'.<br/><br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -538,6 +650,25 @@ async def Admin_pipe(request: Request, limit: int = 15, offset: int = 0):
 @auth('userauth')
 @get('/api/v5/admin/search/pipe/')
 async def admin_pipe_search(request: Request, query: str):
+    """
+        Search pipe by Admin.<br/>
+        Parameters:<br/>
+            query (str): Search query for pipe details.<br/>
+            request (Request): HTTP request object.<br/><br/>
+
+        Returns:<br/>
+            JSON: A JSON response containing the following keys:<br/>
+                - all_searched_pipes_: all pipe details.<br/>
+                - success (bool): A boolean indicating the success of the operation.<br/>
+                - error (str): An error message in case of any exceptions.<br/><br/>
+                
+        Error message:<br/>
+            - Error 401: Unauthorized.<br/>
+            - Error 500: Server Error.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -763,6 +894,29 @@ async def admin_pipe_search(request: Request, query: str):
 @auth('userauth')
 @get('/api/v5/admin/pipe/data/')
 async def Admin_pipe(request: Request):
+    """
+        This route will get all pipes for the admin.<br/>
+        Admins can only view their own pipes.<br/><br/>
+
+        Parameters:<br/>
+            - limit (int): Number of records to return per page (default: 25).<br/>
+            - offset (int): The offset from which to start retrieving records (default: 0).<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON object containing the pipe data.<br/>
+            - HTTPException: If the request payload is invalid or if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 401 Unauthorized if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs while fetching the data.<br/><br/>
+
+        Raises:<br/>
+            - HTTPException: If the request payload is invalid or if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 401 Unauthorized if the user is not authenticated as admin.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs while fetching the data.<br/><br/>
+        
+        Error message:<br/>
+            - 401: Unauthorized.<br/>
+            - 500: Internal Server Error.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             admin_identity = request.identity
@@ -817,6 +971,23 @@ async def Admin_pipe(request: Request):
 @auth('userauth')
 @get('/api/v5/admin/export/pipe/')
 async def ExportMerchantPipes(request: Request):
+    """
+        This function exports pipe data for admin users after authentication.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The HTTP request object containing identity and other relevant information.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success status and the exported pipe data.<br/>
+            - JSON: A JSON response containing error status and error message if any.<br/><br/>
+
+        Raises:<br/>
+            - SqlAlchemyError: If there was an error while executing sql query.<br/>
+            - BadRequest: If there was an error in input data.<br/><br/>
+
+        Error message:<br/>
+            - 'error': 'Server Error' if any error occurs during the database query or response generation.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate Admin

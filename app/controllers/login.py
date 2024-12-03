@@ -26,7 +26,24 @@ class UserLoginController(APIController):
     
     @post()
     async def login_user(self, user: UserLoginSchema):
-        
+        """
+            Login user with given email and password.<br/><br/>
+
+            Parameters:<br/>
+                user (UserLoginSchema): An instance of UserLoginSchema containing the user's email and password.<br/><br/>
+            
+            Returns:<br/>
+                JSON response with access and refresh tokens if the login is successful.<br/>
+                JSON response with error message if the user is not available, unable to get the user, not an admin, or invalid credentials.<br/><br/>
+
+            Raises:<br/>
+                JSON response with error message if a SQLAlchemyError occurs.<br/><br/>
+
+            Error message:<br/>
+                'Only PG users allowed' if the user belongs to Crypto and FIAT Section.<br/>
+                'Your account is not active. Please contact the administrator': If the user account is not approved by Admin.<br/>
+                'Invalid credentials': If the user's email or password is incorrect.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 existing_user = await session.execute(select(Users).where(Users.email == user.email))

@@ -29,7 +29,29 @@ class TransferMoneyController(APIController):
     @post()
     async def send_money(self, transfer_data: TransferMoneySchema, request: Request):
         """
-          User will be able to Transfer amount to another user, Authenticated route.
+            This API Endpoint transfers money from user's wallet to another user's wallet and bank account.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user identity and payload data.<br/>
+                - transfer_data (TransferMoneySchema): The schema object containing the transfer details.<br/><br/>
+            
+            Returns:<br/>
+            - JSON response with success status 200 and msg if successful.<br/>
+            - JSON response with error status 400 and message if invalid request data.<br/>
+            - JSON response with error status 500 and message if an error occurs during database operations.<br/><br/>
+
+            Error message:<br/>
+              - Your account has been suspended please contact admin for Approval - if the user is suspended.<br/>
+              - Sender currency does not exist - if the sender currency does not exist.<br/>
+              - Receiver currency does not exist - if the receiver currency does not exist.<br/>
+              - Sender do not have wallet - if the sender does not have wallet.<br/>
+              - Sender donot have sufficient balance in wallet - if the sender does not have sufficient balance in wallet.<br/>
+              - Recipient email does not exist" - if the recipient does not.<br/>
+              - Recipient wallet not found - if the recipient does not have wallet.<br/><br/>
+
+            Raise:<br/>
+                - BadRequest - if the request is invalid.<br/>
+                - InternalServerError - if an error occurs during database operations.<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -77,7 +99,6 @@ class TransferMoneyController(APIController):
                 if sender_wallet_obj.balance < transfer_data.total_amount:
                         return json({'message': 'Sender donot have sufficient balance in wallet'}, 403)
                 
-
                 #===========================================
                 # If the recipient payment method is wallet
                 #===========================================
@@ -94,15 +115,19 @@ class TransferMoneyController(APIController):
                     
                     # Receiver wallet
                     recipient_wallet     = await session.execute(select(Wallet).where(
-                        Wallet.user_id == recipient_obj.id and Wallet.currency_id == receiver_currency_obj.id
+                        and_(
+                            Wallet.user_id     == recipient_obj.id, 
+                            Wallet.currency_id == receiver_currency_obj.id
+                            )
                         ))
-                    recipient_wallet_obj = recipient_wallet.scalars().first()
+                    recipient_wallet_obj = recipient_wallet.scalar()
 
                     if not recipient_wallet_obj:
-                        return json({'msg': 'Recipient wallet not found'}, 404)
+                        return json({'message': 'Recipient wallet not found'}, 404)
                     
-                    if sender_wallet_obj.id == recipient_wallet_obj.id:
-                        return json({'msg': 'Cannot transfer to same wallet'}, 404)
+                    ## If sender and receiver are the same
+                    if recipient_obj.id == user_obj.id:
+                        return json({'message': 'Cannot transfer to same wallet'}, 404)
                     
 
                     addtransection = TransferTransaction(
@@ -125,10 +150,10 @@ class TransferMoneyController(APIController):
                     await session.commit()
                     await session.refresh(addtransection)
 
-                    return json({'msg': 'Transafer Successfull please wait for Admin Approval'}, 200)
+                    return json({'msg': 'Transfer Successfull please wait for Admin Approval'}, 200)
                 
                 #===========================================
-                # If the recipient payment method is other than Wallet
+                # If the recipient payment method is other than Bank
                 #===========================================
                 else:
 

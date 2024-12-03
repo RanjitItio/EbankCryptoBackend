@@ -30,6 +30,29 @@ class AdminFiatAllTransactionsController(APIController):
     @auth('userauth')
     @get()
     async def get_all_userTransaction(self, request: Request, limit: int = 5, offset: int = 0):
+        """
+            This API Endpoint returns all Fiat Deposit and Transfer Transaction.<br /><br />
+
+            Parameters:<br />
+                - request(Request): The HTTP request object containing the user's identity.<br />
+                - limit(int): The number of rows to be returned. Default is 5.<br />
+                - offset(int): The offset of the rows to be returned. Default is 0.<br /><br />
+
+            Returns:<br />
+                - JSON: A JSON response containing the success status, message, and data.<br />
+                - HTTP Status Code: 200 if successful, 401 if the user is not authenticated, or 500 if an error occurs.<br />
+                - HTTP Status: 400 if the request data is invalid.<br />
+                - HTTP Status: 500 Internal Server Error if an error occurs.<br /><br />
+
+            Error Messages:<br />
+            - Unauthorized: If the user is not authenticated.<br />
+            - Server Error: If an error occurs during the database operations.<br /><br />
+
+            Raises:<br />
+            - HTTPException: If the user is not authenticated or if the transaction ID does not exist.<br />
+            - HTTPStatus: 401 Unauthorized if the user is not an admin.<br />
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br />
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 # Authenticate user

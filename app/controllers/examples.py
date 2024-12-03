@@ -7,6 +7,9 @@ import time
 
 @post('/api/test/date/')
 async def test_api(self, request: Request):
+    """
+        For testing purposes.
+    """
     try:
         async with AsyncSession(async_engine) as session:
 
@@ -33,4 +36,5 @@ async def test_api(self, request: Request):
 
 @post('/api/example/redirect/')
 async def test_redirection(self, request: Request):
+    """For testing"""
     return redirect('http://localhost:5173/merchant/payment/success/')

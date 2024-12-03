@@ -29,7 +29,23 @@ class UserFiatWithdrawalController(APIController):
     @post()
     async def withdrawal_fiat_amount(self, request: Request, schema: FiatUserWithdrawalSchema):
         """
-            Raise Withdrawal Request By Fiat User
+            This API Endpoint is responsible for creating withdrawal requests for users.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing the user's identity and payload data.<br/>
+                - schema (FiatUserWithdrawalSchema): The schema object containing the wallet_currency, withdrawalCurrency, withdrawalAmount, fee, and converted_credit_amt.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, message, or error details.<br/>
+                - HTTP Status Code: 200 if successful, 400 if invalid request data, or 500 if an error occurs.<br/><br/>
+
+            Error Messages:<br/>
+                - Error Response status code 400: "message": "Suspended User"<br/>
+                - Error Response status code 400: "message": "Invalid Wallet Currency"<br/>
+                - Error Response status code 400: "message": "User wallet does not exists"<br/>
+                - Error Response status code 400: "message": "Do not have Sufficient balance in Wallet"<br/>
+                - Error Response status code 400: "message": "Invalid withdrawal Currency"<br/>
+                - Error Response status code 400: "message": "Server Error"<br/>
         """
         try:
             async with AsyncSession(async_engine) as session:
@@ -122,6 +138,23 @@ class UserFiatWithdrawalController(APIController):
     @auth('userauth')
     @get()
     async def get_all_fiat_withdrawal(self, request: Request, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint will return all fiat withdrawal requests of users.
+            <br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing the user's identity and pagination information.<br/>
+                - limit (int): The number of rows to be returned per page. Default value is 10.<br/>
+                - offset (int): The starting index of the rows to be returned. Default value is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, message, and withdrawal requests data.<br/>
+                - HTTP Status Code: 200 if successful, 400 if invalid request data, or 500 if an error occurs.<br/><br/>
+
+            Error Messages:<br/>
+                - Error Response status code 400: "message": "No Withdrawal found"<br/>
+                - Error Response status code 500: "error": "Server Error"<br/><br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -215,7 +248,7 @@ class UserFilterFiatWithdrawalController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return 'User FIAT Withdrawal Controller'
+        return 'Filter User FIAT Withdrawal Controller'
     
 
     @classmethod
@@ -227,6 +260,30 @@ class UserFilterFiatWithdrawalController(APIController):
     @auth('userauth')
     @post()
     async def filter_fiatWithdrawal(self, request: Request, schema: UserFilterFIATWithdrawalSchema, limit: int = 10, offset: int = 0):
+        """
+            This API Endpoint will filter Fiat withdrawals based on the specified schema.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The request object containing user identity and other information.<br/>
+                - schema (UserFilterFIATWithdrawalSchema): The schema containing the filter criteria.<br/>
+                - limit (int, optional): The number of withdrawals to retrieve per page. Default is 10.<br/>
+                - offset (int, optional): The number of withdrawals to skip before starting to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response containing the success status, a list of withdrawal data, and the total number of pages.<br/>
+                - paginated_count (int): The total number of pages available for the filtered withdrawals.<br/>
+                - user_filtered_fiat_withdrawal: All the filtered withdrawal data.<br/>
+                - success - True if successful.<br/><br/>
+
+            Error message:<br/>
+               Error Response status code 404 - "message": "No data found"<br/>
+               Error Response status code 500 - "error": "Server Error"<br/><br/>
+
+            Raises:<br/>
+                - ValueError: If the input data is not valid.<br/>
+                - Exception: If there is an error while executing the SQL queries.<br/>
+                - SqlAlchemyError: If there is an error while executing the SQL queries.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

@@ -13,6 +13,27 @@ from sqlmodel import select, and_, desc
 @auth('userauth')
 @get('/api/v6/merchant/dash/stats/{currency}')
 async def get_merchantDashStats(request: Request, currency: str):
+    """
+        This function retrieves and calculates various statistics for a merchant's dashboard.<br/>
+        Which Include refunds, Account balances, Mature balance, Immature balance, Withdrawal balance, Pending withdrawal balance.<br/><br/>
+    
+        Parameters:<br/>
+            - request (Request): The request object containing user identity and other relevant information.<br/>
+            - currency (str): The currency for which the statistics are to be retrieved.<br/><br/>
+    
+        Returns:<br/>
+            - json: A JSON response containing success status(200), and the statistics data(stats_data).<br/>
+            - JSON: A JSON response containing error status and error message if any.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/><br/>
+        
+        Error messages:<br/>
+            - Unauthorized: If the user is not authenticated.<br/>
+            - Server Error: If an error occurs while executing the database query.<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             #Authenticate user
@@ -119,7 +140,27 @@ async def get_merchantDashStats(request: Request, currency: str):
 # Get recent 15 merchant Transactions
 @auth('userauth')
 @get('/api/v6/merchant/recent/transactions/')
-async def get_merchantDashStats(request: Request):
+async def get_merchantRecentTransactions(request: Request):
+    """
+        This API endpoint is used to get recent transactions made by a merchant.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): Request object<br/>
+            - limit (int, optional): Number of transactions to return. Default is 5.<br/>
+            - offset (int, optional): Offset for pagination. Default is 0.<br/><br/>
+
+        Returns:<br/>
+            - JSON: A JSON response containing the success status and recent transactions(recent_transactions).<br/>
+            - HTTP Status Code: 200 if successful, 401 if the user is not authenticated, or 500 if an error occurs.<br/><br/>
+
+        Error Messages:<br/>
+            - Unauthorized: If the user is not authenticated.<br/>
+            - Server Error: If an error occurs during the database operations.<br/><br/>
+
+        Raises:<br/>
+            - HTTPException: If the request payload is invalid or if the user is not authenticated.<br/>
+            - HTTPStatus: 500 Internal Server Error if an error occurs.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -155,10 +196,31 @@ async def get_merchantDashStats(request: Request):
     
 
 
+
+
 # Merchant dashboard success transaction and withdrawal transaction chart
 @auth('userauth')
 @get('/api/v6/merchant/dash/transaction/withdrawal/refund/chart/')
 async def merchant_dashboardTransactionWithdrawalChart(request: Request, currency: str = None):
+    """
+        This function retrieves and calculates the total amounts of success transactions, withdrawals, and refunds for a merchant.
+        It can filter the results based on a specified currency.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The request object containing user identity and other relevant information.<br/>
+            - currency (str, optional): The currency for which the transactions need to be filtered. If not provided, all currencies are considered.<br/><br/>
+
+        Returns:<br/>
+            - JSON response containing the total amounts of success transactions, withdrawals, and refunds.<br/>
+            - If an exception occurs during the process, it returns a JSON response with an error message.<br/><br/>
+
+        Error Messages:<br/>
+            Error response status 500 - 'error': 'Server error'.<br/>
+            Error response status 400 - 'error': 'Invalid request data'.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database operations or processing.<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user

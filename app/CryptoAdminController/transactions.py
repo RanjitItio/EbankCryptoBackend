@@ -29,6 +29,24 @@ class CryptoBuyController(APIController):
     @auth('userauth')
     @put()
     async def update_cryptoDeposit(self, request: Request, schema: AdminUpdateCryptoBuySchema):
+        """
+            Update the status of a crypto deposit transaction by an admin user.<br/>
+            This function authenticates the admin user, verifies the validity of the transaction and wallets,
+            and updates the transaction status and wallet balances accordingly.<br/>
+            This function allows an admin to update the status of a crypto deposit transaction.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The incoming HTTP request object containing user identity information.<br/>
+            - schema (AdminUpdateCryptoBuySchema): The schema containing the crypto_buy_id and the new status.<br/><br/>
+
+            Returns:<br/>
+            - JSON response with success or error message, along with HTTP status code.<br/><br/>
+
+            Error message:<br/>
+                JSON: A JSON response indicating the success or failure of the operation.<br/>
+                - On success: {'success': True, 'message': 'Updated Successfully'}<br/>
+                - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -148,6 +166,31 @@ class CryptoSellController(APIController):
     @auth('userauth')
     @put()
     async def update_cryptoSell(self, request: Request, schema: AdminUpdateCryptoSellSchema):
+        """
+            This function allows an admin to update the status of a crypto sell transaction.<br/>
+            This function authenticates the admin user, verifies the validity of the transaction and wallets,
+            and updates the transaction status and wallet balances accordingly.<br/><br/>
+            
+            Parameters:<br/>
+                - request (Request): The HTTP request object containing the user's identity.<br/>
+                - schema (AdminUpdateCryptoSellSchema): The schema containing the crypto_sell_id and status to be updated.<br/><br/>
+
+            Returns:<br/>
+                - JSON: A JSON response indicating the success or failure of the operation.<br/>
+                - On success: {'success': True,'message': 'Updated Successfully'}<br/>
+                - On failure: {'message': 'Error message'} with appropriate HTTP status code.<br/><br/>
+
+            Error message:<br/>
+                - Error 401: 'Unauthorized'<br/>
+                - Error 404: 'Invalid Transaction' or 'Invalid Crypto Wallet'<br/>
+                - Error 500: 'Server Error'<br/><br/>
+
+            Raises:<br/>
+                - Exception: If any error occurs during the database query or response generation.<br/>
+                - Error 401: 'Unauthorized'<br/>
+                - Error 404: 'Invalid Transaction' or 'Invalid Crypto Wallet'<br/>
+                - Error 500: 'Server Error'<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

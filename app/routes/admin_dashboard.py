@@ -14,6 +14,27 @@ from datetime import datetime, timedelta
 @auth('userauth')
 @get('/api/v6/admin/dash/pipe/transactions/')
 async def Admin_dashPipeTransactions(self, request: Request, currency: str = 'USD'):
+    """
+        This API fetches all the success transaction made through a pipe.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The request object containing user identity and other relevant information.<br/>
+            - currency (str): The currency for which the transactions need to be fetched.<br/><br/>
+
+         Returns:<br/>
+            - JSON response with the following structure:<br/>
+            - pipe_name (str): pipe name.<br/>
+            - currency (str): Transaction Currency.<br/>
+            - total_amount (float): Total transaction amount.<br/><br/>
+
+         Raises:<br/>
+            - Exception: If any error occurs during the database query or processing.<br/><br/>
+        
+         Error message:<br/>
+            - Error 401: Unauthorized Access<br/>
+            - Error 500: Server Error<br/>
+            - Error 404: No Transaction Found<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             user_identity = request.identity
@@ -68,6 +89,25 @@ async def Admin_dashPipeTransactions(self, request: Request, currency: str = 'US
 @auth('userauth')
 @get('/api/v6/admin/dash/income/stats/')
 async def Dashboard_Income_Outcome(request: Request):
+    """
+        Get the income and outcome for the Merchant dashboard section.<br/>
+        Admin authentication is required to access this endpoint.<br/><br/>
+
+        Parameters:<br/>
+            - request (Request): The incoming request object.<br/><br/>
+
+        Returns:<br/>
+            - JSON response with success status and dashboard data, including success transaction and withdrawal transaction, along with HTTP status code.<br/>
+            - JSON response with error status and message if any exceptions occur.<br/><br/>
+
+        Raises:<br/>
+            - Exception: If any error occurs during the database query or response generation.<br/>
+            - SQLAlchemy exception if there is any error during the database query or response generation.<br/><br/>
+
+        Error message:<br/>
+                - Error 401: 'Unauthorized'<br/>
+                - Error 500: 'error': 'Server Error'<br/>
+    """
     try:
         async with AsyncSession(async_engine) as session:
             # Authenticate user as admin

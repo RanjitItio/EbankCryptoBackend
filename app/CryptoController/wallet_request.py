@@ -26,6 +26,22 @@ class CryptoWalletController(APIController):
     @auth('userauth')
     @post()
     async def create_userWallet(self, request: Request, schema: CreateWalletRequestSchema):
+        """
+            This API Endpoint is responsible for creating a new crypto wallet for user in the system.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user identity and payload data.<br/>
+                - schema (CreateWalletRequestSchema): The schema object containing the crypto name.<br/><br/>
+            
+            Returns:<br/>
+            - JSON: Json response containing the success message and  a boolean value.<br/>
+            - Wallet already exists for given crypto: if the wallet already exists for the given user.<br/><br/>
+
+            Error message:
+                - 500: Server Error<br/>c
+                - 400: Bad Request<br/>
+                - 404: Wallet not found<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -70,6 +86,20 @@ class CryptoWalletController(APIController):
     @auth('userauth')
     @get()
     async def get_userWallets(self, request: Request, limit: int = 6, offset: int = 0):
+        """
+            This API Endpoint is responsible for retrieving all the crypto wallets requested by a user.<br/><br/>
+
+            Parameters:<br/>
+            - request (Request): The incoming request object containing user identity.<br/>
+            - limit (int): The maximum number of wallets to retrieve per page. Default is 6.<br/>
+            - offset (int): The number of wallets to skip before starting to retrieve. Default is 0.<br/><br/>
+
+            Returns:<br/>
+            - JSON: Json response containing the success message, user's crypto wallet data, and the total number of pages.<br/><br/>
+
+            Error message:<br/>
+            - 500: Server Error.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -117,6 +147,20 @@ class UserCryptoWalletsController(APIController):
     @auth('userauth')
     @get()
     async def get_userWallets(self, request: Request):
+        """
+            This function retrieves all the crypto wallets of a user.<br/><br/>
+            
+            Parameters:<br/>
+                - request (Request): The incoming request object containing user identity.<br/><br/>
+            
+            Returns:<br/>
+                - JSON response with success status 200 and user's crypto wallets if found.<br/>
+                - JSON response with error status 404 and message if no wallets found.<br/>
+                - JSON response with error status 500 and message if any exception occurs during the database operations.<br/><br/>
+
+            Error message:<br/>
+              - No wallets found - if the user does not have any wallets.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity
@@ -146,7 +190,7 @@ class UserCryptoWalletAdressController(APIController):
 
     @classmethod
     def class_name(cls) -> str:
-        return '''User's all crypto wallets'''
+        return "User's Crypto wallet Address"
     
     @classmethod
     def route(cls) -> str | None:
@@ -156,6 +200,20 @@ class UserCryptoWalletAdressController(APIController):
     @auth('userauth')
     @get()
     async def get_userWalletAddress(self, request: Request, crypto_wallet: int):
+        """
+            This function retrieves the wallet address of the specified crypto wallet of the user. It requires an authenticated user.<br/><br/>
+
+            Parameters:<br/>
+                - request (Request): The HTTP request object containing the user's identity.<br/>
+                - crypto_wallet (int): The ID of the crypto wallet to retrieve the address for.<br/><br/>
+            
+            Returns:<br/>
+                - JSON: A JSON response containing the wallet address and success status.<br/><br/>
+
+            Error Messages:<br/>
+                - Wallet not found: If the specified crypto wallet ID does not exist for the user.<br/>
+                - Server Error: If an error occurs during the database operations.<br/>
+        """
         try:
             async with AsyncSession(async_engine) as session:
                 user_identity = request.identity

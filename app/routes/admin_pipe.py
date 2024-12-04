@@ -713,7 +713,7 @@ async def admin_pipe_search(request: Request, query: str):
 
             # Search Pipe by status
             pipe_status_obj = await session.execute(select(PIPE).where(
-                PIPE.status == search_query
+                PIPE.status.ilike(f"%{search_query}")
             ))
             pipe_status = pipe_status_obj.scalars().all()
 
@@ -725,13 +725,13 @@ async def admin_pipe_search(request: Request, query: str):
 
             # Search Pipe by pipe name
             pipe_name_obj = await session.execute(select(PIPE).where(
-                PIPE.name == search_query
+                PIPE.name.ilike(f"%{search_query}")
             ))
             pipe_name = pipe_name_obj.scalars().all()
 
             # Search Pipe by pipe name
             pipe_process_mode_obj = await session.execute(select(PIPE).where(
-                PIPE.process_mode == search_query
+                PIPE.process_mode.ilike(f"%{search_query}")
             ))
             pipe_process_mode = pipe_process_mode_obj.scalars().all()
 

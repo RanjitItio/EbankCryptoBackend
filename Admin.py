@@ -15,7 +15,7 @@ async def CreateAdminUser():
             user_password = input("Enter Password: ").strip()
             first_name    = input("Enter your first name: ").strip()
             last_name     = input("Enter Last Name: ").strip()
-            phone_number  = input("Enter your Phone number: ").strip()
+            phone_number  = input("Enter your Mobile number: ").strip()
 
              # Validate email and password
             if not user_email:
@@ -43,6 +43,14 @@ async def CreateAdminUser():
 
             if existing_user:
                 return print("Email already exists")
+            
+            existing_user_number_obj = await session.execute(select(Users).where(
+                Users.phoneno == phone_number
+            ))
+            existing_user_number = existing_user_number_obj.scalars().first()
+
+            if existing_user_number:
+                return print("Mobile Number already exists")
             
             user_group     = await session.execute(select(Group).where(Group.name == 'Admin'))
             user_group_obj = user_group.scalars().first()

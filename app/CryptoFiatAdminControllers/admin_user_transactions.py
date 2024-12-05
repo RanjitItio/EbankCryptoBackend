@@ -22,7 +22,7 @@ class AdminUserFiatTransactionController(APIController):
     
     @classmethod
     def class_name(cls):
-        return "Admin FIAT Transaction"
+        return "User Wise All FIAT Transaction in Admin"
 
 
     @auth('userauth')
@@ -93,12 +93,12 @@ class AdminUserFiatTransactionController(APIController):
                 transfer_transaction = transfer_transaction_obj.scalars().all()
 
                 # Count Total rows of Deposit transactions
-                deposit_stmt         = select(func.count(DepositTransaction.id))
+                deposit_stmt         = select(func.count(DepositTransaction.id)).where(DepositTransaction.user_id == user_id)
                 execute_deposit_rows = await session.execute(deposit_stmt)
                 deposit_rows = execute_deposit_rows.scalar()
 
                 # Count Total transfer rows
-                transfer_stmt = select(func.count(TransferTransaction.id))
+                transfer_stmt = select(func.count(TransferTransaction.id)).where(TransferTransaction.user_id == user_id)
                 exe_transfer_rows = await session.execute(transfer_stmt)
                 transfer_rows     = exe_transfer_rows.scalar()
 
@@ -141,7 +141,8 @@ class AdminUserFiatTransactionController(APIController):
                             "user": {
                                 "first_name": user.first_name,
                                 "lastname": user.lastname,
-                                "id": user.id
+                                "id": user.id,
+                                "email": user.email,
                             },
                             "receiver": None
                             } for deposit, currency, user in deposit_data_combined

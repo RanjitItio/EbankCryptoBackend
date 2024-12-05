@@ -735,6 +735,12 @@ async def admin_pipe_search(request: Request, query: str):
             ))
             pipe_process_mode = pipe_process_mode_obj.scalars().all()
 
+            ### Search pipe by currency
+            pipe_currency_obj = await session.execute(select(Currency).where(
+                Currency.name.ilike(f"%{search_query}")
+            ))
+            pipe_currency = pipe_currency_obj.scalar()
+
 
             # Execute query with join statement
             stmt = select(
@@ -799,6 +805,9 @@ async def admin_pipe_search(request: Request, query: str):
 
             elif pipe_process_mode:
                 conditions.append(PIPE.process_mode.in_([nm.process_mode for nm in pipe_process_mode]))
+
+            elif pipe_currency:
+                conditions.append(PIPE.process_curr == pipe_currency.id)
 
 
             if conditions:

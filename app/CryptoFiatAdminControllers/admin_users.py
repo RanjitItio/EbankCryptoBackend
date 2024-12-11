@@ -124,7 +124,7 @@ class CryptoUserKYCController(APIController):
                     return json({'msg': 'Unable to get Admin detail','error': f'{str(e)}'}, 400)
                 #Authentication ends
 
-                count_stmt = select(func.count(Users.id)).where(Users.is_merchent == True)
+                count_stmt = select(func.count(Users.id)).where(and_(Users.is_merchent == False, Users.is_admin == False))
                 execute_statement = await session.execute(count_stmt)
                 total_available_user_row_obj = execute_statement.scalar()
 
@@ -135,7 +135,10 @@ class CryptoUserKYCController(APIController):
 
                 # Get all Users Data
                 all_user_obj = await session.execute(select(Users).where(
-                    Users.is_merchent == False
+                    and_(
+                        Users.is_merchent == False,
+                        Users.is_admin == False
+                        )
                 ).order_by(
                     desc(Users.id)).limit(limit).offset(offset)
                 )

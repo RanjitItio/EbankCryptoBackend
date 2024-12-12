@@ -18,7 +18,7 @@ import re
 # Get all the merchant production transactions by Admin
 @auth('userauth')
 @get('/api/v2/admin/merchant/pg/transactions/')
-async def get_merchant_pg_transaction(request: Request, limit : int = 15, offset : int = 0):
+async def get_merchant_pg_transaction(request: Request, limit : int = 10, offset : int = 0):
     """
         Get all the merchant production transaction and transfer the Immature balance to Mature balance if settlement period completed.<br/><br/>
         
@@ -483,6 +483,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             # To avoid greenlet spawn error
             if merchant_account_balance:
                 await session.refresh(merchant_account_balance)
+
 
             return json({
                 'success': True, 

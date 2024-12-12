@@ -415,7 +415,7 @@ async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandb
             if transactionID:
 
                 conditions.append(
-                    MerchantSandBoxTransaction.transaction_id == transactionID
+                    MerchantSandBoxTransaction.transaction_id.like(f"%{transactionID}%")
                 )
             
             ## Filter according to transaction Amount
@@ -428,7 +428,7 @@ async def filter_merchant_sandbox_transaction(request: Request, schema: AllSandb
             ## Filter according to business Name
             if business_name:
                 conditions.append(
-                    MerchantSandBoxTransaction.business_name == business_name
+                    MerchantSandBoxTransaction.business_name.ilike(f"%{business_name}%")
                 )
             
             ### IF data found

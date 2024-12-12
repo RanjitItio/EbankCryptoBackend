@@ -252,9 +252,9 @@ class MerchantAccountBalance(APIController):
                     return json({'error': 'No transaction available'}, 404)
 
                 # Calculate all the amount currency wise
-                usd_balance = sum(trans.amount for trans in merchant_transactions if trans.currency == 'USD')
+                usd_balance  = sum(trans.amount for trans in merchant_transactions if trans.currency == 'USD')
                 euro_balance = sum(trans.amount for trans in merchant_transactions if trans.currency == 'EUR')
-                inr_balance = sum(trans.amount for trans in merchant_transactions if trans.currency == 'INR')
+                inr_balance  = sum(trans.amount for trans in merchant_transactions if trans.currency == 'INR')
 
                 return json({
                         'success': True, 
@@ -266,6 +266,8 @@ class MerchantAccountBalance(APIController):
         except Exception as e:
             return json({'error': 'Server Error', 'message': f'{str(e)}'}, 500)
         
+
+
 
 # Export Merchant Transactions
 class ExportMerchantTransactions(APIController):

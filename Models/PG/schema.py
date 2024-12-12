@@ -32,6 +32,7 @@ class PGSandboxTransactionProcessSchema:
 @dataclass
 class PGMerchantPipeCheckoutSchema:
     merchant_public_key: str
+    transaction_id: str
 
 
 

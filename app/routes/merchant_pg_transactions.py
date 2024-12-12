@@ -222,12 +222,13 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             TransactionID = schema.transaction_id
             merchantID    = schema.merchant_id
 
-            # Get The Merchant Transaction
+            ## Get The Merchant Transaction
             try:
                 merchant_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
-                    and_(MerchantProdTransaction.transaction_id == TransactionID, 
+                    and_(
+                        MerchantProdTransaction.transaction_id == TransactionID, 
                         MerchantProdTransaction.merchant_id     == merchantID
-                        )
+                    )
                 ))
                 merchant_transaction = merchant_transaction_obj.scalar()
 
@@ -235,7 +236,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 return json({'error': 'Merchant Transaction error', 'message': f'{str(e)}'}, 400)
             
             
-            # If no transaction found with given details
+            ## If no transaction found with given details
             if not merchant_transaction:
                 return json({'error': 'Transaction not found'}, 404)
             
@@ -261,21 +262,12 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
             #### For Initiated Trasaction
             ###############################
             if merchant_transaction.status == 'PAYMENT_INITIATED':
-                
-                if schema.status == 'PAYMENT_SUCCESS':
-                    merchant_transaction.is_completd = True
-
-                    await CalculateMerchantAccountBalance(
-                        merchant_transaction.amount,
-                        merchant_transaction.currency, 
-                        merchant_transaction.transaction_fee, 
-                        merchant_transaction.merchant_id
-                    )
-                    session.add(merchant_transaction)
-
                 # Holding the payment
-                elif schema.status == 'PAYMENT_HOLD':
+                if schema.status == 'PAYMENT_HOLD':
                     return json({'message': 'Can not add amount into frozen balance'}, 400)
+                
+                else:
+                    return json({'message': 'Can not perform this action'}, 400)
 
             
             ####################################
@@ -286,6 +278,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                 # Reapproving the transaction
                 if schema.status == 'PAYMENT_SUCCESS':
                     return json({'message': 'Transaction already updated'}, 400)
+
                 
                 # Holding the payment
                 elif schema.status == 'PAYMENT_HOLD':
@@ -343,15 +336,18 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                             return json({'message': 'Amount has been credited to Mature fund'}, 400)
                         
                     return json({'message': 'Can not perform this action'}, 400)
+                
+                else:
+                    return json({'message': 'Can not perform this action'}, 400)
 
 
-                elif schema.status == 'PAYMENT_INITIATED':
+                # elif schema.status == 'PAYMENT_INITIATED':
 
-                    if merchant_transaction.pg_settlement_date:
-                        if current_datetime > merchant_transaction.pg_settlement_date:
-                            return json({'message': 'Amount has been credited to Mature fund'}, 400)
+                #     if merchant_transaction.pg_settlement_date:
+                #         if current_datetime > merchant_transaction.pg_settlement_date:
+                #             return json({'message': 'Amount has been credited to Mature fund'}, 400)
                     
-                    return json({"message": "Can not perform this action"}, 400)
+                #     return json({"message": "Can not perform this action"}, 400)
             
 
             ###################################
@@ -375,7 +371,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                             numeric_period         = re.findall(r'\d+', pipe_settlement_period)
 
                         else:
-                            pipe_settlement_period = '3 Days'
+                            pipe_settlement_period = '1 Days'
                             numeric_period         = re.findall(r'\d+', pipe_settlement_period)
 
                     else:
@@ -410,7 +406,6 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                         session.add(merchant_account_balance)
                         session.add(merchant_transaction)
 
-
                 # Holding the payment
                 elif schema.status == 'PAYMENT_HOLD':
                     return json({'message': 'Already added balance to Fronzen fund'}, 400)
@@ -431,12 +426,7 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                         session.add(merchant_account_balance)
                         session.add(merchant_transaction)
 
-
-                elif schema.status == 'PAYMENT_INITIATED':
-                    return json({'message': 'Can not perform this action'}, 400)
-                
-
-                elif schema.status == 'PAYMENT_PENDING':
+                else:
                     return json({'message': 'Can not perform this action'}, 400)
                 
 
@@ -457,10 +447,9 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
                     )
                     session.add(merchant_transaction)
 
-                # Holding the payment
-                elif schema.status == 'PAYMENT_HOLD':
-                    return json({'message': 'Can not hold failed transaction'}, 400)
-                
+                else:
+                    return json({'message': 'Can not perform this action'}, 400)
+
             
             ################################
             ## Already Pending Transactions
@@ -469,6 +458,10 @@ async def update_merchantPGTransaction(request: Request, schema: AdminMerchantPr
 
                 if schema.status == 'PAYMENT_HOLD':
                     return json({'message': 'Can not hold pending transaction'}, 400)
+                
+                else:
+                    return json({'message': 'Can not perform this action'}, 400)
+                
 
 
             # Update the transaction with details

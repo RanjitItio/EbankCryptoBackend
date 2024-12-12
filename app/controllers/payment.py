@@ -1,11 +1,10 @@
 from blacksheep import json, redirect, Request, FromForm, FromJSON
 from blacksheep.server.controllers import APIController
-from app.controllers.controllers import get, post
-from blacksheep.cookies import Cookie
+from app.controllers.controllers import post
 from dataclasses import dataclass
 from database.db import AsyncSession, async_engine
 from Models.Merchant.schema import MerchantFormTransaction
-from Models.models import BusinessProfile, MerchantTransactions, Currency
+from Models.models import BusinessProfile, Currency
 from sqlmodel import select
 
 
@@ -106,13 +105,13 @@ class MerchantPaymentController(APIController):
                 #Calculate Amount to be credited if the status is success
 
                 #Create merchant Transaction
-                merchant_transaction = MerchantTransactions(
-                    merchant = merchant_obj_data.id,
-                    product  = item,
-                    order_id = order_id,
-                    amount   = amount,
-                    currency = currency_obj_data.id
-                )
+                # merchant_transaction = MerchantTransactions(
+                #     merchant = merchant_obj_data.id,
+                #     product  = item,
+                #     order_id = order_id,
+                #     amount   = amount,
+                #     currency = currency_obj_data.id
+                # )
 
                 return json({'msg': 'Success'}, 200)
 

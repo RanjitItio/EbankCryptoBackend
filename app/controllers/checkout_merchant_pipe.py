@@ -1,7 +1,7 @@
 from blacksheep.server.controllers import APIController
 from database.db import AsyncSession, async_engine
 from blacksheep import pretty_json, Request
-from Models.models2 import MerchantPIPE, PIPE, PIPETypeAssociation, PIPEType
+from Models.models2 import MerchantPIPE, PIPE, MerchantProdTransaction
 from Models.models import UserKeys, Currency
 from sqlmodel import select, and_
 from Models.PG.schema import PGMerchantPipeCheckoutSchema
@@ -43,7 +43,10 @@ class MerchantPipes(APIController):
         """
         try:
             async with AsyncSession(async_engine) as session:
+
+                ### Get the payload data
                 merchant_public_key_schema = schema.merchant_public_key
+                transaction_id             = schema.transaction_id
 
                 # Decode the key
                 merchant_public_key_decode = base64_decode(merchant_public_key_schema)
@@ -67,6 +70,25 @@ class MerchantPipes(APIController):
                 except Exception as e:
                     return pretty_json({'error': 'Server error', 'error': f'{str(e)}'}, 500)
                 
+                #### Check the transaction has been Failed or not 
+                ###################################################
+                
+                ### Get the transaction of the user
+                merchant_prod_transaction_obj = await session.execute(select(MerchantProdTransaction).where(
+                    and_(
+                        MerchantProdTransaction.transaction_id == transaction_id,
+                        MerchantProdTransaction.merchant_id    == merchant_id
+                        )
+                ))
+                merchant_prod_transaction = merchant_prod_transaction_obj.scalar()
+
+                if not merchant_prod_transaction:
+                        return json({'error': 'Invalid Transaction'}, 404)
+                
+                if merchant_prod_transaction.status == 'PAYMENT_FAILED':
+                    return pretty_json({'error': 'Transaction failed'}, 400)
+                
+                ########################################################################
 
                 # Check for active Merchant assigned pipes
                 try:

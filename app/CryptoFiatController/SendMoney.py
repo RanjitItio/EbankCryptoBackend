@@ -1,4 +1,4 @@
-from Models.models import Users ,Wallet ,Transection ,Currency , ReceiverDetails
+from Models.models import Users ,Wallet ,Currency , ReceiverDetails
 from Models.models4 import TransferTransaction
 from blacksheep.server.controllers import APIController
 from blacksheep.server.authorization import auth

@@ -3,7 +3,7 @@ from Models.schemas import UserDeleteSchema, AdminUpdateUserSchema, AdminUserCre
 from blacksheep import FromJSON, Request, json, delete, put, get, post
 from database.db import AsyncSession, async_engine
 from app.auth import encrypt_password, send_email
-from Models.models import Users, Kycdetails, Transection, Wallet, Currency, TestModel, Group
+from Models.models import Users, Kycdetails, Wallet, Currency, TestModel, Group
 from blacksheep.server.authorization import auth
 from sqlmodel import select, and_, desc
 from datetime import datetime
@@ -97,19 +97,9 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
             except Exception as e:
                 return json({'msg': 'Kyc fetch error', 'error': f'{str(e)}'}, 400)
         
-            #Get all the transaction related to that user
-            try:
-                sender_transactions     = await session.execute(select(Transection).where(Transection.user_id == user_id))
-                sender_transactions_obj = sender_transactions.scalars().all()
-            except Exception as e:
-                return json({'msg': 'User transaction fetch error', 'error': f'{str(e)}'}, 400)
+   
 
-            #Get the users available Receiver transaction details
-            try:
-                receiver_transaction     = await session.execute(select(Transection).where(Transection.txdrecever == user_id))
-                receiver_transaction_obj = receiver_transaction.scalars().all()
-            except Exception as e:
-                return json({'msg': 'Receiver user fetch error', 'error': f'{str(e)}'}, 400)
+           
             
             #Get the wallets related to the user
             try:
@@ -117,19 +107,6 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
                 user_wallets_obj = user_wallets.scalars().all()
             except Exception as e:
                 return json({'msg': 'Wallet fetch error', 'error': f'{str(e)}'}, 400)
-            
-            #Delete the Transaction related to the Selected wallet
-            try:
-                for wallet in user_wallets_obj:
-                    user_selected_wallet     = await session.execute(select(Transection).where(Transection.wallet_id == wallet.id))
-                    user_selected_wallet_obj = user_selected_wallet.scalar_one_or_none()
-
-                    if user_selected_wallet_obj:
-                        await session.delete(user_selected_wallet_obj)
-                        await session.commit()
-
-            except Exception as e:
-                return json({'msg': 'Selected wallet Transaction error', 'error': f'{str(e)}'}, 500)
             
 
             if user_kyc_obj:
@@ -141,16 +118,6 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
                 except Exception as e:
                     return json({'msg': 'Error while deleting the user kyc', 'error': f'{str(e)}'}, 400)
         
-            if receiver_transaction_obj:
-                #Set the receiver field to None of Transactions
-                try:
-                    for receivers in receiver_transaction_obj:
-                        receivers.txdrecever = None
-
-                        session.add(receivers)
-                    await session.commit()
-                except Exception as e:
-                    return json({'msg': 'Receiver user error', 'error': f'{str(e)}'}, 404)
             
             if user_wallets_obj:
                 # Delete the Wallets
@@ -162,16 +129,7 @@ async def delete_user(self, request: Request, delete_user: FromJSON[UserDeleteSc
 
                 except Exception as e:
                     return json({'msg': 'wallet delete error', 'error': f'{str(e)}'}, 400)
-            
-            if sender_transactions_obj:
-                # Delete the Transactions
-                try:
-                    for transaction in sender_transactions_obj:
-                        await session.delete(transaction)
 
-                    await session.commit()
-                except Exception as e:
-                    return json({'msg': 'Transaction delete error', 'error': f'{str(e)}'}, 400)
             
             # Delete the user
             try:

@@ -431,7 +431,7 @@ class PaymentGatewayProductionAPI(APIController):
 
 
                 # Save the Merchant Sandbox Transaction details
-                exact_amount = amount/100
+                exact_amount = amount / 100
                 unique_transaction_id = generate_unique_id()
                 
                 # Save the transaction into database
